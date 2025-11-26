@@ -1,0 +1,67 @@
+// Cache simples em memória para reduzir queries ao banco
+class SimpleCache {
+    constructor(ttl = 5 * 60 * 1000) { // 5 minutos por padrão
+        this.cache = new Map();
+        this.ttl = ttl;
+    }
+
+    // Gerar chave de cache baseada nos parâmetros
+    generateKey(prefix, ...params) {
+        return `{078F3204-8602-4CB4-BC4E-CAAC475FEEA9}.png${prefix}:${params.join(':')}`;
+    }
+
+    // Obter valor do cache
+    get(key) {
+        const item = this.cache.get(key);
+        if (!item) {
+            return null;
+        }
+
+        // Verificar se expirou
+        if (Date.now() > item.expiresAt) {
+            this.cache.delete(key);
+            return null;
+        }
+
+        return item.value;
+    }
+
+    // Armazenar valor no cache
+    set(key, value, customTtl = null) {
+        const ttl = customTtl || this.ttl;
+        this.cache.set(key, {
+            value,
+            expiresAt: Date.now() + ttl
+        });
+    }
+
+    // Limpar cache específico ou todo o cache
+    clear(key = null) {
+        if (key) {
+            this.cache.delete(key);
+        } else {
+            this.cache.clear();
+        }
+    }
+
+    // Limpar cache expirado (garbage collection)
+    cleanup() {
+        const now = Date.now();
+        for (const [key, item] of this.cache.entries()) {
+            if (now > item.expiresAt) {
+                this.cache.delete(key);
+            }
+        }
+    }
+}
+
+// Instância global do cache
+const cache = new SimpleCache(5 * 60 * 1000); // 5 minutos
+
+// Limpar cache expirado a cada 10 minutos
+setInterval(() => {
+    cache.cleanup();
+}, 10 * 60 * 1000);
+
+module.exports = cache;
+

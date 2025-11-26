@@ -1,0 +1,285 @@
+import React, { useEffect, useState } from 'react';
+import { API_ENDPOINTS } from '../config/api';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+
+const Card = ({ title, children, className = "" }) => (
+    <div className={`bg-white rounded-xl shadow-sm border border-slate-200 p-6 overflow-hidden ${className}`}>
+        <h3 className="text-lg font-semibold text-slate-800 mb-4">{title}</h3>
+        {children}
+    </div>
+);
+
+const RecebimentoChart = ({ startDate = null, endDate = null }) => {
+    const [data, setData] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+    const [viewMode, setViewMode] = useState('month'); // 'month' ou 'day'
+
+    // Calcular primeiro e último dia do mês atual
+    const getCurrentMonthRange = () => {
+        const now = new Date();
+        const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+        const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+        return {
+            start: firstDay.toISOString().split('T')[0],
+            end: lastDay.toISOString().split('T')[0]
+        };
+    };
+
+    useEffect(() => {
+        const fetchData = async () => {
+            try {
+                setLoading(true);
+                setError(null);
+                const token = localStorage.getItem('token');
+                
+                // Adicionar parâmetros de data se fornecidos
+                const params = new URLSearchParams();
+                
+                // Se modo "dia" estiver ativo, usar mês atual
+                if (viewMode === 'day') {
+                    const monthRange = getCurrentMonthRange();
+                    params.append('startDate', monthRange.start);
+                    params.append('endDate', monthRange.end);
+                    params.append('groupBy', 'day');
+                } else {
+                    if (startDate) params.append('startDate', startDate);
+                    if (endDate) params.append('endDate', endDate);
+                    params.append('groupBy', 'month');
+                }
+                
+                const url = `${API_ENDPOINTS.dashboardData}${params.toString() ? '?' + params.toString() : ''}`;
+                const response = await fetch(url, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json',
+                    },
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to fetch recebimento data');
+                }
+
+                const result = await response.json();
+                
+                // Escolher fonte de dados baseado no modo de visualização
+                const recebimentoData = viewMode === 'day' 
+                    ? result.financial?.recebimentoPorDia 
+                    : result.financial?.recebimentoPorMes;
+                
+                if (recebimentoData) {
+                    const periodos = new Set();
+                    
+                    // Coletar todos os períodos únicos (meses ou dias)
+                    Object.values(recebimentoData).forEach(blocoData => {
+                        if (Array.isArray(blocoData)) {
+                            blocoData.forEach(item => {
+                                if (item && item.date) {
+                                    periodos.add(item.date);
+                                }
+                            });
+                        }
+                    });
+                    
+                    // Criar array combinado
+                    const combinedData = Array.from(periodos).sort().map(periodo => {
+                        const bloco1 = recebimentoData.bloco1?.find(d => d && d.date === periodo) || { valor_recebido: 0 };
+                        const bloco2 = recebimentoData.bloco2?.find(d => d && d.date === periodo) || { valor_recebido: 0 };
+                        const bloco3 = recebimentoData.bloco3?.find(d => d && d.date === periodo) || { valor_recebido: 0 };
+                        const wo = recebimentoData.wo?.find(d => d && d.date === periodo) || { valor_recebido: 0 };
+                        
+                        return {
+                            date: periodo,
+                            bloco1: parseFloat(bloco1.valor_recebido || 0),
+                            bloco2: parseFloat(bloco2.valor_recebido || 0),
+                            bloco3: parseFloat(bloco3.valor_recebido || 0),
+                            wo: parseFloat(wo.valor_recebido || 0),
+                            total: parseFloat(bloco1.valor_recebido || 0) + 
+                                   parseFloat(bloco2.valor_recebido || 0) + 
+                                   parseFloat(bloco3.valor_recebido || 0) + 
+                                   parseFloat(wo.valor_recebido || 0)
+                        };
+                    });
+                    
+                    setData(combinedData.length > 0 ? combinedData : []);
+                } else {
+                    setData([]);
+                }
+            } catch (err) {
+                console.error('Error fetching recebimento data:', err);
+                setError(err.message);
+                setData([]);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchData();
+    }, [viewMode]);
+
+    if (loading) {
+        return (
+            <Card title="Recebimento por Bloco">
+                <div className="flex items-center justify-center h-64">
+                    <div className="text-slate-500">Carregando dados...</div>
+                </div>
+            </Card>
+        );
+    }
+
+    if (error) {
+        return (
+            <Card title="Recebimento por Bloco">
+                <div className="flex items-center justify-center h-64">
+                    <div className="text-red-500">Erro ao carregar dados: {error}</div>
+                </div>
+            </Card>
+        );
+    }
+
+    if (!data || data.length === 0) {
+        return (
+            <Card title="Recebimento por Bloco">
+                <div className="flex items-center justify-center h-64">
+                    <div className="text-slate-500">Nenhum dado disponível</div>
+                </div>
+            </Card>
+        );
+    }
+
+    // Formatar valores para exibição
+    const formatCurrency = (value) => {
+        return new Intl.NumberFormat('pt-BR', {
+            style: 'currency',
+            currency: 'BRL',
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0
+        }).format(value);
+    };
+
+    return (
+        <Card title="Recebimento por Bloco" className="h-[420px]">
+            {/* Filtro de visualização */}
+            <div className="mb-4 flex items-center gap-2">
+                <span className="text-sm font-medium text-slate-600">Visualização:</span>
+                <button
+                    onClick={() => setViewMode('month')}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                        viewMode === 'month'
+                            ? 'bg-blue-600 text-white shadow-sm'
+                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    }`}
+                >
+                    Por Mês
+                </button>
+                <button
+                    onClick={() => setViewMode('day')}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                        viewMode === 'day'
+                            ? 'bg-blue-600 text-white shadow-sm'
+                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    }`}
+                >
+                    Por Dia (Mês Atual)
+                </button>
+            </div>
+            <div className="w-full" style={{ height: '384px', minHeight: '384px', position: 'relative' }}>
+                {data && data.length > 0 ? (
+                    <ResponsiveContainer width="100%" height={384}>
+                    <LineChart
+                        data={data}
+                        margin={{
+                            top: 10,
+                            right: 10,
+                            left: 10,
+                            bottom: 40,
+                        }}
+                    >
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                        <XAxis 
+                            dataKey="date" 
+                            axisLine={true} 
+                            tickLine={true} 
+                            tick={{ fill: '#64748b', fontSize: viewMode === 'day' ? 10 : 12 }} 
+                            stroke="#cbd5e1"
+                            height={60}
+                            angle={viewMode === 'day' ? -45 : -45}
+                            textAnchor="end"
+                            interval={viewMode === 'day' ? 'preserveStartEnd' : 0}
+                        />
+                        <YAxis 
+                            axisLine={true} 
+                            tickLine={true} 
+                            tick={{ fill: '#64748b', fontSize: 12 }} 
+                            stroke="#cbd5e1"
+                            tickFormatter={(value) => {
+                                if (value >= 1000000) return `R$ ${(value / 1000000).toFixed(1)}M`;
+                                if (value >= 1000) return `R$ ${(value / 1000).toFixed(0)}k`;
+                                return `R$ ${value}`;
+                            }}
+                        />
+                        <Tooltip
+                            contentStyle={{ backgroundColor: '#fff', borderRadius: '8px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                            formatter={(value) => formatCurrency(value)}
+                        />
+                        <Legend />
+                        <Line 
+                            type="monotone" 
+                            dataKey="bloco1" 
+                            name="Bloco 1" 
+                            stroke="#f59e0b" 
+                            strokeWidth={2} 
+                            dot={{ r: 4 }} 
+                            activeDot={{ r: 6 }}
+                        />
+                        <Line 
+                            type="monotone" 
+                            dataKey="bloco2" 
+                            name="Bloco 2" 
+                            stroke="#64748b" 
+                            strokeWidth={2} 
+                            dot={{ r: 4 }} 
+                            activeDot={{ r: 6 }}
+                        />
+                        <Line 
+                            type="monotone" 
+                            dataKey="bloco3" 
+                            name="Bloco 3" 
+                            stroke="#3b82f6" 
+                            strokeWidth={2} 
+                            dot={{ r: 4 }} 
+                            activeDot={{ r: 6 }}
+                        />
+                        <Line 
+                            type="monotone" 
+                            dataKey="wo" 
+                            name="WO" 
+                            stroke="#1e293b" 
+                            strokeWidth={2} 
+                            dot={{ r: 4 }} 
+                            activeDot={{ r: 6 }}
+                        />
+                        <Line 
+                            type="monotone" 
+                            dataKey="total" 
+                            name="Total" 
+                            stroke="#10b981" 
+                            strokeWidth={3} 
+                            strokeDasharray="5 5"
+                            dot={{ r: 5 }} 
+                            activeDot={{ r: 7 }}
+                        />
+                    </LineChart>
+                    </ResponsiveContainer>
+                ) : (
+                    <div className="flex items-center justify-center h-full">
+                        <div className="text-slate-500">Nenhum dado disponível</div>
+                    </div>
+                )}
+            </div>
+        </Card>
+    );
+};
+
+export default RecebimentoChart;
+

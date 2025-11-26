@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, LogOut } from 'lucide-react';
+import { LayoutDashboard, LogOut, BarChart3 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 const Sidebar = () => {
@@ -13,10 +13,19 @@ const Sidebar = () => {
         navigate('/login');
     };
 
+    const getPageTitle = () => {
+        const path = location.pathname;
+        if (path === '/') return 'Dashboard';
+        if (path === '/bloco1') return 'Bloco 1 - 61 a 90 dias';
+        if (path === '/bloco2') return 'Bloco 2 - 91 a 180 dias';
+        if (path === '/bloco3') return 'Bloco 3 - 181 a 360 dias';
+        return 'Dashboard';
+    };
+
     return (
         <div className="h-screen w-64 bg-slate-900 text-white flex flex-col fixed left-0 top-0">
             <div className="p-6 border-b border-slate-800">
-                <h1 className="text-2xl font-bold text-blue-500">Vuon</h1>
+                <h1 className="text-2xl font-bold text-blue-500">Vuon Card</h1>
                 <p className="text-xs text-slate-400">Resultados</p>
             </div>
 
@@ -27,6 +36,27 @@ const Sidebar = () => {
                 >
                     <LayoutDashboard size={20} />
                     <span className="font-medium">Dashboard</span>
+                </Link>
+                <Link
+                    to="/bloco1"
+                    className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${isActive('/bloco1') ? 'bg-blue-600 text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
+                >
+                    <BarChart3 size={20} />
+                    <span className="font-medium">Bloco 1</span>
+                </Link>
+                <Link
+                    to="/bloco2"
+                    className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${isActive('/bloco2') ? 'bg-blue-600 text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
+                >
+                    <BarChart3 size={20} />
+                    <span className="font-medium">Bloco 2</span>
+                </Link>
+                <Link
+                    to="/bloco3"
+                    className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${isActive('/bloco3') ? 'bg-blue-600 text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
+                >
+                    <BarChart3 size={20} />
+                    <span className="font-medium">Bloco 3</span>
                 </Link>
             </nav>
 
@@ -44,16 +74,24 @@ const Sidebar = () => {
 };
 
 const Layout = ({ children }) => {
+    const location = useLocation();
+    
+    const getPageTitle = () => {
+        const path = location.pathname;
+        if (path === '/') return 'Dashboard';
+        if (path === '/bloco1') return 'Bloco 1 - 61 a 90 dias';
+        if (path === '/bloco2') return 'Bloco 2 - 91 a 180 dias';
+        if (path === '/bloco3') return 'Bloco 3 - 181 a 360 dias';
+        return 'Dashboard';
+    };
+
     return (
         <div className="min-h-screen bg-slate-50">
             <Sidebar />
             <div className="ml-64">
                 <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 sticky top-0 z-10">
-                    <h2 className="text-lg font-semibold text-slate-800">Visão Geral</h2>
+                    <h2 className="text-lg font-semibold text-slate-800">{getPageTitle()}</h2>
                     <div className="flex items-center gap-4">
-                        <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold">
-                            VA
-                        </div>
                     </div>
                 </header>
                 <main className="p-8">
