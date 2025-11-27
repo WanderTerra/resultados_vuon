@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { API_ENDPOINTS } from '../config/api';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Line, ComposedChart } from 'recharts';
 import DateFilter from '../components/DateFilter';
+import Loading from '../components/Loading';
 
 const Card = ({ title, children, className = "" }) => (
     <div className={`bg-white rounded-xl shadow-sm border border-slate-200 p-6 overflow-hidden ${className}`}>
@@ -38,8 +39,8 @@ const ChartContainer = ({ title, data, compareData = null }) => {
 
     return (
         <Card title={title} className="h-96">
-            <div style={{ width: '100%', height: '100%', minHeight: '384px', padding: '0' }}>
-                <ResponsiveContainer width="100%" height="100%">
+            <div style={{ width: '100%', height: '384px', minHeight: '384px', position: 'relative' }}>
+                <ResponsiveContainer width="100%" height={384} minHeight={384} minWidth={0}>
                     <ComposedChart
                         data={chartData}
                     margin={{
@@ -116,15 +117,17 @@ const Bloco3 = () => {
         endDate: null,
         compareMode: false,
         compareStartDate: null,
-        compareEndDate: null
+        compareEndDate: null,
+        groupBy: 'month'
     });
 
-    const fetchBlocoData = async (startDate, endDate) => {
+    const fetchBlocoData = async (startDate, endDate, groupBy = 'month') => {
         try {
             const token = localStorage.getItem('token');
             const params = new URLSearchParams();
             if (startDate) params.append('startDate', startDate);
             if (endDate) params.append('endDate', endDate);
+            if (groupBy) params.append('groupBy', groupBy);
             
             // Usar rota específica do bloco 3 (otimizada)
             const url = `${API_ENDPOINTS.blocoData(3)}${params.toString() ? '?' + params.toString() : ''}`;
@@ -159,11 +162,11 @@ const Bloco3 = () => {
         const loadData = async () => {
             setLoading(true);
             try {
-                const mainData = await fetchBlocoData(filters.startDate, filters.endDate);
+                const mainData = await fetchBlocoData(filters.startDate, filters.endDate, filters.groupBy);
                 setDashboardData({ bloco3: mainData });
 
                 if (filters.compareMode && filters.compareStartDate && filters.compareEndDate) {
-                    const compareDataResult = await fetchBlocoData(filters.compareStartDate, filters.compareEndDate);
+                    const compareDataResult = await fetchBlocoData(filters.compareStartDate, filters.compareEndDate, filters.groupBy);
                     setCompareData({ bloco3: compareDataResult });
                 } else {
                     setCompareData(null);
@@ -176,14 +179,10 @@ const Bloco3 = () => {
         };
 
         loadData();
-    }, [filters]);
+    }, [filters.startDate, filters.endDate, filters.compareMode, filters.compareStartDate, filters.compareEndDate, filters.groupBy]);
 
     if (loading) {
-        return (
-            <div className="flex items-center justify-center h-64">
-                <div className="text-slate-500">Carregando dados...</div>
-            </div>
-        );
+        return <Loading message="Carregando dados do Bloco 3..." />;
     }
 
     if (error) {

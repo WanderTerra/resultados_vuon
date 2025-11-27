@@ -107,7 +107,7 @@ const ChartContainer = ({ title, data, compareData = null }) => {
     )
 }
 
-const Bloco2 = () => {
+const BlocoWO = () => {
     const [dashboardData, setDashboardData] = useState(null);
     const [compareData, setCompareData] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -129,8 +129,8 @@ const Bloco2 = () => {
             if (endDate) params.append('endDate', endDate);
             if (groupBy) params.append('groupBy', groupBy);
             
-            // Usar rota específica do bloco 2 (otimizada)
-            const url = `${API_ENDPOINTS.blocoData(2)}${params.toString() ? '?' + params.toString() : ''}`;
+            // Usar rota específica do bloco WO
+            const url = `${API_ENDPOINTS.blocoData('wo')}${params.toString() ? '?' + params.toString() : ''}`;
             const response = await fetch(url, {
                 headers: {
                     'Authorization': `Bearer ${token}`,
@@ -163,11 +163,11 @@ const Bloco2 = () => {
             setLoading(true);
             try {
                 const mainData = await fetchBlocoData(filters.startDate, filters.endDate, filters.groupBy);
-                setDashboardData({ bloco2: mainData });
+                setDashboardData({ wo: mainData });
 
                 if (filters.compareMode && filters.compareStartDate && filters.compareEndDate) {
                     const compareDataResult = await fetchBlocoData(filters.compareStartDate, filters.compareEndDate, filters.groupBy);
-                    setCompareData({ bloco2: compareDataResult });
+                    setCompareData({ wo: compareDataResult });
                 } else {
                     setCompareData(null);
                 }
@@ -182,7 +182,7 @@ const Bloco2 = () => {
     }, [filters.startDate, filters.endDate, filters.compareMode, filters.compareStartDate, filters.compareEndDate, filters.groupBy]);
 
     if (loading) {
-        return <Loading message="Carregando dados do Bloco 2..." />;
+        return <Loading message="Carregando dados do Bloco WO..." />;
     }
 
     if (error) {
@@ -206,48 +206,48 @@ const Bloco2 = () => {
             {/* Filtros de Data */}
             <DateFilter onFilterChange={setFilters} />
 
-            {/* Bloco 2 */}
+            {/* Bloco WO */}
             <section>
                 <div className="flex items-center justify-between mb-6">
                     <div>
-                        <h2 className="text-xl font-bold text-slate-800">Bloco 2</h2>
-                        <p className="text-slate-500">91 a 180 dias de atraso</p>
+                        <h2 className="text-xl font-bold text-slate-800">Bloco WO</h2>
+                        <p className="text-slate-500">Mais de 360 dias de atraso</p>
                     </div>
-                    <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">
-                        {dashboardData?.bloco2?.spins || 0} Spins
+                    <span className="px-3 py-1 bg-red-100 text-red-700 rounded-full text-sm font-medium">
+                        {dashboardData?.wo?.spins || 0} Spins
                     </span>
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                     <ChartContainer 
                         title="Acionados x Carteira" 
-                        data={dashboardData?.bloco2?.acionadosXCarteira || []} 
-                        compareData={compareData?.bloco2?.acionadosXCarteira}
+                        data={dashboardData?.wo?.acionadosXCarteira || []} 
+                        compareData={compareData?.wo?.acionadosXCarteira}
                     />
                     <ChartContainer 
                         title="Acionados x Alô" 
-                        data={dashboardData?.bloco2?.acionadosXAlo || []} 
-                        compareData={compareData?.bloco2?.acionadosXAlo}
+                        data={dashboardData?.wo?.acionadosXAlo || []} 
+                        compareData={compareData?.wo?.acionadosXAlo}
                     />
                     <ChartContainer 
                         title="Alô x CPC" 
-                        data={dashboardData?.bloco2?.aloXCpc || []} 
-                        compareData={compareData?.bloco2?.aloXCpc}
+                        data={dashboardData?.wo?.aloXCpc || []} 
+                        compareData={compareData?.wo?.aloXCpc}
                     />
                     <ChartContainer 
                         title="CPC x CPCA" 
-                        data={dashboardData?.bloco2?.cpcXCpca || []} 
-                        compareData={compareData?.bloco2?.cpcXCpca}
+                        data={dashboardData?.wo?.cpcXCpca || []} 
+                        compareData={compareData?.wo?.cpcXCpca}
                     />
                     <ChartContainer 
                         title="CPCA x Acordos" 
-                        data={dashboardData?.bloco2?.cpcaXAcordos || []} 
-                        compareData={compareData?.bloco2?.cpcaXAcordos}
+                        data={dashboardData?.wo?.cpcaXAcordos || []} 
+                        compareData={compareData?.wo?.cpcaXAcordos}
                     />
                     <ChartContainer 
                         title="Acordos x Pagamentos" 
-                        data={dashboardData?.bloco2?.acordosXPagamentos || []} 
-                        compareData={compareData?.bloco2?.acordosXPagamentos}
+                        data={dashboardData?.wo?.acordosXPagamentos || []} 
+                        compareData={compareData?.wo?.acordosXPagamentos}
                     />
                 </div>
             </section>
@@ -255,5 +255,5 @@ const Bloco2 = () => {
     );
 };
 
-export default Bloco2;
+export default BlocoWO;
 

@@ -5,6 +5,7 @@ import Dashboard from './pages/Dashboard';
 import Bloco1 from './pages/Bloco1';
 import Bloco2 from './pages/Bloco2';
 import Bloco3 from './pages/Bloco3';
+import BlocoWO from './pages/BlocoWO';
 import Login from './pages/Login';
 
 const ProtectedRoute = ({ children }) => {
@@ -58,6 +59,16 @@ function App() {
             <ProtectedRoute>
               <Layout>
                 <Bloco3 />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/wo"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <BlocoWO />
               </Layout>
             </ProtectedRoute>
           }

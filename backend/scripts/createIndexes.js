@@ -46,6 +46,11 @@ const createIndexes = async () => {
                 name: 'idx_valor',
                 query: `CREATE INDEX idx_valor ON vuon_resultados(valor)`
             },
+            // Índice para codigo (usado em SPINS)
+            {
+                name: 'idx_codigo',
+                query: `CREATE INDEX idx_codigo ON vuon_resultados(codigo)`
+            },
             // Índices compostos adicionais para otimização
             // Índice composto: data + agente + acao (otimiza queries de ALO, CPC, CPCA)
             {
@@ -64,11 +69,62 @@ const createIndexes = async () => {
             }
         ];
 
+        // Índices para a tabela vuon_novacoes
+        const novacoesIndexes = [
+            // Índice composto: atraso_real + data_emissao (filtros de bloco e data)
+            {
+                name: 'idx_novacoes_atraso_data',
+                query: `CREATE INDEX idx_novacoes_atraso_data ON vuon_novacoes(atraso_real, data_emissao)`
+            },
+            // Índice para data_emissao (usado em GROUP BY)
+            {
+                name: 'idx_novacoes_data_emissao',
+                query: `CREATE INDEX idx_novacoes_data_emissao ON vuon_novacoes(data_emissao)`
+            },
+            // Índice para cpf_cnpj (usado em COUNT DISTINCT)
+            {
+                name: 'idx_novacoes_cpf_cnpj',
+                query: `CREATE INDEX idx_novacoes_cpf_cnpj ON vuon_novacoes(cpf_cnpj)`
+            },
+            // Índice composto: tipo + atraso_real (filtro comum)
+            {
+                name: 'idx_novacoes_tipo_atraso',
+                query: `CREATE INDEX idx_novacoes_tipo_atraso ON vuon_novacoes(tipo, atraso_real)`
+            }
+        ];
+
+        // Índices para a tabela vuon_bordero_pagamento
+        const pagamentoIndexes = [
+            // Índice composto: atraso_real + data_pagamento (filtros de bloco e data)
+            {
+                name: 'idx_pagamento_atraso_data',
+                query: `CREATE INDEX idx_pagamento_atraso_data ON vuon_bordero_pagamento(atraso_real, data_pagamento)`
+            },
+            // Índice para data_pagamento (usado em GROUP BY)
+            {
+                name: 'idx_pagamento_data_pagamento',
+                query: `CREATE INDEX idx_pagamento_data_pagamento ON vuon_bordero_pagamento(data_pagamento)`
+            },
+            // Índice composto: atraso + data_pagamento (fallback quando atraso_real é NULL)
+            {
+                name: 'idx_pagamento_atraso_fallback',
+                query: `CREATE INDEX idx_pagamento_atraso_fallback ON vuon_bordero_pagamento(atraso, data_pagamento)`
+            },
+            // Índice para valor_recebido (usado em filtros)
+            {
+                name: 'idx_pagamento_valor_recebido',
+                query: `CREATE INDEX idx_pagamento_valor_recebido ON vuon_bordero_pagamento(valor_recebido)`
+            }
+        ];
+
+        // Combinar todos os índices
+        const allIndexes = [...indexes, ...novacoesIndexes, ...pagamentoIndexes];
+
         let created = 0;
         let skipped = 0;
         let errors = 0;
 
-        for (const index of indexes) {
+        for (const index of allIndexes) {
             try {
                 console.log(`⏳ Creating ${index.name}...`);
                 await db.execute(index.query);

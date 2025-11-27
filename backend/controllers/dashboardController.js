@@ -26,24 +26,30 @@ const formatChartData = (data) => {
 exports.getBlocoData = async (req, res) => {
     try {
         const blocoParam = req.params.bloco;
-        const bloco = parseInt(blocoParam);
-        
-        if (isNaN(bloco) || ![1, 2, 3].includes(bloco)) {
-            return res.status(400).json({ message: 'Bloco inválido. Use 1, 2 ou 3.' });
+        // Aceitar 'wo' ou números 1, 2, 3
+        let bloco;
+        if (blocoParam === 'wo' || blocoParam === 'WO') {
+            bloco = 'wo';
+        } else {
+            bloco = parseInt(blocoParam);
+            if (isNaN(bloco) || ![1, 2, 3].includes(bloco)) {
+                return res.status(400).json({ message: 'Bloco inválido. Use 1, 2, 3 ou wo.' });
+            }
         }
 
         const startDate = req.query.startDate || null;
         const endDate = req.query.endDate || null;
+        const groupBy = req.query.groupBy || 'month'; // 'day' ou 'month'
 
         // Verificar cache
-        const cacheKey = cache.generateKey('bloco', bloco, startDate || 'all', endDate || 'all');
+        const cacheKey = cache.generateKey('bloco', bloco, startDate || 'all', endDate || 'all', groupBy);
         const cached = cache.get(cacheKey);
         if (cached) {
             return res.json(cached);
         }
 
         // Buscar dados do bloco
-        const blocoData = await BlocoModel.getBlocoData(bloco, startDate, endDate);
+        const blocoData = await BlocoModel.getBlocoData(bloco, startDate, endDate, groupBy);
 
         // Formatar resposta
         const response = {

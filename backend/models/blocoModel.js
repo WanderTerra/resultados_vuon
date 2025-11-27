@@ -345,7 +345,7 @@ class BlocoModel {
     }
 
     // Buscar todos os dados de um bloco - OTIMIZADO: uma única query por tipo de gráfico
-    static async getBlocoData(bloco, startDate = null, endDate = null) {
+    static async getBlocoData(bloco, startDate = null, endDate = null, groupBy = 'month') {
         const db = await getDB();
         const blocoCondition = this.getBlocoCondition(bloco);
         
@@ -358,57 +358,73 @@ class BlocoModel {
             queryParams.push(startDate, endDate);
         }
 
-        // Query única que calcula todos os gráficos agrupados por mês
+        // Determinar agrupamento: por dia ou por mês
+        let dateSelect, dateFormatted, groupByClause, orderByClause;
+        
+        if (groupBy === 'day') {
+            // Agrupamento por dia - usar DATE(data) para agrupar corretamente (se for DATETIME)
+            // Mas manter data no SELECT para usar índice quando possível
+            dateSelect = `DATE(data) as date`;
+            dateFormatted = `DATE_FORMAT(data, '%d/%m/%Y') as date_formatted`;
+            // GROUP BY DATE(data) - necessário se a coluna for DATETIME
+            groupByClause = `DATE(data)`;
+            orderByClause = `DATE(data) ASC`;
+        } else {
+            // Agrupamento por mês (padrão) - usa índice com YEAR/MONTH
+            dateSelect = `CONCAT(YEAR(data), '-', LPAD(MONTH(data), 2, '0')) as date`;
+            dateFormatted = `CONCAT(LPAD(MONTH(data), 2, '0'), '/', YEAR(data)) as date_formatted`;
+            groupByClause = `YEAR(data), MONTH(data)`; // Usa índice idx_data
+            orderByClause = `YEAR(data) ASC, MONTH(data) ASC`;
+        }
+
+        // Query única que calcula todos os gráficos agrupados por dia ou mês
         // OTIMIZADA: 
+        // - Usa SUM com booleanos em vez de COUNT(CASE) - muito mais rápido
         // - Usa YEAR e MONTH para melhor performance no GROUP BY (usa índices)
         // - Condições otimizadas para usar índices compostos
         // - Prepared statements para melhor cache de query
         const query = `
             SELECT 
-                CONCAT(YEAR(data), '-', LPAD(MONTH(data), 2, '0')) as date,
-                CONCAT(LPAD(MONTH(data), 2, '0'), '/', YEAR(data)) as date_formatted,
+                ${dateSelect},
+                ${dateFormatted},
                 -- Acionados x Carteira
                 COUNT(*) as carteira,
-                COUNT(CASE WHEN acao IS NOT NULL AND acao != '' THEN 1 END) as acionados,
+                SUM(acao IS NOT NULL AND acao != '') as acionados,
                 -- Acionados x Alô
-                COUNT(CASE WHEN agente != '0' AND agente IS NOT NULL AND agente != '' THEN 1 END) as alo,
+                SUM(agente != '0' AND agente IS NOT NULL AND agente != '') as alo,
                 -- Alô x CPC
-                COUNT(CASE 
-                    WHEN agente != '0' 
-                        AND agente IS NOT NULL 
-                        AND agente != ''
-                        AND acao IN ('EIO', 'CSA', 'ACD', 'SCP', 'APH', 'DEF', 'SRP', 'APC', 'JUR', 'DDA')
-                    THEN 1 
-                END) as cpc,
+                SUM(
+                    agente != '0' 
+                    AND agente IS NOT NULL 
+                    AND agente != ''
+                    AND acao IN ('EIO', 'CSA', 'ACD', 'SCP', 'APH', 'DEF', 'SRP', 'APC', 'JUR', 'DDA')
+                ) as cpc,
                 -- CPC x CPCA
-                COUNT(CASE 
-                    WHEN agente != '0' 
-                        AND agente IS NOT NULL 
-                        AND agente != ''
-                        AND acao IN ('CSA', 'ACD', 'SCP', 'APH', 'DEF', 'SRP', 'JUR', 'DDA')
-                    THEN 1 
-                END) as cpca,
+                SUM(
+                    agente != '0' 
+                    AND agente IS NOT NULL 
+                    AND agente != ''
+                    AND acao IN ('CSA', 'ACD', 'SCP', 'APH', 'DEF', 'SRP', 'JUR', 'DDA')
+                ) as cpca,
                 -- CPCA x Acordos
-                COUNT(CASE 
-                    WHEN agente != '0' 
-                        AND agente IS NOT NULL 
-                        AND agente != ''
-                        AND acao = 'ACD'
-                    THEN 1 
-                END) as acordos,
+                SUM(
+                    agente != '0' 
+                    AND agente IS NOT NULL 
+                    AND agente != ''
+                    AND acao = 'ACD'
+                ) as acordos,
                 -- Acordos x Pagamentos
-                COUNT(CASE 
-                    WHEN agente != '0' 
-                        AND agente IS NOT NULL 
-                        AND agente != ''
-                        AND valor > 0
-                    THEN 1 
-                END) as pgto
+                SUM(
+                    agente != '0' 
+                    AND agente IS NOT NULL 
+                    AND agente != ''
+                    AND valor > 0
+                ) as pgto
             FROM vuon_resultados
             WHERE ${blocoCondition}
                 ${dateFilter}
-            GROUP BY YEAR(data), MONTH(data)
-            ORDER BY YEAR(data) ASC, MONTH(data) ASC
+            GROUP BY ${groupByClause}
+            ORDER BY ${orderByClause}
         `;
 
         const [rows] = queryParams.length > 0 
@@ -416,7 +432,7 @@ class BlocoModel {
             : await db.execute(query);
         
         // Processar os dados para criar os arrays de cada gráfico
-        // Usar date_formatted (MM/YYYY) para exibição
+        // Usar date_formatted para exibição
         const acionadosXCarteira = rows.map(row => ({
             date: row.date_formatted || row.date,
             carteira: row.carteira,
@@ -445,14 +461,23 @@ class BlocoModel {
             percent: row.cpc > 0 ? parseFloat((row.cpca * 100.0 / row.cpc).toFixed(2)) : 0
         }));
 
+        // OTIMIZAÇÃO: Buscar acordos e pagamentos em paralelo para reduzir tempo de resposta
         // CPCA x Acordos: CPCA vem de vuon_resultados, Acordos vem de vuon_novacoes
-        // Buscar acordos da tabela vuon_novacoes agrupados por CPF
-        const acordosNovacoes = await NovacaoModel.getAcordosPorBloco(bloco, startDate, endDate);
+        // Acordos x Pagamentos: Acordos vem de vuon_novacoes, Pagamentos vem de vuon_bordero_pagamento
+        const [acordosNovacoes, pagamentosBordero] = await Promise.all([
+            NovacaoModel.getAcordosPorBloco(bloco, startDate, endDate, groupBy),
+            PagamentoModel.getPagamentosPorBloco(bloco, startDate, endDate, groupBy)
+        ]);
         
-        // Criar um mapa de datas para facilitar a combinação
+        // Criar mapas de datas para facilitar a combinação (otimizado)
         const acordosMap = new Map();
         acordosNovacoes.forEach(item => {
             acordosMap.set(item.date, item.total_acordos);
+        });
+
+        const pagamentosMap = new Map();
+        pagamentosBordero.forEach(item => {
+            pagamentosMap.set(item.date, item.quantidade_pagamentos || 0);
         });
 
         // Combinar CPCA (de vuon_resultados) com Acordos (de vuon_novacoes)
@@ -465,16 +490,6 @@ class BlocoModel {
                 acordos: acordos,
                 percent: row.cpca > 0 ? parseFloat((acordos * 100.0 / row.cpca).toFixed(2)) : 0
             };
-        });
-
-        // Acordos x Pagamentos: Acordos vem de vuon_novacoes, Pagamentos vem de vuon_bordero_pagamento
-        // Buscar pagamentos da tabela vuon_bordero_pagamento
-        const pagamentosBordero = await PagamentoModel.getPagamentosPorBloco(bloco, startDate, endDate);
-        
-        // Criar um mapa de datas para pagamentos
-        const pagamentosMap = new Map();
-        pagamentosBordero.forEach(item => {
-            pagamentosMap.set(item.date, item.quantidade_pagamentos || 0);
         });
 
         // Combinar Acordos (de vuon_novacoes) com Pagamentos (de vuon_bordero_pagamento)

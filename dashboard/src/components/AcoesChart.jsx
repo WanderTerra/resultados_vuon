@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { aloService } from '../services/aloService';
+import Loading from './Loading';
 
 const Card = ({ title, children, className = "" }) => (
     <div className={`bg-white rounded-xl shadow-sm border border-slate-200 p-6 overflow-hidden ${className}`}>
@@ -44,9 +45,7 @@ const AcoesChart = () => {
     if (loading) {
         return (
             <Card title="Distribuição de Ações" className="h-96">
-                <div className="flex items-center justify-center h-full">
-                    <div className="text-slate-500">Carregando dados...</div>
-                </div>
+                <Loading message="Carregando distribuição de ações..." />
             </Card>
         );
     }

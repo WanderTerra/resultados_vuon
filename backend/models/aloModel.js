@@ -68,19 +68,14 @@ class AloModel {
     }
 
     // CPC e CPCA por data
+    // OTIMIZADA: usa SUM com booleanos em vez de SUM(CASE)
     static async getCpcCpcaByDate() {
         const db = await getDB();
         const query = `
             SELECT 
                 data,
-                SUM(CASE 
-                    WHEN acao IN ('EIO', 'CSA', 'ACD', 'SCP', 'APH', 'DEF', 'SRP', 'APC', 'JUR', 'DDA') 
-                    THEN 1 ELSE 0 
-                END) as cpc,
-                SUM(CASE 
-                    WHEN acao IN ('CSA', 'ACD', 'SCP', 'APH', 'DEF', 'SRP', 'JUR', 'DDA') 
-                    THEN 1 ELSE 0 
-                END) as cpca
+                SUM(acao IN ('EIO', 'CSA', 'ACD', 'SCP', 'APH', 'DEF', 'SRP', 'APC', 'JUR', 'DDA')) as cpc,
+                SUM(acao IN ('CSA', 'ACD', 'SCP', 'APH', 'DEF', 'SRP', 'JUR', 'DDA')) as cpca
             FROM vuon_resultados
             WHERE agente != '0' 
                 AND agente IS NOT NULL 
@@ -94,18 +89,13 @@ class AloModel {
     }
 
     // Resumo CPC e CPCA
+    // OTIMIZADA: usa SUM com booleanos em vez de SUM(CASE)
     static async getCpcCpcaSummary() {
         const db = await getDB();
         const query = `
             SELECT 
-                SUM(CASE 
-                    WHEN acao IN ('EIO', 'CSA', 'ACD', 'SCP', 'APH', 'DEF', 'SRP', 'APC', 'JUR', 'DDA') 
-                    THEN 1 ELSE 0 
-                END) as total_cpc,
-                SUM(CASE 
-                    WHEN acao IN ('CSA', 'ACD', 'SCP', 'APH', 'DEF', 'SRP', 'JUR', 'DDA') 
-                    THEN 1 ELSE 0 
-                END) as total_cpca,
+                SUM(acao IN ('EIO', 'CSA', 'ACD', 'SCP', 'APH', 'DEF', 'SRP', 'APC', 'JUR', 'DDA')) as total_cpc,
+                SUM(acao IN ('CSA', 'ACD', 'SCP', 'APH', 'DEF', 'SRP', 'JUR', 'DDA')) as total_cpca,
                 COUNT(*) as total_alo
             FROM vuon_resultados
             WHERE agente != '0' 

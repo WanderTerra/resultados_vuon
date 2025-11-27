@@ -19,6 +19,7 @@ const Sidebar = () => {
         if (path === '/bloco1') return 'Bloco 1 - 61 a 90 dias';
         if (path === '/bloco2') return 'Bloco 2 - 91 a 180 dias';
         if (path === '/bloco3') return 'Bloco 3 - 181 a 360 dias';
+        if (path === '/wo') return 'Bloco WO - Mais de 360 dias';
         return 'Dashboard';
     };
 
@@ -58,6 +59,13 @@ const Sidebar = () => {
                     <BarChart3 size={20} />
                     <span className="font-medium">Bloco 3</span>
                 </Link>
+                <Link
+                    to="/wo"
+                    className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${isActive('/wo') ? 'bg-red-600 text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
+                >
+                    <BarChart3 size={20} />
+                    <span className="font-medium">WO</span>
+                </Link>
             </nav>
 
             <div className="p-4 border-t border-slate-800">
@@ -82,6 +90,7 @@ const Layout = ({ children }) => {
         if (path === '/bloco1') return 'Bloco 1 - 61 a 90 dias';
         if (path === '/bloco2') return 'Bloco 2 - 91 a 180 dias';
         if (path === '/bloco3') return 'Bloco 3 - 181 a 360 dias';
+        if (path === '/wo') return 'Bloco WO - Mais de 360 dias';
         return 'Dashboard';
     };
 

@@ -7,7 +7,7 @@ class SimpleCache {
 
     // Gerar chave de cache baseada nos parâmetros
     generateKey(prefix, ...params) {
-        return `{078F3204-8602-4CB4-BC4E-CAAC475FEEA9}.png${prefix}:${params.join(':')}`;
+        return `${prefix}:${params.join(':')}`;
     }
 
     // Obter valor do cache
@@ -55,8 +55,8 @@ class SimpleCache {
     }
 }
 
-// Instância global do cache
-const cache = new SimpleCache(5 * 60 * 1000); // 5 minutos
+// Instância global do cache - TTL aumentado para 15 minutos para melhor performance
+const cache = new SimpleCache(15 * 60 * 1000); // 15 minutos
 
 // Limpar cache expirado a cada 10 minutos
 setInterval(() => {

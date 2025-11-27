@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { API_ENDPOINTS } from '../config/api';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import Loading from './Loading';
 
 const Card = ({ title, children, className = "" }) => (
     <div className={`bg-white rounded-xl shadow-sm border border-slate-200 p-6 overflow-hidden ${className}`}>
@@ -120,9 +121,7 @@ const RecebimentoChart = ({ startDate = null, endDate = null }) => {
     if (loading) {
         return (
             <Card title="Recebimento por Bloco">
-                <div className="flex items-center justify-center h-64">
-                    <div className="text-slate-500">Carregando dados...</div>
-                </div>
+                <Loading message="Carregando dados de recebimento..." />
             </Card>
         );
     }

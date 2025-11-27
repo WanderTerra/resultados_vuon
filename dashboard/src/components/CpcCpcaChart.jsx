@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { aloService } from '../services/aloService';
+import Loading from './Loading';
 
 const Card = ({ title, children, className = "" }) => (
     <div className={`bg-white rounded-xl shadow-sm border border-slate-200 p-6 overflow-hidden ${className}`}>
@@ -32,9 +33,7 @@ const CpcCpcaChart = () => {
     if (loading) {
         return (
             <Card title="Evolução CPC e CPCA ao Longo do Tempo" className="h-96">
-                <div className="flex items-center justify-center h-full">
-                    <div className="text-slate-500">Carregando dados...</div>
-                </div>
+                <Loading message="Carregando dados de CPC e CPCA..." />
             </Card>
         );
     }

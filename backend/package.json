@@ -8,6 +8,7 @@
     "dev": "node --watch server.js",
     "init-db": "node scripts/initDatabase.js",
     "create-indexes": "node scripts/createIndexes.js",
+    "create-views": "node scripts/createViews.js",
     "create-user": "node scripts/createUser.js",
     "create-user-direct": "node scripts/createUserDirect.js",
     "test-connection": "node scripts/testConnection.js",

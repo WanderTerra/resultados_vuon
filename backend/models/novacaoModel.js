@@ -22,9 +22,9 @@ class NovacaoModel {
         }
     }
 
-    // Buscar acordos agrupados por CPF (somando parcelas) e por mês
+    // Buscar acordos agrupados por CPF (somando parcelas) e por mês ou dia
     // Agrupa acordos do mesmo CPF como um único acordo e soma os valores
-    static async getAcordosPorBloco(bloco, startDate = null, endDate = null) {
+    static async getAcordosPorBloco(bloco, startDate = null, endDate = null, groupBy = 'month') {
         const db = await getDB();
         const blocoCondition = this.getBlocoCondition(bloco);
         
@@ -37,23 +37,64 @@ class NovacaoModel {
             queryParams.push(startDate, endDate);
         }
 
-        // Query que agrupa acordos por CPF e mês
-        // Cada CPF representa um acordo único (mesmo que tenha múltiplas parcelas)
-        // Soma os valores de todas as parcelas do mesmo CPF
-        // Usa data_emissao como coluna de data do acordo
+        let dateSelect, dateFormatted, groupByClause, orderByClause;
+        
+        if (groupBy === 'day') {
+            // Agrupamento por dia
+            dateSelect = `DATE(data_emissao) as date`;
+            dateFormatted = `DATE_FORMAT(data_emissao, '%d/%m/%Y') as date_formatted`;
+            groupByClause = `DATE(data_emissao)`;
+            orderByClause = `DATE(data_emissao) ASC`;
+        } else {
+            // Agrupamento por mês (usa view otimizada)
+            const blocoStr = typeof bloco === 'string' ? bloco : bloco.toString();
+            const viewDateFilter = startDate && endDate 
+                ? `AND date_key >= '${startDate.substring(0, 7)}' AND date_key <= '${endDate.substring(0, 7)}'`
+                : '';
+            
+            const query = `
+                SELECT 
+                    date_key as date,
+                    date_formatted,
+                    total_acordos,
+                    valor_total
+                FROM vw_acordos_por_bloco_mes
+                WHERE bloco = ?
+                    ${viewDateFilter}
+                ORDER BY date_key ASC
+            `;
+            
+            const [rows] = await db.execute(query, [blocoStr]);
+            
+            return rows.map(row => ({
+                date: row.date_formatted || row.date,
+                total_acordos: parseInt(row.total_acordos || 0),
+                valor_total: parseFloat(row.valor_total || 0)
+            }));
+        }
+
+        // Query direta para agrupamento por dia (agrupa por CPF e data)
+        // OTIMIZADA: usa YEAR/MONTH no GROUP BY para melhor performance
         const query = `
             SELECT 
-                CONCAT(YEAR(DATE(data_emissao)), '-', LPAD(MONTH(DATE(data_emissao)), 2, '0')) as date,
-                CONCAT(LPAD(MONTH(DATE(data_emissao)), 2, '0'), '/', YEAR(DATE(data_emissao))) as date_formatted,
+                ${dateSelect},
+                ${dateFormatted},
                 COUNT(DISTINCT cpf_cnpj) as total_acordos,
                 COALESCE(SUM(valor_total), 0) as valor_total
-            FROM vuon_novacoes
-            WHERE tipo = 'NOV'
-                AND atraso_real IS NOT NULL
-                AND ${blocoCondition}
-                ${dateFilter}
-            GROUP BY YEAR(DATE(data_emissao)), MONTH(DATE(data_emissao))
-            ORDER BY YEAR(DATE(data_emissao)) ASC, MONTH(DATE(data_emissao)) ASC
+            FROM (
+                SELECT 
+                    cpf_cnpj,
+                    DATE(data_emissao) as data_emissao,
+                    SUM(valor_total) as valor_total
+                FROM vuon_novacoes
+                WHERE tipo = 'NOV'
+                    AND atraso_real IS NOT NULL
+                    AND ${blocoCondition}
+                    ${dateFilter}
+                GROUP BY cpf_cnpj, DATE(data_emissao)
+            ) as acordos_agrupados
+            GROUP BY ${groupByClause}
+            ORDER BY ${orderByClause}
         `;
 
         const [rows] = queryParams.length > 0 
@@ -71,24 +112,25 @@ class NovacaoModel {
     // Retorna a contagem de acordos únicos (por CPF) e o valor total
     static async getTotalAcordosPorBloco(bloco, startDate = null, endDate = null) {
         const db = await getDB();
-        const blocoCondition = this.getBlocoCondition(bloco);
         
         let dateFilter = '';
-        const queryParams = [];
+        const queryParams = [bloco];
         
         if (startDate && endDate) {
-            dateFilter = `AND DATE(data_emissao) >= ? AND DATE(data_emissao) <= ?`;
-            queryParams.push(startDate, endDate);
+            dateFilter = `AND date_key >= ? AND date_key <= ?`;
+            queryParams.push(
+                `${startDate.substring(0, 7)}`, // YYYY-MM
+                `${endDate.substring(0, 7)}`    // YYYY-MM
+            );
         }
 
+        // Query otimizada usando view
         const query = `
             SELECT 
-                COUNT(DISTINCT cpf_cnpj) as total_acordos,
-                COALESCE(SUM(valor_total), 0) as valor_total
-            FROM vuon_novacoes
-            WHERE tipo = 'NOV'
-                AND atraso_real IS NOT NULL
-                AND ${blocoCondition}
+                SUM(total_acordos) as total_acordos,
+                SUM(valor_total) as valor_total
+            FROM vw_acordos_por_bloco_mes
+            WHERE bloco = ?
                 ${dateFilter}
         `;
 

@@ -38,6 +38,7 @@ class PagamentoModel {
         }
 
         // Query que agrupa recebimentos por dia
+        // OTIMIZADA: usa data_pagamento diretamente no GROUP BY quando possível
         const query = `
             SELECT 
                 DATE_FORMAT(data_pagamento, '%Y-%m-%d') as date,
@@ -72,8 +73,8 @@ class PagamentoModel {
         }));
     }
 
-    // Buscar pagamentos (quantidade) por bloco agrupado por mês
-    static async getPagamentosPorBloco(bloco, startDate = null, endDate = null) {
+    // Buscar pagamentos (quantidade) por bloco agrupado por mês ou dia
+    static async getPagamentosPorBloco(bloco, startDate = null, endDate = null, groupBy = 'month') {
         const db = await getDB();
         const blocoCondition = this.getBlocoCondition(bloco);
         
@@ -82,24 +83,56 @@ class PagamentoModel {
         const queryParams = [];
         
         if (startDate && endDate) {
-            dateFilter = `AND data_pagamento >= ? AND data_pagamento <= ?`;
+            dateFilter = `AND DATE(data_pagamento) >= ? AND DATE(data_pagamento) <= ?`;
             queryParams.push(startDate, endDate);
         }
 
-        // Query que agrupa pagamentos por mês
-        // Conta pagamentos únicos (pode ser por CPF ou por registro, dependendo da necessidade)
+        let dateSelect, dateFormatted, groupByClause, orderByClause;
+        
+        if (groupBy === 'day') {
+            // Agrupamento por dia
+            dateSelect = `DATE(data_pagamento) as date`;
+            dateFormatted = `DATE_FORMAT(data_pagamento, '%d/%m/%Y') as date_formatted`;
+            groupByClause = `DATE(data_pagamento)`;
+            orderByClause = `DATE(data_pagamento) ASC`;
+        } else {
+            // Agrupamento por mês (usa view otimizada)
+            const blocoStr = typeof bloco === 'string' ? bloco : bloco.toString();
+            const viewDateFilter = startDate && endDate 
+                ? `AND date_key >= '${startDate.substring(0, 7)}' AND date_key <= '${endDate.substring(0, 7)}'`
+                : '';
+            
+            const query = `
+                SELECT 
+                    date_key as date,
+                    date_formatted,
+                    quantidade_pagamentos
+                FROM vw_pagamentos_por_bloco_mes
+                WHERE bloco = ?
+                    ${viewDateFilter}
+                ORDER BY date_key ASC
+            `;
+            
+            const [rows] = await db.execute(query, [blocoStr]);
+            
+            return rows.map(row => ({
+                date: row.date_formatted || row.date,
+                quantidade_pagamentos: parseInt(row.quantidade_pagamentos || 0)
+            }));
+        }
+
+        // Query direta para agrupamento por dia
         const query = `
             SELECT 
-                CONCAT(YEAR(data_pagamento), '-', LPAD(MONTH(data_pagamento), 2, '0')) as date,
-                CONCAT(LPAD(MONTH(data_pagamento), 2, '0'), '/', YEAR(data_pagamento)) as date_formatted,
-                COUNT(DISTINCT cpf_cnpj) as quantidade_pagamentos
+                ${dateSelect},
+                ${dateFormatted},
+                COUNT(*) as quantidade_pagamentos
             FROM vuon_bordero_pagamento
             WHERE ${blocoCondition}
                 AND data_pagamento IS NOT NULL
-                AND valor_recebido > 0
                 ${dateFilter}
-            GROUP BY YEAR(data_pagamento), MONTH(data_pagamento)
-            ORDER BY YEAR(data_pagamento) ASC, MONTH(data_pagamento) ASC
+            GROUP BY ${groupByClause}
+            ORDER BY ${orderByClause}
         `;
 
         const [rows] = queryParams.length > 0 
@@ -127,6 +160,7 @@ class PagamentoModel {
         }
 
         // Query que agrupa recebimentos por mês
+        // OTIMIZADA: usa YEAR/MONTH no GROUP BY para usar índice idx_data_pagamento
         const query = `
             SELECT 
                 CONCAT(YEAR(data_pagamento), '-', LPAD(MONTH(data_pagamento), 2, '0')) as date,

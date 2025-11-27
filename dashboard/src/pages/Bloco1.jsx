@@ -1,16 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { API_ENDPOINTS } from '../config/api';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Line, ComposedChart } from 'recharts';
 import DateFilter from '../components/DateFilter';
+import Loading from '../components/Loading';
 
-const Card = ({ title, children, className = "" }) => (
+const Card = React.memo(({ title, children, className = "" }) => (
     <div className={`bg-white rounded-xl shadow-sm border border-slate-200 p-6 overflow-hidden ${className}`}>
         <h3 className="text-lg font-semibold text-slate-800 mb-4">{title}</h3>
         {children}
     </div>
-);
+));
 
-const ChartContainer = ({ title, data, compareData = null }) => {
+const ChartContainer = React.memo(({ title, data, compareData = null }) => {
     if ((!data || !Array.isArray(data) || data.length === 0) && (!compareData || !Array.isArray(compareData) || compareData.length === 0)) {
         return (
             <Card title={title} className="h-96">
@@ -38,8 +39,9 @@ const ChartContainer = ({ title, data, compareData = null }) => {
 
     return (
         <Card title={title} className="h-96">
-            <div style={{ width: '100%', height: '100%', minHeight: '384px', padding: '0' }}>
-                <ResponsiveContainer width="100%" height="100%">
+            <div style={{ width: '100%', height: '384px', minHeight: '384px' }}>
+                {chartData && chartData.length > 0 ? (
+                <ResponsiveContainer width="100%" height={384}>
                     <ComposedChart
                         data={chartData}
                     margin={{
@@ -101,10 +103,15 @@ const ChartContainer = ({ title, data, compareData = null }) => {
                     )}
                 </ComposedChart>
                 </ResponsiveContainer>
+                ) : (
+                    <div className="flex items-center justify-center h-full">
+                        <div className="text-slate-500">Carregando gráfico...</div>
+                    </div>
+                )}
             </div>
         </Card>
     )
-}
+});
 
 const Bloco1 = () => {
     const [dashboardData, setDashboardData] = useState(null);
@@ -116,15 +123,18 @@ const Bloco1 = () => {
         endDate: null,
         compareMode: false,
         compareStartDate: null,
-        compareEndDate: null
+        compareEndDate: null,
+        groupBy: 'month'
     });
 
-    const fetchBlocoData = async (startDate, endDate) => {
+    // Memoizar fetchBlocoData para evitar recriações
+    const fetchBlocoData = useCallback(async (startDate, endDate, groupBy = 'month') => {
         try {
             const token = localStorage.getItem('token');
             const params = new URLSearchParams();
             if (startDate) params.append('startDate', startDate);
             if (endDate) params.append('endDate', endDate);
+            if (groupBy) params.append('groupBy', groupBy);
             
             // Usar rota específica do bloco 1 (otimizada)
             const url = `${API_ENDPOINTS.blocoData(1)}${params.toString() ? '?' + params.toString() : ''}`;
@@ -153,37 +163,61 @@ const Bloco1 = () => {
             console.error('Error fetching bloco data:', err);
             throw err;
         }
-    };
+    }, []);
+
+    // Memoizar os parâmetros de filtro para evitar recriações
+    const filterKey = useMemo(() => {
+        return JSON.stringify({
+            startDate: filters.startDate,
+            endDate: filters.endDate,
+            compareMode: filters.compareMode,
+            compareStartDate: filters.compareStartDate,
+            compareEndDate: filters.compareEndDate,
+            groupBy: filters.groupBy
+        });
+    }, [filters.startDate, filters.endDate, filters.compareMode, filters.compareStartDate, filters.compareEndDate, filters.groupBy]);
 
     useEffect(() => {
+        let isMounted = true; // Flag para evitar atualizações se o componente foi desmontado
+        
         const loadData = async () => {
             setLoading(true);
             try {
-                const mainData = await fetchBlocoData(filters.startDate, filters.endDate);
+                const mainData = await fetchBlocoData(filters.startDate, filters.endDate, filters.groupBy);
+                
+                if (!isMounted) return; // Componente foi desmontado, não atualizar
+                
                 setDashboardData({ bloco1: mainData });
 
                 if (filters.compareMode && filters.compareStartDate && filters.compareEndDate) {
-                    const compareDataResult = await fetchBlocoData(filters.compareStartDate, filters.compareEndDate);
+                    const compareDataResult = await fetchBlocoData(filters.compareStartDate, filters.compareEndDate, filters.groupBy);
+                    
+                    if (!isMounted) return; // Componente foi desmontado, não atualizar
+                    
                     setCompareData({ bloco1: compareDataResult });
                 } else {
                     setCompareData(null);
                 }
             } catch (err) {
+                if (!isMounted) return; // Componente foi desmontado, não atualizar
                 setError(err.message);
             } finally {
-                setLoading(false);
+                if (isMounted) {
+                    setLoading(false);
+                }
             }
         };
 
         loadData();
-    }, [filters]);
+        
+        // Cleanup function
+        return () => {
+            isMounted = false;
+        };
+    }, [filterKey, fetchBlocoData]); // Usar filterKey memoizado em vez de valores individuais
 
     if (loading) {
-        return (
-            <div className="flex items-center justify-center h-64">
-                <div className="text-slate-500">Carregando dados...</div>
-            </div>
-        );
+        return <Loading message="Carregando dados do Bloco 1..." />;
     }
 
     if (error) {

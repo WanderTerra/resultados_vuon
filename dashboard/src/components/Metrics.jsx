@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { aloService } from '../services/aloService';
+import Loading from './Loading';
 
 const Metrics = () => {
     const [summary, setSummary] = useState(null);
@@ -27,11 +28,7 @@ const Metrics = () => {
     }, []);
 
     if (loading) {
-        return (
-            <div className="flex items-center justify-center h-32">
-                <div className="text-slate-500">Carregando métricas...</div>
-            </div>
-        );
+        return <Loading message="Carregando métricas..." />;
     }
 
     if (error) {
