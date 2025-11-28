@@ -3,7 +3,7 @@ module.exports = {
     {
       name: 'vuon-resultados-backend',
       script: './backend/server.js',
-      cwd: '/home/portes/resultados_vuon',
+      cwd: '/home/portes/resultados_vuon/resultados_vuon',
       instances: 1,
       exec_mode: 'fork',
       env: {
@@ -22,7 +22,7 @@ module.exports = {
       name: 'vuon-resultados-frontend',
       script: 'serve',
       args: '-s dashboard/dist -l 3002',
-      cwd: '/home/portes/resultados_vuon',
+      cwd: '/home/portes/resultados_vuon/resultados_vuon',
       env: {
         NODE_ENV: 'production'
       },
