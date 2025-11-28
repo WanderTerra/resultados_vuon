@@ -1,5 +1,11 @@
 // API Configuration
-export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+// Prioriza VITE_API_URL do .env, senão usa valores padrão
+const API_URL = import.meta.env.VITE_API_URL || 
+    (import.meta.env.PROD 
+        ? 'https://api-resultados.vuon.portes.com.br'
+        : 'http://localhost:3001');
+
+export const API_BASE_URL = API_URL;
 
 export const API_ENDPOINTS = {
     login: `${API_BASE_URL}/api/auth/login`,
@@ -11,4 +17,3 @@ export const API_ENDPOINTS = {
     aloCpcCpcaByDate: `${API_BASE_URL}/api/alo/cpc-cpca/by-date`,
     aloCpcCpcaSummary: `${API_BASE_URL}/api/alo/cpc-cpca/summary`,
 };
-
