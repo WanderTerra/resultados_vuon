@@ -1,5 +1,25 @@
 // Load .env first
-require('dotenv').config();
+const path = require('path');
+const fs = require('fs');
+
+// Tentar carregar .env do diretório backend
+const envPath = path.join(__dirname, '.env');
+if (fs.existsSync(envPath)) {
+    require('dotenv').config({ path: envPath });
+    console.log('✅ .env carregado de:', envPath);
+} else {
+    console.error('❌ Arquivo .env não encontrado em:', envPath);
+    // Tentar do diretório raiz como fallback
+    const rootEnvPath = path.join(__dirname, '..', '.env');
+    if (fs.existsSync(rootEnvPath)) {
+        require('dotenv').config({ path: rootEnvPath });
+        console.log('✅ .env carregado de:', rootEnvPath);
+    } else {
+        console.error('❌ Arquivo .env não encontrado em:', rootEnvPath);
+        // Tentar carregar sem especificar caminho (comportamento padrão)
+        require('dotenv').config();
+    }
+}
 
 // Handle uncaught exceptions
 process.on('uncaughtException', (error) => {
