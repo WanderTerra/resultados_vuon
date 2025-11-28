@@ -2,7 +2,13 @@ import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 
 // DateFilter component for filtering dashboard data by date range
 const DateFilter = ({ onFilterChange, initialStartDate = null, initialEndDate = null }) => {
-    const [viewMode, setViewMode] = useState('month'); // 'month' ou 'day'
+    // Persistir viewMode no localStorage para manter a seleção após atualizações
+    const getInitialViewMode = () => {
+        const saved = localStorage.getItem('dateFilter_viewMode');
+        return saved === 'day' ? 'day' : 'month';
+    };
+    
+    const [viewMode, setViewMode] = useState(getInitialViewMode); // 'month' ou 'day'
     const [startDate, setStartDate] = useState(initialStartDate || '');
     const [endDate, setEndDate] = useState(initialEndDate || '');
     const [compareMode, setCompareMode] = useState(false);
@@ -47,10 +53,6 @@ const DateFilter = ({ onFilterChange, initialStartDate = null, initialEndDate = 
     };
 
     const handleViewModeChange = (mode) => {
-        const newMode = mode;
-        setViewMode(newMode);
-        setError('');
-        
         // Limpar qualquer debounce pendente
         if (debounceTimerRef.current) {
             clearTimeout(debounceTimerRef.current);
@@ -58,7 +60,10 @@ const DateFilter = ({ onFilterChange, initialStartDate = null, initialEndDate = 
         }
         lastFilterRef.current = null; // Reset para forçar atualização
         
-        if (newMode === 'day') {
+        // Salvar o modo no localStorage
+        localStorage.setItem('dateFilter_viewMode', mode);
+        
+        if (mode === 'day') {
             // No modo diário, definir automaticamente o mês atual
             const now = new Date();
             const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -66,7 +71,9 @@ const DateFilter = ({ onFilterChange, initialStartDate = null, initialEndDate = 
             const start = firstDay.toISOString().split('T')[0];
             const end = lastDay.toISOString().split('T')[0];
             
-            // Atualizar estados
+            // Atualizar todos os estados de uma vez
+            setViewMode('day');
+            setError('');
             setStartDate(start);
             setEndDate(end);
             setCompareStartDate('');
@@ -86,6 +93,8 @@ const DateFilter = ({ onFilterChange, initialStartDate = null, initialEndDate = 
             onFilterChange(filterData);
         } else {
             // No modo mensal, limpar datas
+            setViewMode('month');
+            setError('');
             setStartDate('');
             setEndDate('');
             setCompareStartDate('');
@@ -305,18 +314,44 @@ const DateFilter = ({ onFilterChange, initialStartDate = null, initialEndDate = 
         if (hasInitialized.current) return; // Já inicializou, não executar novamente
         hasInitialized.current = true;
         
-        const filterData = {
-            startDate: null,
-            endDate: null,
-            compareMode: false,
-            compareStartDate: null,
-            compareEndDate: null,
-            groupBy: 'month'
-        };
+        // Usar o viewMode salvo ou padrão
+        const initialViewMode = getInitialViewMode();
         
-        // Aplicar filtro inicial apenas uma vez
-        lastFilterRef.current = JSON.stringify(filterData);
-        onFilterChange(filterData);
+        if (initialViewMode === 'day') {
+            // Se o modo inicial for diário, definir datas do mês atual
+            const now = new Date();
+            const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+            const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+            const start = firstDay.toISOString().split('T')[0];
+            const end = lastDay.toISOString().split('T')[0];
+            
+            setStartDate(start);
+            setEndDate(end);
+            
+            const filterData = {
+                startDate: start,
+                endDate: end,
+                compareMode: false,
+                compareStartDate: null,
+                compareEndDate: null,
+                groupBy: 'day'
+            };
+            lastFilterRef.current = JSON.stringify(filterData);
+            onFilterChange(filterData);
+        } else {
+            const filterData = {
+                startDate: null,
+                endDate: null,
+                compareMode: false,
+                compareStartDate: null,
+                compareEndDate: null,
+                groupBy: 'month'
+            };
+            
+            // Aplicar filtro inicial apenas uma vez
+            lastFilterRef.current = JSON.stringify(filterData);
+            onFilterChange(filterData);
+        }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []); // Array vazio - executar apenas uma vez no mount
 
@@ -378,6 +413,7 @@ const DateFilter = ({ onFilterChange, initialStartDate = null, initialEndDate = 
                     </div>
                     <div className="flex items-center gap-2">
                         <input
+                            key={`start-${viewMode}`}
                             type="date"
                             value={startDate}
                             onChange={handleStartDateChange}
@@ -386,6 +422,7 @@ const DateFilter = ({ onFilterChange, initialStartDate = null, initialEndDate = 
                         />
                         <span className="text-slate-500">até</span>
                         <input
+                            key={`end-${viewMode}`}
                             type="date"
                             value={endDate}
                             onChange={handleEndDateChange}
