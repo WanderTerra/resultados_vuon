@@ -21,7 +21,7 @@ module.exports = {
     {
       name: 'vuon-resultados-frontend',
       script: 'serve',
-      args: '-s dashboard/dist -l 3002',
+      args: ['-s', 'dashboard/dist', '-l', '3002', '--no-clipboard'],
       cwd: '/home/portes/resultados_vuon/resultados_vuon',
       env: {
         NODE_ENV: 'production'
