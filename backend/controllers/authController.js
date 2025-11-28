@@ -61,6 +61,14 @@ exports.login = async (req, res) => {
         const permissionCodes = permissions.map(p => p.codigo);
 
         // 4. Generate Token
+        if (!process.env.JWT_SECRET || process.env.JWT_SECRET.trim() === '') {
+            console.error('❌ JWT_SECRET não está definido ou está vazio');
+            return res.status(500).json({ 
+                message: 'Server configuration error',
+                error: 'JWT_SECRET is not configured'
+            });
+        }
+
         const token = jwt.sign(
             { id: user.id, username: user.username, permissions: permissionCodes },
             process.env.JWT_SECRET,
@@ -86,6 +94,48 @@ exports.login = async (req, res) => {
             message: 'Server error',
             error: process.env.NODE_ENV === 'development' ? error.message : undefined,
             code: process.env.NODE_ENV === 'development' ? error.code : undefined
+        });
+    }
+};
+
+// Verificar se o token é válido
+exports.verifyToken = async (req, res) => {
+    try {
+        const token = req.headers.authorization?.replace('Bearer ', '') || req.query.token;
+
+        if (!token) {
+            return res.status(401).json({ valid: false, message: 'Token não fornecido' });
+        }
+
+        if (!process.env.JWT_SECRET || process.env.JWT_SECRET.trim() === '') {
+            return res.status(500).json({ valid: false, message: 'JWT_SECRET não configurado' });
+        }
+
+        try {
+            const decoded = jwt.verify(token, process.env.JWT_SECRET);
+            res.json({ 
+                valid: true, 
+                user: {
+                    id: decoded.id,
+                    username: decoded.username,
+                    permissions: decoded.permissions
+                }
+            });
+        } catch (jwtError) {
+            if (jwtError.name === 'TokenExpiredError') {
+                return res.status(401).json({ valid: false, message: 'Token expirado' });
+            } else if (jwtError.name === 'JsonWebTokenError') {
+                return res.status(401).json({ valid: false, message: 'Token inválido' });
+            } else {
+                return res.status(401).json({ valid: false, message: 'Erro ao verificar token' });
+            }
+        }
+    } catch (error) {
+        console.error('Verify token error:', error);
+        res.status(500).json({ 
+            valid: false,
+            message: 'Server error',
+            error: process.env.NODE_ENV === 'development' ? error.message : undefined
         });
     }
 };

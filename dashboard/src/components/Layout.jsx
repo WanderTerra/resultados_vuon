@@ -9,7 +9,12 @@ const Sidebar = () => {
     const isActive = (path) => location.pathname === path;
 
     const handleLogout = () => {
+        // Limpar todos os dados de autenticação
         localStorage.removeItem('isAuthenticated');
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        // Limpar também o modo de visualização salvo (opcional)
+        localStorage.removeItem('dateFilter_viewMode');
         navigate('/login');
     };
 

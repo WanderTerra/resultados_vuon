@@ -9,6 +9,7 @@ export const API_BASE_URL = API_URL;
 
 export const API_ENDPOINTS = {
     login: `${API_BASE_URL}/api/auth/login`,
+    verifyToken: `${API_BASE_URL}/api/auth/verify`,
     dashboardData: `${API_BASE_URL}/api/dashboard/data`,
     blocoData: (bloco) => `${API_BASE_URL}/api/dashboard/bloco/${bloco}`,
     aloSummary: `${API_BASE_URL}/api/alo/summary`,
