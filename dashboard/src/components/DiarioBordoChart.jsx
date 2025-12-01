@@ -17,6 +17,7 @@ const DiarioBordoChart = () => {
     const [error, setError] = useState(null);
     const [selectedBlocos, setSelectedBlocos] = useState(new Set(['bloco1', 'bloco2', 'bloco3', 'blocowo']));
     const [dataSelecionada, setDataSelecionada] = useState(''); // Data selecionada pelo usuário
+    const [dataAlterada, setDataAlterada] = useState(false); // Flag para indicar se a data foi alterada automaticamente
 
     useEffect(() => {
         const fetchData = async () => {
@@ -44,6 +45,19 @@ const DiarioBordoChart = () => {
                 }
 
                 const result = await response.json();
+                
+                // Verificar se a data foi alterada automaticamente
+                if (result.dataAlterada && result.dataReferencia) {
+                    // Atualizar a data selecionada para a data que foi usada
+                    setDataSelecionada(result.dataReferencia);
+                    setDataAlterada(true);
+                    console.log(`ℹ️  Data alterada automaticamente de ${result.dataOriginal} para ${result.dataReferencia}`);
+                    
+                    // Limpar a flag após 5 segundos
+                    setTimeout(() => setDataAlterada(false), 5000);
+                } else {
+                    setDataAlterada(false);
+                }
                 
                 // Salvar data de referência
                 if (result.dataReferencia) {
@@ -189,7 +203,7 @@ const DiarioBordoChart = () => {
         <Card title={tituloCompleto} className="h-[500px]">
             {/* Filtro de Data */}
             <div className="mb-4">
-                <div className="flex items-center gap-4 mb-4">
+                <div className="flex items-center gap-4 mb-2">
                     <label className="flex items-center gap-2">
                         <span className="text-sm font-medium text-slate-600">Filtrar por Data:</span>
                         <input
@@ -208,6 +222,18 @@ const DiarioBordoChart = () => {
                         </button>
                     )}
                 </div>
+                {dataAlterada && (
+                    <div className="mb-2 p-2 bg-yellow-50 border border-yellow-200 rounded-lg">
+                        <p className="text-xs text-yellow-700">
+                            ⚠️ A data selecionada não tinha dados. Mostrando dados de: <strong>{formatarData(dataReferencia)}</strong>
+                        </p>
+                    </div>
+                )}
+                {dataReferencia && !dataSelecionada && !dataAlterada && (
+                    <p className="text-xs text-slate-500 italic">
+                        Mostrando dados do dia mais recente disponível: {formatarData(dataReferencia)}
+                    </p>
+                )}
             </div>
             
             {/* Filtro de Blocos */}

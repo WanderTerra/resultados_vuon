@@ -162,6 +162,50 @@ class DiarioBordoModel {
         try {
             const [rows] = await db.execute(query, [dataStr]);
             
+            // Se não houver dados para a data selecionada, buscar a data mais recente com dados
+            if (rows.length === 0 && dataSelecionada) {
+                console.log(`⚠️  Nenhum dado encontrado para a data ${dataStr}. Buscando data mais recente com dados...`);
+                
+                // Buscar a data mais recente que tem acordos
+                const [maxDateRows] = await db.execute(`
+                    SELECT MAX(DATE(data)) as data_maxima
+                    FROM vuon_resultados
+                    WHERE acao IN ('DDA', 'ACD')
+                        AND agente != '0'
+                        AND agente IS NOT NULL
+                        AND agente != ''
+                        AND DATE(data) < ?
+                `, [dataStr]);
+                
+                const dataMaxima = maxDateRows[0]?.data_maxima;
+                
+                if (dataMaxima) {
+                    // Garantir que a data seja uma string no formato YYYY-MM-DD
+                    let dataMaximaStr;
+                    if (dataMaxima instanceof Date) {
+                        dataMaximaStr = dataMaxima.toISOString().split('T')[0];
+                    } else if (typeof dataMaxima === 'string') {
+                        dataMaximaStr = dataMaxima.split('T')[0];
+                    } else {
+                        dataMaximaStr = String(dataMaxima);
+                    }
+                    
+                    console.log(`📊 Usando data mais recente com dados: ${dataMaximaStr}`);
+                    
+                    // Executar query novamente com a data mais recente
+                    const [newRows] = await db.execute(query, [dataMaximaStr]);
+                    
+                    // Adicionar flag indicando que a data foi alterada
+                    if (newRows.length > 0) {
+                        newRows._dataAlterada = true;
+                        newRows._dataOriginal = dataStr;
+                        newRows._dataUsada = dataMaximaStr;
+                    }
+                    
+                    return newRows;
+                }
+            }
+            
             // Log para debug: verificar se estamos pegando horas diferentes
             if (rows.length > 0) {
                 const horasUnicas = [...new Set(rows.map(r => r.hora))];

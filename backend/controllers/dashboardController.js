@@ -206,11 +206,25 @@ exports.getDiarioBordo = async (req, res) => {
         // Buscar dados de todos os blocos da data selecionada ou do dia mais recente
         const data = await DiarioBordoModel.getAcordosPorHoraTodosBlocos(dataSelecionada);
 
+        // Verificar se a data foi alterada automaticamente
+        let dataUsada = dataSelecionada;
+        let dataAlterada = false;
+        
+        if (data && data._dataAlterada) {
+            dataUsada = data._dataUsada;
+            dataAlterada = true;
+            // Remover propriedades auxiliares
+            delete data._dataAlterada;
+            delete data._dataOriginal;
+            delete data._dataUsada;
+        }
+
         // Se não houver dados, retornar resposta vazia
         if (!data || data.length === 0) {
             const response = {
                 data: [],
                 dataReferencia: dataSelecionada || null,
+                dataAlterada: false,
                 total: 0
             };
             cache.set(cacheKey, response, 300);
@@ -222,7 +236,7 @@ exports.getDiarioBordo = async (req, res) => {
         const horasMap = new Map();
         
         // Obter a data do primeiro registro (todos serão do mesmo dia)
-        let dataReferencia = dataSelecionada || null;
+        let dataReferencia = dataUsada || null;
         
         data.forEach(row => {
             const hora = row.hora !== null && row.hora !== undefined ? parseInt(row.hora) : 0;
@@ -265,6 +279,8 @@ exports.getDiarioBordo = async (req, res) => {
         const response = {
             data: formattedData,
             dataReferencia: dataReferencia,
+            dataAlterada: dataAlterada,
+            dataOriginal: dataAlterada ? dataSelecionada : null,
             total: formattedData.reduce((sum, item) => {
                 return sum + Object.values(item.blocos).reduce((blocoSum, bloco) => {
                     return blocoSum + (bloco.total || 0);
