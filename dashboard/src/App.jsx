@@ -33,12 +33,19 @@ const ProtectedRoute = ({ children }) => {
 
       // Verificar token no servidor
       try {
-        const response = await fetch(`${API_ENDPOINTS.verifyToken}?token=${token}`, {
+        const response = await fetch(API_ENDPOINTS.verifyToken, {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
           },
         });
+
+        // Verificar se a resposta é JSON antes de fazer parse
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+          throw new Error('Resposta do servidor não é JSON');
+        }
 
         const data = await response.json();
 
@@ -54,9 +61,19 @@ const ProtectedRoute = ({ children }) => {
         }
       } catch (error) {
         console.error('Erro ao verificar token:', error);
-        // Em caso de erro de rede, manter autenticação se tiver token válido
-        // Mas ainda assim verificar se tem a flag
-        setIsAuthenticated(storedAuth === 'true');
+        // Se for erro 404 ou de rede, verificar se o servidor está acessível
+        if (error.message.includes('404') || error.message.includes('Failed to fetch')) {
+          console.error('Servidor não encontrado. Verifique se o backend está rodando.');
+          // Em caso de erro de rede, manter autenticação se tiver token válido
+          // Mas ainda assim verificar se tem a flag
+          setIsAuthenticated(storedAuth === 'true');
+        } else {
+          // Outros erros, invalidar autenticação
+          setIsAuthenticated(false);
+          localStorage.removeItem('isAuthenticated');
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+        }
       } finally {
         setIsLoading(false);
       }

@@ -13,5 +13,8 @@ router.get('/bloco/:bloco', dashboardController.getBlocoData);
 router.get('/recebimento/bloco/:bloco', pagamentoController.getRecebimentoPorBloco);
 router.get('/recebimento/all', pagamentoController.getAllRecebimentos);
 
+// Rota do diário de bordo
+router.get('/diario-bordo', dashboardController.getDiarioBordo);
+
 module.exports = router;
 

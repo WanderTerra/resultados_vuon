@@ -1,6 +1,7 @@
 const { getDB } = require('../config/db');
 const BlocoModel = require('../models/blocoModel');
 const PagamentoModel = require('../models/pagamentoModel');
+const DiarioBordoModel = require('../models/diarioBordoModel');
 const cache = require('../utils/cache');
 
 // Initialize DB connection (will be reused)
@@ -182,6 +183,101 @@ exports.getDashboardData = async (req, res) => {
         console.error('Error message:', error.message);
         console.error('Error code:', error.code);
         console.error('Error stack:', error.stack);
+        res.status(500).json({ 
+            message: 'Server error',
+            error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
+    }
+};
+
+// Buscar dados do diário de bordo (acordos por hora)
+// Se dataSelecionada for fornecida, usa ela. Senão, usa o dia mais recente
+exports.getDiarioBordo = async (req, res) => {
+    try {
+        const dataSelecionada = req.query.data || null; // Parâmetro opcional: ?data=2025-05-05
+        
+        // Cache com chave baseada na data selecionada ou "diaMaisRecente"
+        const cacheKey = cache.generateKey('diarioBordo', dataSelecionada || 'diaMaisRecente');
+        const cached = cache.get(cacheKey);
+        if (cached) {
+            return res.json(cached);
+        }
+
+        // Buscar dados de todos os blocos da data selecionada ou do dia mais recente
+        const data = await DiarioBordoModel.getAcordosPorHoraTodosBlocos(dataSelecionada);
+
+        // Se não houver dados, retornar resposta vazia
+        if (!data || data.length === 0) {
+            const response = {
+                data: [],
+                dataReferencia: dataSelecionada || null,
+                total: 0
+            };
+            cache.set(cacheKey, response, 300);
+            return res.json(response);
+        }
+
+        // Formatar dados para o gráfico
+        // Agrupar por hora e separar por blocos
+        const horasMap = new Map();
+        
+        // Obter a data do primeiro registro (todos serão do mesmo dia)
+        let dataReferencia = dataSelecionada || null;
+        
+        data.forEach(row => {
+            const hora = row.hora !== null && row.hora !== undefined ? parseInt(row.hora) : 0;
+            
+            // Capturar a data de referência (primeira vez)
+            if (!dataReferencia && row.data) {
+                if (row.data instanceof Date) {
+                    dataReferencia = row.data.toISOString().split('T')[0];
+                } else if (typeof row.data === 'string') {
+                    dataReferencia = row.data.split('T')[0];
+                } else {
+                    dataReferencia = String(row.data);
+                }
+            }
+            
+            const key = hora; // Usar apenas a hora como chave, já que é tudo do mesmo dia
+            const blocoKey = row.bloco !== null && row.bloco !== undefined ? String(row.bloco) : 'outros';
+            
+            if (!horasMap.has(key)) {
+                horasMap.set(key, {
+                    data: dataReferencia,
+                    hora: hora,
+                    horaFormatada: `${String(hora).padStart(2, '0')}:00`,
+                    blocos: {}
+                });
+            }
+            
+            const entry = horasMap.get(key);
+            entry.blocos[`bloco${blocoKey}`] = {
+                dda: parseInt(row.dda || 0),
+                acd: parseInt(row.acd || 0),
+                total: parseInt(row.total_acordos || 0)
+            };
+        });
+
+        // Converter para array e ordenar apenas por hora (já que é tudo do mesmo dia)
+        const formattedData = Array.from(horasMap.values())
+            .sort((a, b) => a.hora - b.hora);
+
+        const response = {
+            data: formattedData,
+            dataReferencia: dataReferencia,
+            total: formattedData.reduce((sum, item) => {
+                return sum + Object.values(item.blocos).reduce((blocoSum, bloco) => {
+                    return blocoSum + (bloco.total || 0);
+                }, 0);
+            }, 0)
+        };
+
+        // Armazenar no cache (com TTL menor, pois é do dia atual)
+        cache.set(cacheKey, response, 300); // 5 minutos de cache
+
+        res.json(response);
+    } catch (error) {
+        console.error('Diário de bordo error:', error);
         res.status(500).json({ 
             message: 'Server error',
             error: process.env.NODE_ENV === 'development' ? error.message : undefined

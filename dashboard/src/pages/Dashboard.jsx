@@ -4,6 +4,7 @@ import Metrics from '../components/Metrics';
 import CpcCpcaChart from '../components/CpcCpcaChart';
 import AcoesChart from '../components/AcoesChart';
 import RecebimentoChart from '../components/RecebimentoChart';
+import DiarioBordoChart from '../components/DiarioBordoChart';
 
 const Dashboard = () => {
     return (
@@ -79,6 +80,17 @@ const Dashboard = () => {
                     </div>
                 </div>
                 <RecebimentoChart />
+            </section>
+
+            {/* Diário de Bordo */}
+            <section>
+                <div className="flex items-center justify-between mb-6">
+                    <div>
+                        <h2 className="text-xl font-bold text-slate-800">Diário de Bordo</h2>
+                        <p className="text-slate-500">Monitoramento de acordos (DDA e ACD) por hora, separados por blocos</p>
+                    </div>
+                </div>
+                <DiarioBordoChart />
             </section>
 
             {/* Análise ALO, CPC e CPCA */}
