@@ -7,6 +7,7 @@ import Bloco2 from './pages/Bloco2';
 import Bloco3 from './pages/Bloco3';
 import BlocoWO from './pages/BlocoWO';
 import Login from './pages/Login';
+import CadastroUsuario from './pages/CadastroUsuario';
 import { API_ENDPOINTS } from './config/api';
 import Loading from './components/Loading';
 
@@ -106,6 +107,48 @@ const PublicRoute = ({ children }) => {
   return children;
 };
 
+// Componente para proteger rotas apenas para admin (Portes)
+const AdminRoute = ({ children }) => {
+  const [isAdmin, setIsAdmin] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const location = useLocation();
+
+  useEffect(() => {
+    const checkAdmin = () => {
+      try {
+        const userStr = localStorage.getItem('user');
+        if (!userStr) {
+          setIsAdmin(false);
+          setIsLoading(false);
+          return;
+        }
+        
+        const user = JSON.parse(userStr);
+        const username = user?.username || '';
+        // Apenas o usuário "Portes admin" pode criar novos usuários
+        const isPortes = username === 'Portes admin';
+        setIsAdmin(isPortes);
+      } catch {
+        setIsAdmin(false);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    checkAdmin();
+  }, [location.pathname]);
+
+  if (isLoading) {
+    return <Loading message="Verificando permissões..." fullScreen={true} />;
+  }
+
+  if (!isAdmin) {
+    return <Navigate to="/" replace />;
+  }
+
+  return children;
+};
+
 function App() {
   return (
     <Router>
@@ -165,6 +208,18 @@ function App() {
               <Layout>
                 <BlocoWO />
               </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/cadastro-usuario"
+          element={
+            <ProtectedRoute>
+              <AdminRoute>
+                <Layout>
+                  <CadastroUsuario />
+                </Layout>
+              </AdminRoute>
             </ProtectedRoute>
           }
         />

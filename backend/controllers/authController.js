@@ -139,3 +139,90 @@ exports.verifyToken = async (req, res) => {
         });
     }
 };
+
+// Criar novo usuário (requer autenticação e ser usuário Portes)
+exports.createUser = async (req, res) => {
+    try {
+        // Verificar se o usuário autenticado é "Portes admin" (único usuário autorizado)
+        const authenticatedUsername = req.user?.username;
+        
+        // Apenas o usuário "Portes admin" pode criar novos usuários
+        if (authenticatedUsername !== 'Portes admin') {
+            return res.status(403).json({ 
+                message: 'Apenas o usuário Portes admin pode criar novos usuários' 
+            });
+        }
+
+        const { username, password, nome, status = 'ativo' } = req.body;
+
+        // Validações
+        if (!username || !password || !nome) {
+            return res.status(400).json({ 
+                message: 'Username, password e nome são obrigatórios' 
+            });
+        }
+
+        if (username.length < 3) {
+            return res.status(400).json({ 
+                message: 'Username deve ter pelo menos 3 caracteres' 
+            });
+        }
+
+        if (password.length < 6) {
+            return res.status(400).json({ 
+                message: 'Senha deve ter pelo menos 6 caracteres' 
+            });
+        }
+
+        if (nome.length < 3) {
+            return res.status(400).json({ 
+                message: 'Nome deve ter pelo menos 3 caracteres' 
+            });
+        }
+
+        // Get database connection
+        const db = await getDbConnection();
+        
+        if (!db) {
+            return res.status(500).json({ message: 'Database connection failed' });
+        }
+
+        // Verificar se o usuário já existe
+        const [existingUsers] = await db.execute(
+            'SELECT id FROM usuarios WHERE username = ?',
+            [username]
+        );
+
+        if (existingUsers.length > 0) {
+            return res.status(400).json({ 
+                message: 'Usuário já existe' 
+            });
+        }
+
+        // Hash password
+        const hashedPassword = await bcrypt.hash(password, 10);
+
+        // Inserir usuário
+        const [result] = await db.execute(
+            'INSERT INTO usuarios (username, password_hash, nome, status) VALUES (?, ?, ?, ?)',
+            [username, hashedPassword, nome, status]
+        );
+
+        res.status(201).json({
+            message: 'Usuário criado com sucesso',
+            user: {
+                id: result.insertId,
+                username: username,
+                nome: nome,
+                status: status
+            }
+        });
+
+    } catch (error) {
+        console.error('Create user error:', error);
+        res.status(500).json({ 
+            message: 'Server error',
+            error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
+    }
+};

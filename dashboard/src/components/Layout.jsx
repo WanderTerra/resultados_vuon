@@ -1,12 +1,26 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, LogOut, BarChart3 } from 'lucide-react';
+import { LayoutDashboard, LogOut, BarChart3, UserPlus } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 const Sidebar = () => {
     const location = useLocation();
     const navigate = useNavigate();
     const isActive = (path) => location.pathname === path;
+
+    // Verificar se o usuário é "Portes admin" (único usuário autorizado)
+    const isAdmin = () => {
+        try {
+            const userStr = localStorage.getItem('user');
+            if (!userStr) return false;
+            const user = JSON.parse(userStr);
+            const username = user?.username || '';
+            // Apenas o usuário "Portes admin" pode criar novos usuários
+            return username === 'Portes admin';
+        } catch {
+            return false;
+        }
+    };
 
     const handleLogout = () => {
         // Limpar todos os dados de autenticação
@@ -71,6 +85,15 @@ const Sidebar = () => {
                     <BarChart3 size={20} />
                     <span className="font-medium">WO</span>
                 </Link>
+                {isAdmin() && (
+                    <Link
+                        to="/cadastro-usuario"
+                        className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${isActive('/cadastro-usuario') ? 'bg-blue-600 text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
+                    >
+                        <UserPlus size={20} />
+                        <span className="font-medium">Cadastrar Usuário</span>
+                    </Link>
+                )}
             </nav>
 
             <div className="p-4 border-t border-slate-800">
@@ -96,6 +119,7 @@ const Layout = ({ children }) => {
         if (path === '/bloco2') return 'Bloco 2 - 91 a 180 dias';
         if (path === '/bloco3') return 'Bloco 3 - 181 a 360 dias';
         if (path === '/wo') return 'Bloco WO - Mais de 360 dias';
+        if (path === '/cadastro-usuario') return 'Cadastrar Usuário';
         return 'Dashboard';
     };
 

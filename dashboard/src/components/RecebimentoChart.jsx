@@ -116,7 +116,7 @@ const RecebimentoChart = ({ startDate = null, endDate = null }) => {
         };
 
         fetchData();
-    }, [viewMode]);
+    }, [viewMode, startDate, endDate]);
 
     if (loading) {
         return (
@@ -136,15 +136,7 @@ const RecebimentoChart = ({ startDate = null, endDate = null }) => {
         );
     }
 
-    if (!data || data.length === 0) {
-        return (
-            <Card title="Recebimento por Bloco">
-                <div className="flex items-center justify-center h-64">
-                    <div className="text-slate-500">Nenhum dado disponível</div>
-                </div>
-            </Card>
-        );
-    }
+    // Não retornar cedo quando não há dados - manter os botões de visualização
 
     // Formatar valores para exibição
     const formatCurrency = (value) => {
@@ -158,7 +150,7 @@ const RecebimentoChart = ({ startDate = null, endDate = null }) => {
 
     return (
         <Card title="Recebimento por Bloco" className="h-[420px]">
-            {/* Filtro de visualização */}
+            {/* Filtro de visualização - sempre visível */}
             <div className="mb-4 flex items-center gap-2">
                 <span className="text-sm font-medium text-slate-600">Visualização:</span>
                 <button
