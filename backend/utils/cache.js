@@ -55,13 +55,13 @@ class SimpleCache {
     }
 }
 
-// Instância global do cache - TTL aumentado para 15 minutos para melhor performance
-const cache = new SimpleCache(15 * 60 * 1000); // 15 minutos
+// Instância global do cache - TTL aumentado para 20 minutos para melhor performance
+const cache = new SimpleCache(20 * 60 * 1000); // 20 minutos
 
-// Limpar cache expirado a cada 10 minutos
+// Limpar cache expirado a cada 15 minutos
 setInterval(() => {
     cache.cleanup();
-}, 10 * 60 * 1000);
+}, 15 * 60 * 1000);
 
 module.exports = cache;
 

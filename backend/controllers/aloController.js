@@ -2,7 +2,9 @@ const AloModel = require('../models/aloModel');
 
 exports.getSummary = async (req, res) => {
     try {
-        const summary = await AloModel.getSummary();
+        const startDate = req.query.startDate || null;
+        const endDate = req.query.endDate || null;
+        const summary = await AloModel.getSummary(startDate, endDate);
         res.json({ success: true, data: summary });
     } catch (error) {
         console.error('Error in getSummary:', error);
@@ -16,7 +18,9 @@ exports.getSummary = async (req, res) => {
 
 exports.getAcoes = async (req, res) => {
     try {
-        const acoes = await AloModel.getAcoes();
+        const startDate = req.query.startDate || null;
+        const endDate = req.query.endDate || null;
+        const acoes = await AloModel.getAcoes(startDate, endDate);
         res.json({ success: true, data: acoes });
     } catch (error) {
         console.error('Error in getAcoes:', error);
@@ -45,7 +49,9 @@ exports.getByDate = async (req, res) => {
 
 exports.getCpcCpcaByDate = async (req, res) => {
     try {
-        const data = await AloModel.getCpcCpcaByDate();
+        const startDate = req.query.startDate || null;
+        const endDate = req.query.endDate || null;
+        const data = await AloModel.getCpcCpcaByDate(startDate, endDate);
         res.json({ success: true, data });
     } catch (error) {
         console.error('Error in getCpcCpcaByDate:', error);
@@ -59,7 +65,9 @@ exports.getCpcCpcaByDate = async (req, res) => {
 
 exports.getCpcCpcaSummary = async (req, res) => {
     try {
-        const summary = await AloModel.getCpcCpcaSummary();
+        const startDate = req.query.startDate || null;
+        const endDate = req.query.endDate || null;
+        const summary = await AloModel.getCpcCpcaSummary(startDate, endDate);
         res.json({ success: true, data: summary });
     } catch (error) {
         console.error('Error in getCpcCpcaSummary:', error);

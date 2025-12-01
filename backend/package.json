@@ -9,6 +9,8 @@
     "init-db": "node scripts/initDatabase.js",
     "create-indexes": "node scripts/createIndexes.js",
     "create-views": "node scripts/createViews.js",
+    "create-blocos-views": "node scripts/createBlocoViews.js",
+    "create-alo-views": "node scripts/createAloViews.js",
     "create-user": "node scripts/createUser.js",
     "create-user-direct": "node scripts/createUserDirect.js",
     "test-connection": "node scripts/testConnection.js",

@@ -178,31 +178,36 @@ const Bloco1 = () => {
     }, [filters.startDate, filters.endDate, filters.compareMode, filters.compareStartDate, filters.compareEndDate, filters.groupBy]);
 
     useEffect(() => {
-        let isMounted = true; // Flag para evitar atualizações se o componente foi desmontado
+        let cancelled = false; // Flag para cancelar requisições
         
         const loadData = async () => {
             setLoading(true);
+            setError(null);
             try {
                 const mainData = await fetchBlocoData(filters.startDate, filters.endDate, filters.groupBy);
                 
-                if (!isMounted) return; // Componente foi desmontado, não atualizar
-                
-                setDashboardData({ bloco1: mainData });
+                // Só atualizar se a requisição não foi cancelada
+                if (!cancelled) {
+                    setDashboardData({ bloco1: mainData });
 
-                if (filters.compareMode && filters.compareStartDate && filters.compareEndDate) {
-                    const compareDataResult = await fetchBlocoData(filters.compareStartDate, filters.compareEndDate, filters.groupBy);
-                    
-                    if (!isMounted) return; // Componente foi desmontado, não atualizar
-                    
-                    setCompareData({ bloco1: compareDataResult });
-                } else {
-                    setCompareData(null);
+                    if (filters.compareMode && filters.compareStartDate && filters.compareEndDate) {
+                        const compareDataResult = await fetchBlocoData(filters.compareStartDate, filters.compareEndDate, filters.groupBy);
+                        
+                        // Só atualizar se a requisição não foi cancelada
+                        if (!cancelled) {
+                            setCompareData({ bloco1: compareDataResult });
+                        }
+                    } else {
+                        setCompareData(null);
+                    }
                 }
             } catch (err) {
-                if (!isMounted) return; // Componente foi desmontado, não atualizar
-                setError(err.message);
+                // Só atualizar erro se a requisição não foi cancelada
+                if (!cancelled) {
+                    setError(err.message);
+                }
             } finally {
-                if (isMounted) {
+                if (!cancelled) {
                     setLoading(false);
                 }
             }
@@ -210,9 +215,9 @@ const Bloco1 = () => {
 
         loadData();
         
-        // Cleanup function
+        // Cleanup: cancelar requisição se o componente for desmontado ou filtro mudar
         return () => {
-            isMounted = false;
+            cancelled = true;
         };
     }, [filterKey, fetchBlocoData]); // Usar filterKey memoizado em vez de valores individuais
 

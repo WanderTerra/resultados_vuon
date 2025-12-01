@@ -18,6 +18,15 @@ const DiarioBordoChart = () => {
     const [selectedBlocos, setSelectedBlocos] = useState(new Set(['bloco1', 'bloco2', 'bloco3', 'blocowo']));
     const [dataSelecionada, setDataSelecionada] = useState(''); // Data selecionada pelo usuário
     const [dataAlterada, setDataAlterada] = useState(false); // Flag para indicar se a data foi alterada automaticamente
+    const [inicializado, setInicializado] = useState(false); // Flag para controlar inicialização
+
+    // Efeito para inicializar a data na primeira carga
+    useEffect(() => {
+        if (dataReferencia && !inicializado && !dataSelecionada) {
+            setDataSelecionada(dataReferencia);
+            setInicializado(true);
+        }
+    }, [dataReferencia, inicializado, dataSelecionada]);
 
     useEffect(() => {
         const fetchData = async () => {
@@ -215,7 +224,10 @@ const DiarioBordoChart = () => {
                     </label>
                     {dataSelecionada && (
                         <button
-                            onClick={() => setDataSelecionada('')}
+                            onClick={() => {
+                                setDataSelecionada('');
+                                setInicializado(false); // Resetar para permitir nova inicialização
+                            }}
                             className="text-xs px-3 py-1 bg-slate-400 text-white rounded hover:bg-slate-500 transition-colors"
                         >
                             Usar Dia Mais Recente

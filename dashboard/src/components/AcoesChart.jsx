@@ -10,7 +10,7 @@ const Card = ({ title, children, className = "" }) => (
     </div>
 );
 
-const AcoesChart = () => {
+const AcoesChart = ({ startDate = null, endDate = null }) => {
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -19,25 +19,50 @@ const AcoesChart = () => {
     const [initialized, setInitialized] = useState(false); // Flag para controlar inicialização
 
     useEffect(() => {
+        let cancelled = false;
+        
         const fetchData = async () => {
             try {
-                const response = await aloService.getAcoes();
-                setData(response.data);
+                setLoading(true);
+                setError(null);
+                setInitialized(false); // Reset inicialização quando filtro muda
+                const response = await aloService.getAcoes(startDate, endDate);
+                
+                // Só atualizar se a requisição não foi cancelada
+                if (!cancelled) {
+                    setData(response.data);
+                }
             } catch (err) {
-                console.error('Error fetching ações data:', err);
-                setError(err.message);
+                if (!cancelled) {
+                    console.error('Error fetching ações data:', err);
+                    setError(err.message);
+                }
             } finally {
-                setLoading(false);
+                if (!cancelled) {
+                    setLoading(false);
+                }
             }
         };
+        
         fetchData();
-    }, []);
+        
+        // Cleanup: cancelar requisição se o componente for desmontado ou filtro mudar
+        return () => {
+            cancelled = true;
+        };
+    }, [startDate, endDate]);
 
-    // Inicializar seleção com todas as ações quando os dados carregam (apenas uma vez)
+    // Inicializar seleção com ações padrão quando os dados carregam (apenas uma vez)
+    // Ações marcadas por padrão: DDA, ACD, LMD, BOL, REC, BLE, SCP, APH, SRP, CSA
     useEffect(() => {
         if (data && data.length > 0 && !initialized) {
-            const allAcoes = new Set(data.map(item => item.acao));
-            setSelectedAcoes(allAcoes);
+            const defaultAcoes = new Set(['DDA', 'ACD', 'LMD', 'BOL', 'REC', 'BLE', 'SCP', 'APH', 'SRP', 'CSA']);
+            // Filtrar apenas as ações que existem nos dados
+            const availableAcoes = data.map(item => item.acao);
+            const selectedDefaultAcoes = new Set(
+                Array.from(defaultAcoes).filter(acao => availableAcoes.includes(acao))
+            );
+            setSelectedAcoes(selectedDefaultAcoes);
             setInitialized(true);
         }
     }, [data, initialized]);

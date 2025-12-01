@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { API_ENDPOINTS } from '../config/api';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Line, ComposedChart } from 'recharts';
 import DateFilter from '../components/DateFilter';
@@ -121,7 +121,8 @@ const Bloco3 = () => {
         groupBy: 'month'
     });
 
-    const fetchBlocoData = async (startDate, endDate, groupBy = 'month') => {
+    // Memoizar fetchBlocoData para evitar recriações
+    const fetchBlocoData = useCallback(async (startDate, endDate, groupBy = 'month') => {
         try {
             const token = localStorage.getItem('token');
             const params = new URLSearchParams();
@@ -156,30 +157,63 @@ const Bloco3 = () => {
             console.error('Error fetching bloco data:', err);
             throw err;
         }
-    };
+    }, []);
+
+    // Memoizar os parâmetros de filtro para evitar recriações
+    const filterKey = useMemo(() => {
+        return JSON.stringify({
+            startDate: filters.startDate,
+            endDate: filters.endDate,
+            compareMode: filters.compareMode,
+            compareStartDate: filters.compareStartDate,
+            compareEndDate: filters.compareEndDate,
+            groupBy: filters.groupBy
+        });
+    }, [filters.startDate, filters.endDate, filters.compareMode, filters.compareStartDate, filters.compareEndDate, filters.groupBy]);
 
     useEffect(() => {
+        let cancelled = false; // Flag para cancelar requisições
+        
         const loadData = async () => {
             setLoading(true);
+            setError(null);
             try {
                 const mainData = await fetchBlocoData(filters.startDate, filters.endDate, filters.groupBy);
-                setDashboardData({ bloco3: mainData });
+                
+                // Só atualizar se a requisição não foi cancelada
+                if (!cancelled) {
+                    setDashboardData({ bloco3: mainData });
 
-                if (filters.compareMode && filters.compareStartDate && filters.compareEndDate) {
-                    const compareDataResult = await fetchBlocoData(filters.compareStartDate, filters.compareEndDate, filters.groupBy);
-                    setCompareData({ bloco3: compareDataResult });
-                } else {
-                    setCompareData(null);
+                    if (filters.compareMode && filters.compareStartDate && filters.compareEndDate) {
+                        const compareDataResult = await fetchBlocoData(filters.compareStartDate, filters.compareEndDate, filters.groupBy);
+                        
+                        // Só atualizar se a requisição não foi cancelada
+                        if (!cancelled) {
+                            setCompareData({ bloco3: compareDataResult });
+                        }
+                    } else {
+                        setCompareData(null);
+                    }
                 }
             } catch (err) {
-                setError(err.message);
+                // Só atualizar erro se a requisição não foi cancelada
+                if (!cancelled) {
+                    setError(err.message);
+                }
             } finally {
-                setLoading(false);
+                if (!cancelled) {
+                    setLoading(false);
+                }
             }
         };
 
         loadData();
-    }, [filters.startDate, filters.endDate, filters.compareMode, filters.compareStartDate, filters.compareEndDate, filters.groupBy]);
+        
+        // Cleanup: cancelar requisição se o componente for desmontado ou filtro mudar
+        return () => {
+            cancelled = true;
+        };
+    }, [filterKey, fetchBlocoData]); // Usar filterKey memoizado em vez de valores individuais
 
     if (loading) {
         return <Loading message="Carregando dados do Bloco 3..." />;

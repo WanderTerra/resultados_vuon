@@ -10,7 +10,7 @@ const Card = ({ title, children, className = "" }) => (
     </div>
 );
 
-const CpcCpcaChart = () => {
+const CpcCpcaChart = ({ startDate = null, endDate = null }) => {
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -18,19 +18,37 @@ const CpcCpcaChart = () => {
     const [showAverage, setShowAverage] = useState(true);
 
     useEffect(() => {
+        let cancelled = false;
+        
         const fetchData = async () => {
             try {
-                const response = await aloService.getCpcCpcaByDate();
-                setData(response.data);
+                setLoading(true);
+                setError(null);
+                const response = await aloService.getCpcCpcaByDate(startDate, endDate);
+                
+                // Só atualizar se a requisição não foi cancelada
+                if (!cancelled) {
+                    setData(response.data);
+                }
             } catch (err) {
-                console.error('Error fetching CPC/CPCA data:', err);
-                setError(err.message);
+                if (!cancelled) {
+                    console.error('Error fetching CPC/CPCA data:', err);
+                    setError(err.message);
+                }
             } finally {
-                setLoading(false);
+                if (!cancelled) {
+                    setLoading(false);
+                }
             }
         };
+        
         fetchData();
-    }, []);
+        
+        // Cleanup: cancelar requisição se o componente for desmontado ou filtro mudar
+        return () => {
+            cancelled = true;
+        };
+    }, [startDate, endDate]);
 
     // Calcular métricas e formatar dados
     const { chartData, metrics } = useMemo(() => {

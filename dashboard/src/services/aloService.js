@@ -9,8 +9,12 @@ const getAuthHeaders = () => {
 };
 
 export const aloService = {
-    getSummary: async () => {
-        const response = await fetch(API_ENDPOINTS.aloSummary, {
+    getSummary: async (startDate = null, endDate = null) => {
+        const params = new URLSearchParams();
+        if (startDate) params.append('startDate', startDate);
+        if (endDate) params.append('endDate', endDate);
+        const url = `${API_ENDPOINTS.aloSummary}${params.toString() ? '?' + params.toString() : ''}`;
+        const response = await fetch(url, {
             headers: getAuthHeaders(),
         });
         const data = await response.json();
@@ -20,8 +24,12 @@ export const aloService = {
         return data;
     },
 
-    getAcoes: async () => {
-        const response = await fetch(API_ENDPOINTS.aloAcoes, {
+    getAcoes: async (startDate = null, endDate = null) => {
+        const params = new URLSearchParams();
+        if (startDate) params.append('startDate', startDate);
+        if (endDate) params.append('endDate', endDate);
+        const url = `${API_ENDPOINTS.aloAcoes}${params.toString() ? '?' + params.toString() : ''}`;
+        const response = await fetch(url, {
             headers: getAuthHeaders(),
         });
         const data = await response.json();
@@ -31,8 +39,13 @@ export const aloService = {
         return data;
     },
 
-    getByDate: async (limit = 30) => {
-        const response = await fetch(`${API_ENDPOINTS.aloByDate}?limit=${limit}`, {
+    getByDate: async (limit = 30, startDate = null, endDate = null) => {
+        const params = new URLSearchParams();
+        params.append('limit', limit);
+        if (startDate) params.append('startDate', startDate);
+        if (endDate) params.append('endDate', endDate);
+        const url = `${API_ENDPOINTS.aloByDate}?${params.toString()}`;
+        const response = await fetch(url, {
             headers: getAuthHeaders(),
         });
         const data = await response.json();
@@ -42,8 +55,12 @@ export const aloService = {
         return data;
     },
 
-    getCpcCpcaByDate: async () => {
-        const response = await fetch(API_ENDPOINTS.aloCpcCpcaByDate, {
+    getCpcCpcaByDate: async (startDate = null, endDate = null) => {
+        const params = new URLSearchParams();
+        if (startDate) params.append('startDate', startDate);
+        if (endDate) params.append('endDate', endDate);
+        const url = `${API_ENDPOINTS.aloCpcCpcaByDate}${params.toString() ? '?' + params.toString() : ''}`;
+        const response = await fetch(url, {
             headers: getAuthHeaders(),
         });
         const data = await response.json();
@@ -53,8 +70,12 @@ export const aloService = {
         return data;
     },
 
-    getCpcCpcaSummary: async () => {
-        const response = await fetch(API_ENDPOINTS.aloCpcCpcaSummary, {
+    getCpcCpcaSummary: async (startDate = null, endDate = null) => {
+        const params = new URLSearchParams();
+        if (startDate) params.append('startDate', startDate);
+        if (endDate) params.append('endDate', endDate);
+        const url = `${API_ENDPOINTS.aloCpcCpcaSummary}${params.toString() ? '?' + params.toString() : ''}`;
+        const response = await fetch(url, {
             headers: getAuthHeaders(),
         });
         const data = await response.json();

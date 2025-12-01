@@ -17,6 +17,10 @@ const DateFilter = ({ onFilterChange, initialStartDate = null, initialEndDate = 
     const [error, setError] = useState('');
     const debounceTimerRef = useRef(null);
     const lastFilterRef = useRef(null);
+    const previousStartDateRef = useRef(startDate);
+    const previousEndDateRef = useRef(endDate);
+    const previousCompareStartDateRef = useRef(compareStartDate);
+    const previousCompareEndDateRef = useRef(compareEndDate);
 
     // Função para validar se o período não ultrapassa 1 mês (modo diário)
     const validateDayMode = (start, end) => {
@@ -117,6 +121,14 @@ const DateFilter = ({ onFilterChange, initialStartDate = null, initialEndDate = 
 
     const handleStartDateChange = (e) => {
         const date = e.target.value;
+        
+        // Se a data não mudou realmente (apenas navegação no calendário), não fazer nada
+        if (date === startDate || date === previousStartDateRef.current) {
+            return;
+        }
+        
+        // Atualizar referência anterior
+        previousStartDateRef.current = date;
         setError('');
 
         let newEndDate = endDate;
@@ -152,6 +164,14 @@ const DateFilter = ({ onFilterChange, initialStartDate = null, initialEndDate = 
 
     const handleEndDateChange = (e) => {
         const date = e.target.value;
+        
+        // Se a data não mudou realmente (apenas navegação no calendário), não fazer nada
+        if (date === endDate || date === previousEndDateRef.current) {
+            return;
+        }
+        
+        // Atualizar referência anterior
+        previousEndDateRef.current = date;
         setEndDate(date);
         setError('');
 
@@ -177,6 +197,14 @@ const DateFilter = ({ onFilterChange, initialStartDate = null, initialEndDate = 
 
     const handleCompareStartDateChange = (e) => {
         const date = e.target.value;
+        
+        // Se a data não mudou realmente (apenas navegação no calendário), não fazer nada
+        if (date === compareStartDate || date === previousCompareStartDateRef.current) {
+            return;
+        }
+        
+        // Atualizar referência anterior
+        previousCompareStartDateRef.current = date;
         setError('');
 
         let newCompareEndDate = compareEndDate;
@@ -208,6 +236,14 @@ const DateFilter = ({ onFilterChange, initialStartDate = null, initialEndDate = 
 
     const handleCompareEndDateChange = (e) => {
         const date = e.target.value;
+        
+        // Se a data não mudou realmente (apenas navegação no calendário), não fazer nada
+        if (date === compareEndDate || date === previousCompareEndDateRef.current) {
+            return;
+        }
+        
+        // Atualizar referência anterior
+        previousCompareEndDateRef.current = date;
         setCompareEndDate(date);
         setError('');
 

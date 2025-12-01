@@ -11,6 +11,11 @@ const createIndexes = async () => {
 
         // Índices para a tabela vuon_resultados
         const indexes = [
+            // Índice composto para acao + data + agente (otimiza Diário de Bordo e queries de acordos)
+            {
+                name: 'idx_acao_data_agente',
+                query: `CREATE INDEX idx_acao_data_agente ON vuon_resultados(acao, data, agente)`
+            },
             // Índice composto para filtros de bloco (atraso) e data - MAIS IMPORTANTE
             {
                 name: 'idx_atraso_data',

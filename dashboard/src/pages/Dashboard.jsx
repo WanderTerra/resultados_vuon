@@ -1,12 +1,24 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import Metrics from '../components/Metrics';
 import CpcCpcaChart from '../components/CpcCpcaChart';
 import AcoesChart from '../components/AcoesChart';
 import RecebimentoChart from '../components/RecebimentoChart';
 import DiarioBordoChart from '../components/DiarioBordoChart';
+import PeriodFilter from '../components/PeriodFilter';
 
 const Dashboard = () => {
+    const [aloFilterDates, setAloFilterDates] = useState(null); // { start, end } ou null para todos
+    const [filterInitialized, setFilterInitialized] = useState(false); // Flag para saber se o filtro foi inicializado
+    
+    const handlePeriodChange = (dates) => {
+        // Atualizar filtro e marcar como inicializado
+        setAloFilterDates(dates);
+        if (!filterInitialized) {
+            setFilterInitialized(true);
+        }
+    };
+    
     return (
         <div className="space-y-6 px-4">
             {/* Cards de Navegação para Blocos */}
@@ -102,16 +114,23 @@ const Dashboard = () => {
                     </div>
                 </div>
 
-                {/* Métricas */}
-                <div className="mb-8">
-                    <Metrics />
-                </div>
+                {/* Filtro de Período */}
+                <PeriodFilter onPeriodChange={handlePeriodChange} />
 
-                {/* Gráficos */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                    <CpcCpcaChart />
-                    <AcoesChart />
-                </div>
+                {/* Métricas - só renderizar após filtro ser inicializado */}
+                {filterInitialized && (
+                    <div className="mb-8">
+                        <Metrics startDate={aloFilterDates?.start} endDate={aloFilterDates?.end} />
+                    </div>
+                )}
+
+                {/* Gráficos - só renderizar após filtro ser inicializado */}
+                {filterInitialized && (
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                        <CpcCpcaChart startDate={aloFilterDates?.start} endDate={aloFilterDates?.end} />
+                        <AcoesChart startDate={aloFilterDates?.start} endDate={aloFilterDates?.end} />
+                    </div>
+                )}
             </section>
         </div>
     );
