@@ -119,6 +119,26 @@ const PeriodFilter = ({ onPeriodChange }) => {
         setSelectedPeriod(period);
     };
 
+    // Formatar data para exibição (DD/MM/YYYY)
+    const formatDate = (dateString) => {
+        if (!dateString) return '';
+        const [year, month, day] = dateString.split('-');
+        return `${day}/${month}/${year}`;
+    };
+
+    // Obter as datas do período selecionado para exibição
+    const getCurrentPeriodDates = () => {
+        if (selectedPeriod === 'all') return null;
+        const dates = getPeriodDates(selectedPeriod);
+        // Para período custom, só mostrar se ambas as datas estiverem preenchidas
+        if (selectedPeriod === 'custom' && (!dates || !dates.start || !dates.end)) {
+            return null;
+        }
+        return dates;
+    };
+
+    const currentDates = getCurrentPeriodDates();
+
     return (
         <div className="bg-white rounded-lg border border-slate-200 p-4 mb-6">
             <div className="flex items-center gap-4 flex-wrap">
@@ -194,6 +214,17 @@ const PeriodFilter = ({ onPeriodChange }) => {
                         Personalizado
                     </button>
                 </div>
+                
+                {/* Exibir período selecionado */}
+                {currentDates && (
+                    <div className="ml-auto flex items-center gap-2 px-3 py-1.5 bg-blue-50 border border-blue-200 rounded-lg">
+                        <Calendar size={14} className="text-blue-600" />
+                        <span className="text-xs font-medium text-blue-700">Período:</span>
+                        <span className="text-sm font-semibold text-blue-800">
+                            {formatDate(currentDates.start)} até {formatDate(currentDates.end)}
+                        </span>
+                    </div>
+                )}
             </div>
             
             {selectedPeriod === 'custom' && (
