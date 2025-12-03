@@ -84,5 +84,17 @@ export const aloService = {
         }
         return data;
     },
+
+    getDateRange: async () => {
+        const url = API_ENDPOINTS.aloDateRange;
+        const response = await fetch(url, {
+            headers: getAuthHeaders(),
+        });
+        const data = await response.json();
+        if (!response.ok) {
+            throw new Error(data.message || 'Erro ao buscar intervalo de datas');
+        }
+        return data;
+    },
 };
 

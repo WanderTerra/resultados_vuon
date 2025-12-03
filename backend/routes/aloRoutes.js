@@ -7,6 +7,7 @@ router.get('/acoes', AloController.getAcoes);
 router.get('/by-date', AloController.getByDate);
 router.get('/cpc-cpca/by-date', AloController.getCpcCpcaByDate);
 router.get('/cpc-cpca/summary', AloController.getCpcCpcaSummary);
+router.get('/date-range', AloController.getDateRange);
 
 module.exports = router;
 

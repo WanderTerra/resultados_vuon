@@ -280,6 +280,34 @@ class AloModel {
             : await db.execute(query);
         return rows[0];
     }
+
+    // Buscar intervalo de datas (min e max) dos dados ALO
+    static async getDateRange() {
+        const db = await getDB();
+        
+        const query = `
+            SELECT 
+                DATE_FORMAT(MIN(DATE(data)), '%Y-%m-%d') as min_date,
+                DATE_FORMAT(MAX(DATE(data)), '%Y-%m-%d') as max_date
+            FROM vuon_resultados
+            WHERE agente != '0' 
+                AND agente IS NOT NULL 
+                AND data IS NOT NULL
+        `;
+        
+        const [rows] = await db.execute(query);
+        const result = rows[0] || { min_date: null, max_date: null };
+        
+        // Garantir que as datas estão no formato string YYYY-MM-DD
+        if (result.min_date && typeof result.min_date !== 'string') {
+            result.min_date = result.min_date.toISOString().split('T')[0];
+        }
+        if (result.max_date && typeof result.max_date !== 'string') {
+            result.max_date = result.max_date.toISOString().split('T')[0];
+        }
+        
+        return result;
+    }
 }
 
 module.exports = AloModel;

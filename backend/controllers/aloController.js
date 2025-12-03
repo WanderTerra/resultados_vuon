@@ -79,3 +79,17 @@ exports.getCpcCpcaSummary = async (req, res) => {
     }
 };
 
+exports.getDateRange = async (req, res) => {
+    try {
+        const dateRange = await AloModel.getDateRange();
+        res.json({ success: true, data: dateRange });
+    } catch (error) {
+        console.error('Error in getDateRange:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: error.message,
+            message: 'Erro ao buscar intervalo de datas'
+        });
+    }
+};
+

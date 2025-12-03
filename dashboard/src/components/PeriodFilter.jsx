@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Calendar } from 'lucide-react';
+import { aloService } from '../services/aloService';
 
 const PeriodFilter = ({ onPeriodChange }) => {
     const [selectedPeriod, setSelectedPeriod] = useState('all'); // 'all', 'lastWeek', 'lastMonth', 'last7Days', 'last30Days', 'custom'
     const [customStartDate, setCustomStartDate] = useState('');
     const [customEndDate, setCustomEndDate] = useState('');
+    const [allDatesRange, setAllDatesRange] = useState(null); // { min_date, max_date } quando 'all' está selecionado
     const isInitialMount = useRef(true); // Flag para controlar mount inicial (useRef não causa re-render)
 
     // Calcular períodos
@@ -83,6 +85,30 @@ const PeriodFilter = ({ onPeriodChange }) => {
         }
     };
 
+    // Buscar intervalo de datas quando 'all' for selecionado
+    useEffect(() => {
+        const fetchDateRange = async () => {
+            if (selectedPeriod === 'all') {
+                try {
+                    const response = await aloService.getDateRange();
+                    if (response.success && response.data) {
+                        setAllDatesRange({
+                            min_date: response.data.min_date,
+                            max_date: response.data.max_date
+                        });
+                    }
+                } catch (error) {
+                    console.error('Erro ao buscar intervalo de datas:', error);
+                    setAllDatesRange(null);
+                }
+            } else {
+                setAllDatesRange(null);
+            }
+        };
+
+        fetchDateRange();
+    }, [selectedPeriod]);
+
     // Notificar mudanças de período
     useEffect(() => {
         // No mount inicial, apenas marcar como não inicial mais e notificar 'all'
@@ -122,13 +148,49 @@ const PeriodFilter = ({ onPeriodChange }) => {
     // Formatar data para exibição (DD/MM/YYYY)
     const formatDate = (dateString) => {
         if (!dateString) return '';
-        const [year, month, day] = dateString.split('-');
-        return `${day}/${month}/${year}`;
+        
+        // Se for um objeto Date ou ISO string completo, extrair apenas a data
+        let dateOnly = dateString;
+        if (typeof dateString === 'string') {
+            // Se contém 'T' ou 'Z', é um ISO string - extrair apenas a parte da data
+            if (dateString.includes('T') || dateString.includes('Z')) {
+                dateOnly = dateString.split('T')[0];
+            }
+        }
+        
+        // Garantir que temos apenas YYYY-MM-DD
+        const [year, month, day] = dateOnly.split('-');
+        if (year && month && day) {
+            return `${day}/${month}/${year}`;
+        }
+        
+        return dateString; // Fallback: retornar original se não conseguir formatar
     };
 
     // Obter as datas do período selecionado para exibição
     const getCurrentPeriodDates = () => {
+        // Se for 'all' e tiver o intervalo de datas, retornar
+        if (selectedPeriod === 'all' && allDatesRange && allDatesRange.min_date && allDatesRange.max_date) {
+            // Garantir que as datas estão no formato YYYY-MM-DD
+            let minDate = allDatesRange.min_date;
+            let maxDate = allDatesRange.max_date;
+            
+            // Se for um objeto Date ou ISO string, extrair apenas a data
+            if (typeof minDate === 'string' && (minDate.includes('T') || minDate.includes('Z'))) {
+                minDate = minDate.split('T')[0];
+            }
+            if (typeof maxDate === 'string' && (maxDate.includes('T') || maxDate.includes('Z'))) {
+                maxDate = maxDate.split('T')[0];
+            }
+            
+            return {
+                start: minDate,
+                end: maxDate
+            };
+        }
+        
         if (selectedPeriod === 'all') return null;
+        
         const dates = getPeriodDates(selectedPeriod);
         // Para período custom, só mostrar se ambas as datas estiverem preenchidas
         if (selectedPeriod === 'custom' && (!dates || !dates.start || !dates.end)) {
