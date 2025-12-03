@@ -184,6 +184,17 @@ const Bloco1 = () => {
         let cancelled = false; // Flag para cancelar requisições
         
         const loadData = async () => {
+            // Se estiver no modo diário sem datas selecionadas, não carregar dados
+            if (filters.groupBy === 'day' && (!filters.startDate || !filters.endDate)) {
+                console.log('📥 Bloco1 - Modo diário sem datas, não carregando dados. groupBy:', filters.groupBy, 'startDate:', filters.startDate, 'endDate:', filters.endDate);
+                if (!cancelled) {
+                    setDashboardData(null);
+                    setCompareData(null);
+                    setLoading(false);
+                }
+                return;
+            }
+            
             // Limpar dados antigos antes de carregar novos para evitar mostrar dados em cache
             if (!cancelled) {
                 setDashboardData(null);
@@ -194,7 +205,13 @@ const Bloco1 = () => {
             setError(null);
             try {
                 // Adicionar timestamp para evitar cache do navegador
+                console.log('📥 Bloco1 - Carregando dados:', { startDate: filters.startDate, endDate: filters.endDate, groupBy: filters.groupBy });
                 const mainData = await fetchBlocoData(filters.startDate, filters.endDate, filters.groupBy);
+                console.log('📤 Bloco1 - Dados recebidos:', { 
+                    acionadosXCarteira: mainData?.acionadosXCarteira?.length || 0,
+                    primeiroDia: mainData?.acionadosXCarteira?.[0]?.date,
+                    ultimoDia: mainData?.acionadosXCarteira?.[mainData?.acionadosXCarteira?.length - 1]?.date
+                });
                 
                 // Só atualizar se a requisição não foi cancelada
                 if (!cancelled) {
@@ -240,6 +257,26 @@ const Bloco1 = () => {
         return (
             <div className="flex items-center justify-center h-64">
                 <div className="text-red-500">Erro ao carregar dados: {error}</div>
+            </div>
+        );
+    }
+
+    // Se estiver no modo diário sem mês selecionado, mostrar mensagem
+    if (filters.groupBy === 'day' && (!filters.startDate || !filters.endDate)) {
+        return (
+            <div className="space-y-6 px-4">
+                <DateFilter 
+                    onFilterChange={setFilters}
+                    initialStartDate={filters.startDate}
+                    initialEndDate={filters.endDate}
+                    initialViewMode={filters.groupBy === 'day' ? 'day' : 'month'}
+                />
+                <div className="flex items-center justify-center h-64 bg-white rounded-xl shadow-sm border border-slate-200">
+                    <div className="text-slate-500 text-center">
+                        <p className="text-lg font-medium mb-2">Selecione um mês para visualizar os dados diários</p>
+                        <p className="text-sm">Escolha um mês no filtro acima para ver os dados agrupados por dia</p>
+                    </div>
+                </div>
             </div>
         );
     }

@@ -15,11 +15,7 @@ const RecebimentoChart = ({ startDate = null, endDate = null }) => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [viewMode, setViewMode] = useState('month'); // 'month' ou 'day'
-    const [selectedMonth, setSelectedMonth] = useState(() => {
-        // Inicializar com o mês atual no formato YYYY-MM
-        const now = new Date();
-        return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-    });
+    const [selectedMonth, setSelectedMonth] = useState(''); // Inicializar vazio - usuário deve selecionar
 
     // Criar uma chave estável para as dependências
     const dependencyKey = useMemo(() => {
@@ -43,15 +39,17 @@ const RecebimentoChart = ({ startDate = null, endDate = null }) => {
                 
                 // Se modo "dia" estiver ativo, usar mês selecionado
                 if (viewMode === 'day') {
-                    // Calcular primeiro e último dia do mês selecionado
-                    let monthToUse = selectedMonth;
-                    if (!monthToUse) {
-                        // Se não houver mês selecionado, usar mês atual
-                        const now = new Date();
-                        monthToUse = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+                    // Só fazer requisição se um mês foi selecionado
+                    if (!selectedMonth) {
+                        // Se não houver mês selecionado, não fazer requisição e mostrar mensagem
+                        setData([]);
+                        setLoading(false);
+                        setError(null);
+                        return;
                     }
                     
-                    const [year, month] = monthToUse.split('-').map(Number);
+                    // Calcular primeiro e último dia do mês selecionado
+                    const [year, month] = selectedMonth.split('-').map(Number);
                     const firstDay = new Date(year, month - 1, 1);
                     const lastDay = new Date(year, month, 0);
                     
@@ -59,10 +57,14 @@ const RecebimentoChart = ({ startDate = null, endDate = null }) => {
                     params.append('endDate', lastDay.toISOString().split('T')[0]);
                     params.append('groupBy', 'day');
                 } else {
+                    // Modo mensal - carregar dados normalmente
                     if (startDate) params.append('startDate', startDate);
                     if (endDate) params.append('endDate', endDate);
                     params.append('groupBy', 'month');
                 }
+                
+                // Adicionar timestamp para evitar cache do navegador
+                params.append('_t', Date.now().toString());
                 
                 const url = `${API_ENDPOINTS.dashboardData}${params.toString() ? '?' + params.toString() : ''}`;
                 const response = await fetch(url, {
@@ -70,6 +72,7 @@ const RecebimentoChart = ({ startDate = null, endDate = null }) => {
                         'Authorization': `Bearer ${token}`,
                         'Content-Type': 'application/json',
                     },
+                    cache: 'no-cache',
                 });
 
                 if (!response.ok) {
@@ -132,7 +135,7 @@ const RecebimentoChart = ({ startDate = null, endDate = null }) => {
 
         fetchData();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [dependencyKey]);
+    }, [dependencyKey]); // Usar apenas dependencyKey para manter array consistente
 
     if (loading) {
         return (
@@ -171,7 +174,10 @@ const RecebimentoChart = ({ startDate = null, endDate = null }) => {
                 <div className="flex items-center gap-2">
                     <span className="text-sm font-medium text-slate-600">Visualização:</span>
                     <button
-                        onClick={() => setViewMode('month')}
+                        onClick={() => {
+                            setViewMode('month');
+                            setSelectedMonth(''); // Limpar mês selecionado ao voltar para modo mensal
+                        }}
                         className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                             viewMode === 'month'
                                 ? 'bg-blue-600 text-white shadow-sm'
@@ -181,7 +187,15 @@ const RecebimentoChart = ({ startDate = null, endDate = null }) => {
                         Por Mês
                     </button>
                     <button
-                        onClick={() => setViewMode('day')}
+                        onClick={() => {
+                            setViewMode('day');
+                            // Se não houver mês selecionado, inicializar com o mês atual
+                            if (!selectedMonth) {
+                                const now = new Date();
+                                const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+                                setSelectedMonth(currentMonth);
+                            }
+                        }}
                         className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                             viewMode === 'day'
                                 ? 'bg-blue-600 text-white shadow-sm'
@@ -208,7 +222,13 @@ const RecebimentoChart = ({ startDate = null, endDate = null }) => {
                 )}
             </div>
             <div className="w-full" style={{ height: '384px', minHeight: '384px', position: 'relative' }}>
-                {data && data.length > 0 ? (
+                {viewMode === 'day' && !selectedMonth ? (
+                    <div className="flex items-center justify-center h-full">
+                        <div className="text-slate-500 text-center">
+                            <p className="mb-2">Selecione um mês para visualizar os recebimentos diários</p>
+                        </div>
+                    </div>
+                ) : data && data.length > 0 ? (
                     <ResponsiveContainer width="100%" height={384}>
                     <LineChart
                         data={data}

@@ -183,9 +183,23 @@ const createBlocoViews = async () => {
 
         for (const view of views) {
             try {
-                console.log(`⏳ Creating view ${view.name}...`);
+                // Verificar se a view já existe antes de criar
+                const [existingViews] = await db.execute(
+                    `SELECT TABLE_NAME 
+                     FROM INFORMATION_SCHEMA.VIEWS 
+                     WHERE TABLE_SCHEMA = DATABASE() 
+                     AND TABLE_NAME = ?`,
+                    [view.name]
+                );
+                
+                if (existingViews.length > 0) {
+                    console.log(`ℹ️  View ${view.name} já existe. Usando CREATE OR REPLACE para atualizar...`);
+                } else {
+                    console.log(`⏳ Creating view ${view.name}...`);
+                }
+                
                 await db.execute(view.query);
-                console.log(`✅ View created: ${view.name}`);
+                console.log(`✅ View ${existingViews.length > 0 ? 'updated' : 'created'}: ${view.name}`);
                 created++;
             } catch (error) {
                 console.log(`⚠️  Could not create view ${view.name}: ${error.message}`);

@@ -41,15 +41,26 @@ exports.getBlocoData = async (req, res) => {
         const startDate = req.query.startDate || null;
         const endDate = req.query.endDate || null;
         const groupBy = req.query.groupBy || 'month'; // 'day' ou 'month'
+        const noCache = req.query._nocache === 'true' || req.query._t; // Ignorar cache se _nocache=true ou se houver timestamp
 
         console.log(`📥 Bloco ${bloco} - Request recebido: startDate=${startDate}, endDate=${endDate}, groupBy=${groupBy}`);
 
-        // Verificar cache
-        const cacheKey = cache.generateKey('bloco', bloco, startDate || 'all', endDate || 'all', groupBy);
-        const cached = cache.get(cacheKey);
-        if (cached) {
-            console.log(`📦 Bloco ${bloco} - Retornando do cache`);
-            return res.json(cached);
+        // Verificar cache apenas se não houver flag para ignorar cache
+        let cached = null;
+        if (!noCache) {
+            const cacheKey = cache.generateKey('bloco', bloco, startDate || 'all', endDate || 'all', groupBy);
+            cached = cache.get(cacheKey);
+            if (cached) {
+                console.log(`📦 Bloco ${bloco} - Retornando do cache`);
+                return res.json(cached);
+            }
+        } else {
+            // Se houver filtros de data, limpar cache relacionado ao bloco para evitar dados antigos
+            if (startDate || endDate) {
+                const cachePrefix = `bloco:${bloco}:`;
+                const cleared = cache.clearByPrefix(cachePrefix);
+                console.log(`🗑️  Bloco ${bloco} - ${cleared} entradas de cache limpas para evitar dados antigos`);
+            }
         }
 
         // Buscar dados do bloco
@@ -71,8 +82,13 @@ exports.getBlocoData = async (req, res) => {
             console.log(`📤 Primeiros: ${response.acionadosXCarteira.slice(0, 5).map(r => r.date).join(', ')}`);
         }
 
-        // Armazenar no cache
-        cache.set(cacheKey, response);
+        // Armazenar no cache apenas se não houver flag para ignorar cache
+        if (!noCache) {
+            const cacheKey = cache.generateKey('bloco', bloco, startDate || 'all', endDate || 'all', groupBy);
+            // Reduzir TTL quando há filtros de data para evitar cache muito longo
+            const cacheTtl = (startDate || endDate) ? (5 * 60 * 1000) : (30 * 60 * 1000); // 5 min com filtros, 30 min sem filtros
+            cache.set(cacheKey, response, cacheTtl);
+        }
 
         res.json(response);
     } catch (error) {
@@ -96,12 +112,23 @@ exports.getDashboardData = async (req, res) => {
         // Se não fornecido, busca todos os dados disponíveis
         const startDate = req.query.startDate || null;
         const endDate = req.query.endDate || null;
+        const noCache = req.query._nocache === 'true' || req.query._t; // Ignorar cache se _nocache=true ou se houver timestamp
 
-        // Verificar cache
-        const cacheKey = cache.generateKey('dashboard', startDate || 'all', endDate || 'all');
-        const cached = cache.get(cacheKey);
-        if (cached) {
-            return res.json(cached);
+        // Verificar cache apenas se não houver flag para ignorar cache
+        let cached = null;
+        if (!noCache) {
+            const cacheKey = cache.generateKey('dashboard', startDate || 'all', endDate || 'all');
+            cached = cache.get(cacheKey);
+            if (cached) {
+                return res.json(cached);
+            }
+        } else {
+            // Se houver filtros de data, limpar cache relacionado ao dashboard
+            if (startDate || endDate) {
+                const cachePrefix = 'dashboard:';
+                const cleared = cache.clearByPrefix(cachePrefix);
+                console.log(`🗑️  Dashboard - ${cleared} entradas de cache limpas para evitar dados antigos`);
+            }
         }
 
         // Verificar se é agrupamento por dia ou mês
@@ -181,8 +208,13 @@ exports.getDashboardData = async (req, res) => {
             }
         };
 
-        // Armazenar no cache
-        cache.set(cacheKey, dashboardData);
+        // Armazenar no cache apenas se não houver flag para ignorar cache
+        if (!noCache) {
+            const cacheKey = cache.generateKey('dashboard', startDate || 'all', endDate || 'all');
+            // Reduzir TTL quando há filtros de data
+            const cacheTtl = (startDate || endDate) ? (5 * 60 * 1000) : (30 * 60 * 1000); // 5 min com filtros, 30 min sem filtros
+            cache.set(cacheKey, dashboardData, cacheTtl);
+        }
 
         res.json(dashboardData);
 

@@ -53,6 +53,18 @@ class SimpleCache {
             }
         }
     }
+
+    // Limpar cache relacionado a um prefixo (útil para limpar cache quando filtros mudam)
+    clearByPrefix(prefix) {
+        let cleared = 0;
+        for (const [key] of this.cache.entries()) {
+            if (key.startsWith(prefix)) {
+                this.cache.delete(key);
+                cleared++;
+            }
+        }
+        return cleared;
+    }
 }
 
 // Instância global do cache - TTL aumentado para 30 minutos para melhor performance

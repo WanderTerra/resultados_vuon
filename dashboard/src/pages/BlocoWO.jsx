@@ -4,14 +4,14 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsive
 import DateFilter from '../components/DateFilter';
 import Loading from '../components/Loading';
 
-const Card = ({ title, children, className = "" }) => (
+const Card = React.memo(({ title, children, className = "" }) => (
     <div className={`bg-white rounded-xl shadow-sm border border-slate-200 p-6 overflow-hidden ${className}`}>
         <h3 className="text-lg font-semibold text-slate-800 mb-4">{title}</h3>
         {children}
     </div>
-);
+));
 
-const ChartContainer = ({ title, data, compareData = null }) => {
+const ChartContainer = React.memo(({ title, data, compareData = null }) => {
     if ((!data || !Array.isArray(data) || data.length === 0) && (!compareData || !Array.isArray(compareData) || compareData.length === 0)) {
         return (
             <Card title={title} className="h-96">
@@ -39,8 +39,9 @@ const ChartContainer = ({ title, data, compareData = null }) => {
 
     return (
         <Card title={title} className="h-96">
-            <div style={{ width: '100%', height: '384px', minHeight: '384px', position: 'relative' }}>
-                <ResponsiveContainer width="100%" height={384} minHeight={384} minWidth={0}>
+            <div style={{ width: '100%', height: '384px', minHeight: '384px' }}>
+                {chartData && chartData.length > 0 ? (
+                <ResponsiveContainer width="100%" height={384}>
                     <ComposedChart
                         data={chartData}
                     margin={{
@@ -102,10 +103,15 @@ const ChartContainer = ({ title, data, compareData = null }) => {
                     )}
                 </ComposedChart>
                 </ResponsiveContainer>
+                ) : (
+                    <div className="flex items-center justify-center h-full">
+                        <div className="text-slate-500">Carregando gráfico...</div>
+                    </div>
+                )}
             </div>
         </Card>
     )
-}
+});
 
 const BlocoWO = () => {
     const [dashboardData, setDashboardData] = useState(null);
@@ -129,6 +135,8 @@ const BlocoWO = () => {
             if (startDate) params.append('startDate', startDate);
             if (endDate) params.append('endDate', endDate);
             if (groupBy) params.append('groupBy', groupBy);
+            // Adicionar timestamp para evitar cache do navegador
+            params.append('_t', Date.now().toString());
             
             // Usar rota específica do bloco WO
             const url = `${API_ENDPOINTS.blocoData('wo')}${params.toString() ? '?' + params.toString() : ''}`;
@@ -137,6 +145,7 @@ const BlocoWO = () => {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json',
                 },
+                cache: 'no-cache', // Evitar cache do navegador
             });
 
             if (!response.ok) {
@@ -175,6 +184,22 @@ const BlocoWO = () => {
         let cancelled = false; // Flag para cancelar requisições
         
         const loadData = async () => {
+            // Se estiver no modo diário sem datas selecionadas, não carregar dados
+            if (filters.groupBy === 'day' && (!filters.startDate || !filters.endDate)) {
+                if (!cancelled) {
+                    setDashboardData(null);
+                    setCompareData(null);
+                    setLoading(false);
+                }
+                return;
+            }
+            
+            // Limpar dados antigos antes de carregar novos para evitar mostrar dados em cache
+            if (!cancelled) {
+                setDashboardData(null);
+                setCompareData(null);
+            }
+            
             setLoading(true);
             setError(null);
             try {
@@ -227,6 +252,26 @@ const BlocoWO = () => {
         );
     }
 
+    // Se estiver no modo diário sem mês selecionado, mostrar mensagem
+    if (filters.groupBy === 'day' && (!filters.startDate || !filters.endDate)) {
+        return (
+            <div className="space-y-6 px-4">
+                <DateFilter 
+                    onFilterChange={setFilters}
+                    initialStartDate={filters.startDate}
+                    initialEndDate={filters.endDate}
+                    initialViewMode={filters.groupBy === 'day' ? 'day' : 'month'}
+                />
+                <div className="flex items-center justify-center h-64 bg-white rounded-xl shadow-sm border border-slate-200">
+                    <div className="text-slate-500 text-center">
+                        <p className="text-lg font-medium mb-2">Selecione um mês para visualizar os dados diários</p>
+                        <p className="text-sm">Escolha um mês no filtro acima para ver os dados agrupados por dia</p>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     if (!dashboardData) {
         return (
             <div className="flex items-center justify-center h-64">
@@ -238,7 +283,12 @@ const BlocoWO = () => {
     return (
         <div className="space-y-6 px-4">
             {/* Filtros de Data */}
-            <DateFilter onFilterChange={setFilters} />
+            <DateFilter 
+                onFilterChange={setFilters}
+                initialStartDate={filters.startDate}
+                initialEndDate={filters.endDate}
+                initialViewMode={filters.groupBy === 'day' ? 'day' : 'month'}
+            />
 
             {/* Bloco WO */}
             <section>
