@@ -42,10 +42,13 @@ exports.getBlocoData = async (req, res) => {
         const endDate = req.query.endDate || null;
         const groupBy = req.query.groupBy || 'month'; // 'day' ou 'month'
 
+        console.log(`📥 Bloco ${bloco} - Request recebido: startDate=${startDate}, endDate=${endDate}, groupBy=${groupBy}`);
+
         // Verificar cache
         const cacheKey = cache.generateKey('bloco', bloco, startDate || 'all', endDate || 'all', groupBy);
         const cached = cache.get(cacheKey);
         if (cached) {
+            console.log(`📦 Bloco ${bloco} - Retornando do cache`);
             return res.json(cached);
         }
 
@@ -62,6 +65,11 @@ exports.getBlocoData = async (req, res) => {
             cpcaXAcordos: formatChartData(blocoData.cpcaXAcordos),
             acordosXPagamentos: formatChartData(blocoData.acordosXPagamentos)
         };
+
+        console.log(`📤 Bloco ${bloco} - Enviando resposta: ${response.acionadosXCarteira.length} meses/dias`);
+        if (response.acionadosXCarteira.length > 0) {
+            console.log(`📤 Primeiros: ${response.acionadosXCarteira.slice(0, 5).map(r => r.date).join(', ')}`);
+        }
 
         // Armazenar no cache
         cache.set(cacheKey, response);

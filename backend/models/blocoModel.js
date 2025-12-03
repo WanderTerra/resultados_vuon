@@ -221,7 +221,7 @@ class BlocoModel {
                     WHEN agente != '0' 
                         AND agente IS NOT NULL 
                         AND agente != ''
-                        AND acao = 'ACD'
+                        AND acao = 'DDA'
                     THEN 1 
                 END) as acordos,
                 ROUND(
@@ -229,7 +229,7 @@ class BlocoModel {
                         WHEN agente != '0' 
                             AND agente IS NOT NULL 
                             AND agente != ''
-                            AND acao = 'ACD'
+                            AND acao = 'DDA'
                         THEN 1 
                     END) * 100.0 / 
                     NULLIF(COUNT(CASE 
@@ -252,7 +252,8 @@ class BlocoModel {
     }
 
     // Acordos x Pagamentos por data
-    // IMPORTANTE: Ajustar as condições de "Acordos" e "Pagamentos" conforme necessário
+    // Acordos: ação 'DDA' da tabela vuon_resultados
+    // Pagamentos: registros com valor > 0 da tabela vuon_resultados
     static async getAcordosXPagamentos(bloco, startDate = null, endDate = null) {
         const db = await getDB();
         const blocoCondition = this.getBlocoCondition(bloco);
@@ -261,10 +262,6 @@ class BlocoModel {
         if (startDate && endDate) {
             dateFilter = `AND data >= '${startDate}' AND data <= '${endDate}'`;
         }
-        
-        // Ajustar condições conforme necessário:
-        // - Acordos: pode ser acao = 'ACD' ou outra ação
-        // - Pagamentos: pode ser acao IN ('PGT', 'PGTO', 'PAG') ou baseado em valor > 0
         const query = `
             SELECT 
                 data as date,
@@ -272,7 +269,7 @@ class BlocoModel {
                     WHEN agente != '0' 
                         AND agente IS NOT NULL 
                         AND agente != ''
-                        AND acao = 'ACD'
+                        AND acao IN ('DDA')
                     THEN 1 
                 END) as acordos,
                 COUNT(CASE 
@@ -294,7 +291,7 @@ class BlocoModel {
                         WHEN agente != '0' 
                             AND agente IS NOT NULL 
                             AND agente != ''
-                            AND acao = 'ACD'
+                            AND acao IN ('DDA')
                         THEN 1 
                     END), 0), 
                     2
@@ -411,7 +408,7 @@ class BlocoModel {
                         agente != '0' 
                         AND agente IS NOT NULL 
                         AND agente != ''
-                        AND acao = 'ACD'
+                        AND acao IN ('DDA')
                     ) as acordos_resultados,
                     SUM(
                         agente != '0' 
@@ -519,8 +516,11 @@ class BlocoModel {
         const queryParams = [];
         
         if (startDate && endDate) {
+            // IMPORTANTE: Sempre filtrar pela coluna 'data' da view (que é DATE)
+            // Mesmo quando agrupamos por mês, precisamos filtrar pela data original
             dateFilter = `AND data >= ? AND data <= ?`;
             queryParams.push(startDate, endDate);
+            console.log(`📊 Bloco ${bloco} - Aplicando filtro: ${startDate} até ${endDate}, groupBy: ${groupBy}`);
         }
 
         // Determinar agrupamento: por dia ou por mês
@@ -534,9 +534,10 @@ class BlocoModel {
             orderByClause = `data ASC`;
         } else {
             // Agrupamento por mês (padrão) - usar campos pré-computados da view
+            // IMPORTANTE: Filtrar pela coluna 'data' mas agrupar por 'ano, mes'
             dateSelect = `date_month as date`;
             dateFormatted = `date_formatted`;
-            groupByClause = `ano, mes`;
+            groupByClause = `ano, mes, date_month, date_formatted`;
             orderByClause = `ano ASC, mes ASC`;
         }
 
@@ -573,6 +574,11 @@ class BlocoModel {
         const [rows] = queryParams.length > 0 
             ? await db.execute(query, queryParams)
             : await db.execute(query);
+        
+        console.log(`📊 Bloco ${bloco} - Total de registros retornados: ${rows.length}`);
+        if (rows.length > 0) {
+            console.log(`📊 Primeiros meses: ${rows.slice(0, 3).map(r => r.date_formatted || r.date).join(', ')}`);
+        }
         
         // Processar os dados para criar os arrays de cada gráfico
         // Usar date_formatted para exibição
@@ -639,23 +645,29 @@ class BlocoModel {
                 `;
             } else {
                 // Modo mensal: usar campos pré-computados da view (já agrupados)
+                // IMPORTANTE: Filtrar pela coluna 'data' (DATE) mas agrupar por mês
+                // A view tem a coluna 'data' (data_emissao para acordos, data_pagamento para pagamentos)
                 acordosQuery = `
                     SELECT 
                         date_month as date,
                         date_formatted,
-                        total_acordos
+                        SUM(total_acordos) as total_acordos
                     FROM ${acordosViewName}
                     WHERE 1=1 ${dateFilter ? 'AND data >= ? AND data <= ?' : ''}
+                    GROUP BY ano, mes, date_month, date_formatted
                     ORDER BY ano ASC, mes ASC
                 `;
                 
+                // Pagamentos: filtrados por bloco na view usando atraso_real/atraso
+                // IMPORTANTE: Filtrar pela coluna 'data' (data_pagamento) mas agrupar por mês
                 pagamentosQuery = `
                     SELECT 
                         date_month as date,
                         date_formatted,
-                        quantidade_pagamentos
+                        SUM(quantidade_pagamentos) as quantidade_pagamentos
                     FROM ${pagamentosViewName}
                     WHERE 1=1 ${dateFilter ? 'AND data >= ? AND data <= ?' : ''}
+                    GROUP BY ano, mes, date_month, date_formatted
                     ORDER BY ano ASC, mes ASC
                 `;
             }

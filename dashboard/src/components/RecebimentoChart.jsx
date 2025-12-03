@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { API_ENDPOINTS } from '../config/api';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import Loading from './Loading';
@@ -15,17 +15,21 @@ const RecebimentoChart = ({ startDate = null, endDate = null }) => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [viewMode, setViewMode] = useState('month'); // 'month' ou 'day'
-
-    // Calcular primeiro e último dia do mês atual
-    const getCurrentMonthRange = () => {
+    const [selectedMonth, setSelectedMonth] = useState(() => {
+        // Inicializar com o mês atual no formato YYYY-MM
         const now = new Date();
-        const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
-        const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-        return {
-            start: firstDay.toISOString().split('T')[0],
-            end: lastDay.toISOString().split('T')[0]
-        };
-    };
+        return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    });
+
+    // Criar uma chave estável para as dependências
+    const dependencyKey = useMemo(() => {
+        return JSON.stringify({
+            viewMode,
+            selectedMonth: selectedMonth || '',
+            startDate: startDate || null,
+            endDate: endDate || null
+        });
+    }, [viewMode, selectedMonth, startDate, endDate]);
 
     useEffect(() => {
         const fetchData = async () => {
@@ -37,11 +41,22 @@ const RecebimentoChart = ({ startDate = null, endDate = null }) => {
                 // Adicionar parâmetros de data se fornecidos
                 const params = new URLSearchParams();
                 
-                // Se modo "dia" estiver ativo, usar mês atual
+                // Se modo "dia" estiver ativo, usar mês selecionado
                 if (viewMode === 'day') {
-                    const monthRange = getCurrentMonthRange();
-                    params.append('startDate', monthRange.start);
-                    params.append('endDate', monthRange.end);
+                    // Calcular primeiro e último dia do mês selecionado
+                    let monthToUse = selectedMonth;
+                    if (!monthToUse) {
+                        // Se não houver mês selecionado, usar mês atual
+                        const now = new Date();
+                        monthToUse = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+                    }
+                    
+                    const [year, month] = monthToUse.split('-').map(Number);
+                    const firstDay = new Date(year, month - 1, 1);
+                    const lastDay = new Date(year, month, 0);
+                    
+                    params.append('startDate', firstDay.toISOString().split('T')[0]);
+                    params.append('endDate', lastDay.toISOString().split('T')[0]);
                     params.append('groupBy', 'day');
                 } else {
                     if (startDate) params.append('startDate', startDate);
@@ -116,7 +131,8 @@ const RecebimentoChart = ({ startDate = null, endDate = null }) => {
         };
 
         fetchData();
-    }, [viewMode, startDate, endDate]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [dependencyKey]);
 
     if (loading) {
         return (
@@ -151,28 +167,45 @@ const RecebimentoChart = ({ startDate = null, endDate = null }) => {
     return (
         <Card title="Recebimento por Bloco" className="h-[420px]">
             {/* Filtro de visualização - sempre visível */}
-            <div className="mb-4 flex items-center gap-2">
-                <span className="text-sm font-medium text-slate-600">Visualização:</span>
-                <button
-                    onClick={() => setViewMode('month')}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                        viewMode === 'month'
-                            ? 'bg-blue-600 text-white shadow-sm'
-                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                    }`}
-                >
-                    Por Mês
-                </button>
-                <button
-                    onClick={() => setViewMode('day')}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                        viewMode === 'day'
-                            ? 'bg-blue-600 text-white shadow-sm'
-                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                    }`}
-                >
-                    Por Dia (Mês Atual)
-                </button>
+            <div className="mb-4 flex flex-wrap items-center gap-3">
+                <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-slate-600">Visualização:</span>
+                    <button
+                        onClick={() => setViewMode('month')}
+                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                            viewMode === 'month'
+                                ? 'bg-blue-600 text-white shadow-sm'
+                                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                        }`}
+                    >
+                        Por Mês
+                    </button>
+                    <button
+                        onClick={() => setViewMode('day')}
+                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                            viewMode === 'day'
+                                ? 'bg-blue-600 text-white shadow-sm'
+                                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                        }`}
+                    >
+                        Por Dia
+                    </button>
+                </div>
+                
+                {/* Seletor de mês - apenas visível no modo diário */}
+                {viewMode === 'day' && (
+                    <div className="flex items-center gap-2">
+                        <label className="text-sm font-medium text-slate-600 whitespace-nowrap">
+                            Mês:
+                        </label>
+                        <input
+                            type="month"
+                            value={selectedMonth}
+                            onChange={(e) => setSelectedMonth(e.target.value)}
+                            className="px-3 py-2 border border-slate-300 rounded-lg text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                        />
+                    </div>
+                )}
             </div>
             <div className="w-full" style={{ height: '384px', minHeight: '384px', position: 'relative' }}>
                 {data && data.length > 0 ? (

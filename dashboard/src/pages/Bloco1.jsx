@@ -135,6 +135,8 @@ const Bloco1 = () => {
             if (startDate) params.append('startDate', startDate);
             if (endDate) params.append('endDate', endDate);
             if (groupBy) params.append('groupBy', groupBy);
+            // Adicionar timestamp para evitar cache do navegador
+            params.append('_t', Date.now().toString());
             
             // Usar rota específica do bloco 1 (otimizada)
             const url = `${API_ENDPOINTS.blocoData(1)}${params.toString() ? '?' + params.toString() : ''}`;
@@ -143,6 +145,7 @@ const Bloco1 = () => {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json',
                 },
+                cache: 'no-cache', // Evitar cache do navegador
             });
 
             if (!response.ok) {
@@ -181,9 +184,16 @@ const Bloco1 = () => {
         let cancelled = false; // Flag para cancelar requisições
         
         const loadData = async () => {
+            // Limpar dados antigos antes de carregar novos para evitar mostrar dados em cache
+            if (!cancelled) {
+                setDashboardData(null);
+                setCompareData(null);
+            }
+            
             setLoading(true);
             setError(null);
             try {
+                // Adicionar timestamp para evitar cache do navegador
                 const mainData = await fetchBlocoData(filters.startDate, filters.endDate, filters.groupBy);
                 
                 // Só atualizar se a requisição não foi cancelada
@@ -213,6 +223,7 @@ const Bloco1 = () => {
             }
         };
 
+        // Carregar dados quando houver filtro ou quando não houver filtro (buscar todos)
         loadData();
         
         // Cleanup: cancelar requisição se o componente for desmontado ou filtro mudar
@@ -244,7 +255,12 @@ const Bloco1 = () => {
     return (
         <div className="space-y-6 px-4">
             {/* Filtros de Data */}
-            <DateFilter onFilterChange={setFilters} />
+            <DateFilter 
+                onFilterChange={setFilters}
+                initialStartDate={filters.startDate}
+                initialEndDate={filters.endDate}
+                initialViewMode={filters.groupBy === 'day' ? 'day' : 'month'}
+            />
 
             {/* Bloco 1 */}
             <section>
