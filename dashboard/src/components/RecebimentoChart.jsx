@@ -33,10 +33,10 @@ const RecebimentoChart = ({ startDate = null, endDate = null }) => {
                 setLoading(true);
                 setError(null);
                 const token = localStorage.getItem('token');
-                
+
                 // Adicionar parâmetros de data se fornecidos
                 const params = new URLSearchParams();
-                
+
                 // Se modo "dia" estiver ativo, usar mês selecionado
                 if (viewMode === 'day') {
                     // Só fazer requisição se um mês foi selecionado
@@ -47,12 +47,12 @@ const RecebimentoChart = ({ startDate = null, endDate = null }) => {
                         setError(null);
                         return;
                     }
-                    
+
                     // Calcular primeiro e último dia do mês selecionado
                     const [year, month] = selectedMonth.split('-').map(Number);
                     const firstDay = new Date(year, month - 1, 1);
                     const lastDay = new Date(year, month, 0);
-                    
+
                     params.append('startDate', firstDay.toISOString().split('T')[0]);
                     params.append('endDate', lastDay.toISOString().split('T')[0]);
                     params.append('groupBy', 'day');
@@ -62,10 +62,10 @@ const RecebimentoChart = ({ startDate = null, endDate = null }) => {
                     if (endDate) params.append('endDate', endDate);
                     params.append('groupBy', 'month');
                 }
-                
+
                 // Adicionar timestamp para evitar cache do navegador
                 params.append('_t', Date.now().toString());
-                
+
                 const url = `${API_ENDPOINTS.dashboardData}${params.toString() ? '?' + params.toString() : ''}`;
                 const response = await fetch(url, {
                     headers: {
@@ -80,15 +80,15 @@ const RecebimentoChart = ({ startDate = null, endDate = null }) => {
                 }
 
                 const result = await response.json();
-                
+
                 // Escolher fonte de dados baseado no modo de visualização
-                const recebimentoData = viewMode === 'day' 
-                    ? result.financial?.recebimentoPorDia 
+                const recebimentoData = viewMode === 'day'
+                    ? result.financial?.recebimentoPorDia
                     : result.financial?.recebimentoPorMes;
-                
+
                 if (recebimentoData) {
                     const periodos = new Set();
-                    
+
                     // Coletar todos os períodos únicos (meses ou dias)
                     Object.values(recebimentoData).forEach(blocoData => {
                         if (Array.isArray(blocoData)) {
@@ -99,27 +99,27 @@ const RecebimentoChart = ({ startDate = null, endDate = null }) => {
                             });
                         }
                     });
-                    
+
                     // Criar array combinado
                     const combinedData = Array.from(periodos).sort().map(periodo => {
                         const bloco1 = recebimentoData.bloco1?.find(d => d && d.date === periodo) || { valor_recebido: 0 };
                         const bloco2 = recebimentoData.bloco2?.find(d => d && d.date === periodo) || { valor_recebido: 0 };
                         const bloco3 = recebimentoData.bloco3?.find(d => d && d.date === periodo) || { valor_recebido: 0 };
                         const wo = recebimentoData.wo?.find(d => d && d.date === periodo) || { valor_recebido: 0 };
-                        
+
                         return {
                             date: periodo,
                             bloco1: parseFloat(bloco1.valor_recebido || 0),
                             bloco2: parseFloat(bloco2.valor_recebido || 0),
                             bloco3: parseFloat(bloco3.valor_recebido || 0),
                             wo: parseFloat(wo.valor_recebido || 0),
-                            total: parseFloat(bloco1.valor_recebido || 0) + 
-                                   parseFloat(bloco2.valor_recebido || 0) + 
-                                   parseFloat(bloco3.valor_recebido || 0) + 
-                                   parseFloat(wo.valor_recebido || 0)
+                            total: parseFloat(bloco1.valor_recebido || 0) +
+                                parseFloat(bloco2.valor_recebido || 0) +
+                                parseFloat(bloco3.valor_recebido || 0) +
+                                parseFloat(wo.valor_recebido || 0)
                         };
                     });
-                    
+
                     setData(combinedData.length > 0 ? combinedData : []);
                 } else {
                     setData([]);
@@ -168,7 +168,7 @@ const RecebimentoChart = ({ startDate = null, endDate = null }) => {
     };
 
     return (
-        <Card title="Recebimento por Bloco" className="h-[420px]">
+        <Card title="Recebimento por Bloco" className="h-[400px]">
             {/* Filtro de visualização - sempre visível */}
             <div className="mb-4 flex flex-wrap items-center gap-3">
                 <div className="flex items-center gap-2">
@@ -178,11 +178,10 @@ const RecebimentoChart = ({ startDate = null, endDate = null }) => {
                             setViewMode('month');
                             setSelectedMonth(''); // Limpar mês selecionado ao voltar para modo mensal
                         }}
-                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                            viewMode === 'month'
-                                ? 'bg-blue-600 text-white shadow-sm'
-                                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                        }`}
+                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${viewMode === 'month'
+                            ? 'bg-blue-600 text-white shadow-sm'
+                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                            }`}
                     >
                         Por Mês
                     </button>
@@ -196,16 +195,15 @@ const RecebimentoChart = ({ startDate = null, endDate = null }) => {
                                 setSelectedMonth(currentMonth);
                             }
                         }}
-                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                            viewMode === 'day'
-                                ? 'bg-blue-600 text-white shadow-sm'
-                                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                        }`}
+                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${viewMode === 'day'
+                            ? 'bg-blue-600 text-white shadow-sm'
+                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                            }`}
                     >
                         Por Dia
                     </button>
                 </div>
-                
+
                 {/* Seletor de mês - apenas visível no modo diário */}
                 {viewMode === 'day' && (
                     <div className="flex items-center gap-2">
@@ -230,90 +228,90 @@ const RecebimentoChart = ({ startDate = null, endDate = null }) => {
                     </div>
                 ) : data && data.length > 0 ? (
                     <ResponsiveContainer width="100%" height={384}>
-                    <LineChart
-                        data={data}
-                        margin={{
-                            top: 10,
-                            right: 10,
-                            left: 10,
-                            bottom: 40,
-                        }}
-                    >
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                        <XAxis 
-                            dataKey="date" 
-                            axisLine={true} 
-                            tickLine={true} 
-                            tick={{ fill: '#64748b', fontSize: viewMode === 'day' ? 10 : 12 }} 
-                            stroke="#cbd5e1"
-                            height={60}
-                            angle={viewMode === 'day' ? -45 : -45}
-                            textAnchor="end"
-                            interval={viewMode === 'day' ? 'preserveStartEnd' : 0}
-                        />
-                        <YAxis 
-                            axisLine={true} 
-                            tickLine={true} 
-                            tick={{ fill: '#64748b', fontSize: 12 }} 
-                            stroke="#cbd5e1"
-                            tickFormatter={(value) => {
-                                if (value >= 1000000) return `R$ ${(value / 1000000).toFixed(1)}M`;
-                                if (value >= 1000) return `R$ ${(value / 1000).toFixed(0)}k`;
-                                return `R$ ${value}`;
+                        <LineChart
+                            data={data}
+                            margin={{
+                                top: 10,
+                                right: 10,
+                                left: 10,
+                                bottom: 70,
                             }}
-                        />
-                        <Tooltip
-                            contentStyle={{ backgroundColor: '#fff', borderRadius: '8px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                            formatter={(value) => formatCurrency(value)}
-                        />
-                        <Legend />
-                        <Line 
-                            type="monotone" 
-                            dataKey="bloco1" 
-                            name="Bloco 1" 
-                            stroke="#f59e0b" 
-                            strokeWidth={2} 
-                            dot={{ r: 4 }} 
-                            activeDot={{ r: 6 }}
-                        />
-                        <Line 
-                            type="monotone" 
-                            dataKey="bloco2" 
-                            name="Bloco 2" 
-                            stroke="#64748b" 
-                            strokeWidth={2} 
-                            dot={{ r: 4 }} 
-                            activeDot={{ r: 6 }}
-                        />
-                        <Line 
-                            type="monotone" 
-                            dataKey="bloco3" 
-                            name="Bloco 3" 
-                            stroke="#3b82f6" 
-                            strokeWidth={2} 
-                            dot={{ r: 4 }} 
-                            activeDot={{ r: 6 }}
-                        />
-                        <Line 
-                            type="monotone" 
-                            dataKey="wo" 
-                            name="WO" 
-                            stroke="#1e293b" 
-                            strokeWidth={2} 
-                            dot={{ r: 4 }} 
-                            activeDot={{ r: 6 }}
-                        />
-                        <Line 
-                            type="monotone" 
-                            dataKey="total" 
-                            name="Total" 
-                            stroke="#10b981" 
-                            strokeWidth={3} 
-                            strokeDasharray="5 5"
-                            dot={{ r: 5 }} 
-                            activeDot={{ r: 7 }}
-                        />
-                    </LineChart>
+                        >
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                            <XAxis
+                                dataKey="date"
+                                axisLine={true}
+                                tickLine={true}
+                                tick={{ fill: '#64748b', fontSize: viewMode === 'day' ? 10 : 12 }}
+                                stroke="#cbd5e1"
+                                height={60}
+                                angle={viewMode === 'day' ? -45 : -45}
+                                textAnchor="end"
+                                interval={viewMode === 'day' ? 'preserveStartEnd' : 0}
+                            />
+                            <YAxis
+                                axisLine={true}
+                                tickLine={true}
+                                tick={{ fill: '#64748b', fontSize: 12 }}
+                                stroke="#cbd5e1"
+                                tickFormatter={(value) => {
+                                    if (value >= 1000000) return `R$ ${(value / 1000000).toFixed(1)}M`;
+                                    if (value >= 1000) return `R$ ${(value / 1000).toFixed(0)}k`;
+                                    return `R$ ${value}`;
+                                }}
+                            />
+                            <Tooltip
+                                contentStyle={{ backgroundColor: '#fff', borderRadius: '8px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                                formatter={(value) => formatCurrency(value)}
+                            />
+                            <Legend />
+                            <Line
+                                type="monotone"
+                                dataKey="bloco1"
+                                name="Bloco 1"
+                                stroke="#f59e0b"
+                                strokeWidth={2}
+                                dot={{ r: 4 }}
+                                activeDot={{ r: 6 }}
+                            />
+                            <Line
+                                type="monotone"
+                                dataKey="bloco2"
+                                name="Bloco 2"
+                                stroke="#64748b"
+                                strokeWidth={2}
+                                dot={{ r: 4 }}
+                                activeDot={{ r: 6 }}
+                            />
+                            <Line
+                                type="monotone"
+                                dataKey="bloco3"
+                                name="Bloco 3"
+                                stroke="#3b82f6"
+                                strokeWidth={2}
+                                dot={{ r: 4 }}
+                                activeDot={{ r: 6 }}
+                            />
+                            <Line
+                                type="monotone"
+                                dataKey="wo"
+                                name="WO"
+                                stroke="#1e293b"
+                                strokeWidth={2}
+                                dot={{ r: 4 }}
+                                activeDot={{ r: 6 }}
+                            />
+                            <Line
+                                type="monotone"
+                                dataKey="total"
+                                name="Total"
+                                stroke="#10b981"
+                                strokeWidth={3}
+                                strokeDasharray="5 5"
+                                dot={{ r: 5 }}
+                                activeDot={{ r: 7 }}
+                            />
+                        </LineChart>
                     </ResponsiveContainer>
                 ) : (
                     <div className="flex items-center justify-center h-full">

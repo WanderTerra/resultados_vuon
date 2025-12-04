@@ -10,7 +10,7 @@ import PeriodFilter from '../components/PeriodFilter';
 const Dashboard = () => {
     const [aloFilterDates, setAloFilterDates] = useState(null); // { start, end } ou null para todos
     const [filterInitialized, setFilterInitialized] = useState(false); // Flag para saber se o filtro foi inicializado
-    
+
     const handlePeriodChange = (dates) => {
         // Atualizar filtro e marcar como inicializado
         setAloFilterDates(dates);
@@ -18,16 +18,16 @@ const Dashboard = () => {
             setFilterInitialized(true);
         }
     };
-    
+
     return (
         <div className="space-y-6 px-4">
             {/* Cards de Navegação para Blocos */}
             <section>
                 <h2 className="text-xl font-bold text-slate-800 mb-6">Análise por Blocos</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <Link 
-                        to="/bloco1" 
-                        className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 hover:shadow-md transition-shadow group"
+                    <Link
+                        to="/bloco1"
+                        className="bg-white rounded-xl shadow-sm border border-slate-200 p-8 hover:shadow-md transition-shadow group min-h-40"
                     >
                         <div className="flex items-center justify-between mb-4">
                             <h3 className="text-lg font-semibold text-slate-800 group-hover:text-blue-600 transition-colors">Bloco 1</h3>
@@ -39,9 +39,9 @@ const Dashboard = () => {
                         <p className="text-xs text-slate-400">Visualizar gráficos detalhados →</p>
                     </Link>
 
-                    <Link 
-                        to="/bloco2" 
-                        className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 hover:shadow-md transition-shadow group"
+                    <Link
+                        to="/bloco2"
+                        className="bg-white rounded-xl shadow-sm border border-slate-200 p-8 hover:shadow-md transition-shadow group min-h-40"
                     >
                         <div className="flex items-center justify-between mb-4">
                             <h3 className="text-lg font-semibold text-slate-800 group-hover:text-blue-600 transition-colors">Bloco 2</h3>
@@ -53,9 +53,9 @@ const Dashboard = () => {
                         <p className="text-xs text-slate-400">Visualizar gráficos detalhados →</p>
                     </Link>
 
-                    <Link 
-                        to="/bloco3" 
-                        className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 hover:shadow-md transition-shadow group"
+                    <Link
+                        to="/bloco3"
+                        className="bg-white rounded-xl shadow-sm border border-slate-200 p-8 hover:shadow-md transition-shadow group min-h-40"
                     >
                         <div className="flex items-center justify-between mb-4">
                             <h3 className="text-lg font-semibold text-slate-800 group-hover:text-blue-600 transition-colors">Bloco 3</h3>
@@ -67,9 +67,9 @@ const Dashboard = () => {
                         <p className="text-xs text-slate-400">Visualizar gráficos detalhados →</p>
                     </Link>
 
-                    <Link 
-                        to="/wo" 
-                        className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 hover:shadow-md transition-shadow group"
+                    <Link
+                        to="/wo"
+                        className="bg-white rounded-xl shadow-sm border border-slate-200 p-8 hover:shadow-md transition-shadow group min-h-40"
                     >
                         <div className="flex items-center justify-between mb-4">
                             <h3 className="text-lg font-semibold text-slate-800 group-hover:text-red-600 transition-colors">WO</h3>
