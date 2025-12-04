@@ -12,7 +12,8 @@ const Card = ({ title, children, className = "" }) => (
 
 const ProdutividadeBarChart = ({ startDate = null, endDate = null }) => {
     const [data, setData] = useState(null);
-    const [topAgentes, setTopAgentes] = useState([]);
+    const [topAgentes, setTopAgentes] = useState([]); // Agentes únicos que aparecem no gráfico
+    const [topAgentesPeriodo, setTopAgentesPeriodo] = useState([]); // Resumo do período (para tabela)
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [limit, setLimit] = useState(5);
@@ -44,31 +45,58 @@ const ProdutividadeBarChart = ({ startDate = null, endDate = null }) => {
                     defaultDates.endDate
                 );
                 
+                // Usar topAgentes (lista completa de agentes únicos para o gráfico)
                 setTopAgentes(result.topAgentes || []);
+                // Usar topAgentesPeriodo (resumo do período para a tabela)
+                setTopAgentesPeriodo(result.topAgentesPeriodo || result.topAgentes || []);
                 
                 // Formatar dados para o gráfico de barras
                 if (result.dadosPorMes && result.dadosPorMes.length > 0) {
+                    // Coletar todos os agentes únicos que aparecem em qualquer mês
+                    const agentesUnicos = new Map();
+                    result.dadosPorMes.forEach(mesData => {
+                        Object.keys(mesData).forEach(key => {
+                            if (key.startsWith('agente_') && mesData[key] > 0) {
+                                const agenteId = parseInt(key.replace('agente_', ''));
+                                // Buscar nome do agente no resumo ou usar ID
+                                const agente = result.topAgentes.find(a => a.agente_id === agenteId);
+                                if (agente && !agentesUnicos.has(agenteId)) {
+                                    agentesUnicos.set(agenteId, {
+                                        agente_id: agenteId,
+                                        agente_nome: agente.agente_nome
+                                    });
+                                }
+                            }
+                        });
+                    });
+
                     // Criar estrutura de dados para o gráfico
-                    // Cada entrada representa um mês com valores por agente
+                    // Cada entrada representa um mês com valores apenas dos top agentes daquele mês
                     const chartData = result.dadosPorMes.map(mesData => {
                         const entry = {
                             date: mesData.date
                         };
                         
-                        // Adicionar valor de cada agente usando o nome como chave (sanitizado)
-                        result.topAgentes.forEach((agente, index) => {
-                            const chave = `agente_${agente.agente_id}`;
-                            // Usar nome do agente como chave, mas sanitizado para evitar problemas
-                            const nomeChave = `agente_${index + 1}`;
-                            entry[nomeChave] = mesData[chave] || 0;
+                        // Adicionar apenas os agentes que têm valor neste mês (top do mês)
+                        Object.keys(mesData).forEach(key => {
+                            if (key.startsWith('agente_') && mesData[key] !== undefined && mesData[key] > 0) {
+                                entry[key] = parseFloat(mesData[key]);
+                            }
                         });
                         
+                        console.log(`📊 Frontend - Mês ${mesData.date}: ${Object.keys(entry).filter(k => k.startsWith('agente_')).length} agentes`);
                         return entry;
                     });
                     
+                    console.log(`📊 Frontend - Total de meses no gráfico: ${chartData.length}`);
+                    console.log(`📊 Frontend - Meses: ${chartData.map(d => d.date).join(', ')}`);
+                    
                     setData(chartData);
+                    // Atualizar lista de topAgentes com todos os agentes únicos que aparecem
+                    setTopAgentes(Array.from(agentesUnicos.values()));
                 } else {
                     setData([]);
+                    setTopAgentes([]);
                 }
             } catch (err) {
                 console.error('Error fetching top agentes data:', err);
@@ -125,8 +153,9 @@ const ProdutividadeBarChart = ({ startDate = null, endDate = null }) => {
     ];
 
     // Preparar dados e configuração do gráfico
-    const bars = topAgentes.slice(0, limit).map((agente, index) => ({
-        dataKey: `agente_${index + 1}`,
+    // Usar todos os agentes que aparecem (podem ser diferentes por mês)
+    const bars = topAgentes.map((agente, index) => ({
+        dataKey: `agente_${agente.agente_id}`,
         name: agente.agente_nome,
         fill: colors[index % colors.length]
     }));
@@ -168,6 +197,8 @@ const ProdutividadeBarChart = ({ startDate = null, endDate = null }) => {
                                 left: 20,
                                 bottom: 60,
                             }}
+                            barCategoryGap="20%"
+                            barGap={4}
                         >
                             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
                             <XAxis 
@@ -194,21 +225,29 @@ const ProdutividadeBarChart = ({ startDate = null, endDate = null }) => {
                             <Tooltip
                                 contentStyle={{ backgroundColor: '#fff', borderRadius: '8px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                                 formatter={(value, name) => {
+                                    // Mostrar apenas agentes com valor > 0 (filtrar gaps)
+                                    if (!value || value === 0) {
+                                        return null;
+                                    }
                                     const match = name.match(/agente_(\d+)/);
                                     if (match) {
-                                        const index = parseInt(match[1]) - 1;
-                                        const agenteNome = topAgentes[index]?.agente_nome || name;
+                                        const agenteId = parseInt(match[1]);
+                                        const agente = topAgentes.find(a => a.agente_id === agenteId);
+                                        const agenteNome = agente?.agente_nome || name;
                                         return [formatCurrency(value), agenteNome];
                                     }
                                     return [formatCurrency(value), name];
                                 }}
+                                // Filtrar valores nulos/zero para não mostrar gaps
+                                filterNull={true}
                             />
                             <Legend 
                                 formatter={(value) => {
                                     const match = value.match(/agente_(\d+)/);
                                     if (match) {
-                                        const index = parseInt(match[1]) - 1;
-                                        return topAgentes[index]?.agente_nome || value;
+                                        const agenteId = parseInt(match[1]);
+                                        const agente = topAgentes.find(a => a.agente_id === agenteId);
+                                        return agente?.agente_nome || value;
                                     }
                                     return value;
                                 }}
@@ -231,22 +270,23 @@ const ProdutividadeBarChart = ({ startDate = null, endDate = null }) => {
                 )}
             </div>
 
-            {/* Tabela resumo dos top agentes */}
-            {topAgentes.length > 0 && (
+            {/* Tabela resumo dos top agentes (usando dados do período geral) */}
+            {topAgentesPeriodo.length > 0 && (
                 <div className="mt-6 overflow-x-auto">
-                    <h4 className="text-sm font-semibold text-slate-700 mb-3">Resumo dos Top Agentes</h4>
+                    <h4 className="text-sm font-semibold text-slate-700 mb-3">Resumo do Período (Top por Média Mensal)</h4>
                     <table className="w-full text-sm">
                         <thead>
                             <tr className="border-b border-slate-200">
                                 <th className="text-left py-2 px-3 text-slate-600 font-semibold">Rank</th>
                                 <th className="text-left py-2 px-3 text-slate-600 font-semibold">Agente</th>
-                                <th className="text-right py-2 px-3 text-slate-600 font-semibold">Valor Recebido</th>
+                                <th className="text-right py-2 px-3 text-slate-600 font-semibold">Média Mensal</th>
+                                <th className="text-right py-2 px-3 text-slate-600 font-semibold">Total Período</th>
                                 <th className="text-right py-2 px-3 text-slate-600 font-semibold">Acordos</th>
                                 <th className="text-right py-2 px-3 text-slate-600 font-semibold">Média/Acordo</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {topAgentes.map((agente, index) => (
+                            {topAgentesPeriodo.map((agente, index) => (
                                 <tr key={agente.agente_id} className="border-b border-slate-100 hover:bg-slate-50">
                                     <td className="py-2 px-3">
                                         <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold ${
@@ -259,9 +299,10 @@ const ProdutividadeBarChart = ({ startDate = null, endDate = null }) => {
                                         </span>
                                     </td>
                                     <td className="py-2 px-3 font-medium text-slate-800">{agente.agente_nome}</td>
-                                    <td className="py-2 px-3 text-right font-semibold text-slate-800">{formatCurrency(agente.total_valor_recebido)}</td>
-                                    <td className="py-2 px-3 text-right text-slate-600">{agente.total_acordos.toLocaleString('pt-BR')}</td>
-                                    <td className="py-2 px-3 text-right text-slate-600">{formatCurrency(agente.media_por_acordo)}</td>
+                                    <td className="py-2 px-3 text-right font-semibold text-blue-600">{formatCurrency(agente.media_mensal || 0)}</td>
+                                    <td className="py-2 px-3 text-right font-semibold text-slate-800">{formatCurrency(agente.total_valor_recebido || 0)}</td>
+                                    <td className="py-2 px-3 text-right text-slate-600">{(agente.total_acordos || 0).toLocaleString('pt-BR')}</td>
+                                    <td className="py-2 px-3 text-right text-slate-600">{formatCurrency(agente.media_por_acordo || 0)}</td>
                                 </tr>
                             ))}
                         </tbody>

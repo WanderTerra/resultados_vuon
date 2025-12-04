@@ -94,52 +94,98 @@ exports.getTopAgentes = async (req, res) => {
             console.log(`📅 Top Agentes - Usando últimos 3 meses: ${finalStartDate} até ${finalEndDate}`);
         }
 
-        // Buscar top agentes
-        const topAgentes = await RecebimentoCobradorModel.getTopAgentesPorPeriodo(
+        // Buscar top agentes do período geral (para resumo)
+        const topAgentesPeriodo = await RecebimentoCobradorModel.getTopAgentesPorPeriodo(
             finalStartDate,
             finalEndDate,
             limit
         );
 
-        // Buscar dados por mês para cada agente
-        const agenteIds = topAgentes.map(a => a.agente_id);
-        const dadosPorMes = await RecebimentoCobradorModel.getProdutividadeAgentesPorMes(
-            agenteIds,
-            finalStartDate,
-            finalEndDate
-        );
-
-        // Formatar dados para o gráfico
-        // Agrupar por mês e incluir valores de cada agente
-        const meses = new Set();
-        dadosPorMes.forEach(item => {
-            // Usar date_formatted se disponível, senão usar date
-            const mesKey = item.date || item.date_formatted;
-            if (mesKey) {
-                meses.add(mesKey);
-            }
-        });
-        const mesesOrdenados = Array.from(meses).sort();
-
-        const dadosFormatados = mesesOrdenados.map(mes => {
-            const dadosMes = {
-                date: mes
-            };
-            
-            topAgentes.forEach((agente, index) => {
-                const dadosAgente = dadosPorMes.find(
-                    d => d.agente_id === agente.agente_id && (d.date === mes || d.date_formatted === mes)
-                );
-                // Usar índice para manter ordem consistente
-                const chave = `agente_${agente.agente_id}`;
-                dadosMes[chave] = dadosAgente ? parseFloat(dadosAgente.valor_recebido || 0) : 0;
+        // Gerar lista de meses no período
+        const meses = [];
+        const start = new Date(finalStartDate);
+        const end = new Date(finalEndDate);
+        
+        // Garantir que processamos todos os meses, incluindo o mês final
+        const startYear = start.getFullYear();
+        const startMonth = start.getMonth() + 1; // getMonth() retorna 0-11
+        const endYear = end.getFullYear();
+        const endMonth = end.getMonth() + 1; // getMonth() retorna 0-11
+        
+        console.log(`📅 Gerando meses: ${startYear}-${startMonth} até ${endYear}-${endMonth}`);
+        
+        let currentYear = startYear;
+        let currentMonth = startMonth;
+        
+        // Processar todos os meses do período, incluindo o mês final
+        while (currentYear < endYear || (currentYear === endYear && currentMonth <= endMonth)) {
+            meses.push({
+                ano: currentYear,
+                mes: currentMonth,
+                date: `${String(currentMonth).padStart(2, '0')}/${currentYear}`,
+                dateKey: `${currentYear}-${String(currentMonth).padStart(2, '0')}`
             });
             
-            return dadosMes;
-        });
+            console.log(`   ✅ Adicionado mês: ${currentYear}-${String(currentMonth).padStart(2, '0')} (${String(currentMonth).padStart(2, '0')}/${currentYear})`);
+            
+            // Avançar para o próximo mês
+            currentMonth++;
+            if (currentMonth > 12) {
+                currentMonth = 1;
+                currentYear++;
+            }
+        }
+        
+        console.log(`📊 Total de meses a processar: ${meses.length}`);
+
+        // Buscar top agentes de cada mês e formatar dados
+        const dadosFormatados = [];
+        const todosAgentes = new Map(); // Para manter lista completa de agentes que apareceram em algum mês
+
+        for (const mesInfo of meses) {
+            console.log(`🔍 Buscando top agentes para ${mesInfo.date} (ano=${mesInfo.ano}, mes=${mesInfo.mes})`);
+            
+            // Buscar top agentes deste mês específico
+            const topAgentesMes = await RecebimentoCobradorModel.getTopAgentesPorMes(
+                mesInfo.ano,
+                mesInfo.mes,
+                limit
+            );
+
+            console.log(`   📊 Encontrados ${topAgentesMes.length} agentes para ${mesInfo.date}`);
+
+            // Adicionar agentes ao mapa completo com seus nomes
+            topAgentesMes.forEach(agente => {
+                if (!todosAgentes.has(agente.agente_id)) {
+                    todosAgentes.set(agente.agente_id, {
+                        agente_id: agente.agente_id,
+                        agente_nome: agente.agente_nome
+                    });
+                }
+            });
+
+            // Criar entrada do mês com apenas os top agentes deste mês
+            const dadosMes = {
+                date: mesInfo.date
+            };
+
+            topAgentesMes.forEach(agente => {
+                const chave = `agente_${agente.agente_id}`;
+                dadosMes[chave] = parseFloat(agente.valor_recebido || 0);
+            });
+
+            // Sempre adicionar o mês, mesmo que não tenha agentes (para aparecer no gráfico)
+            dadosFormatados.push(dadosMes);
+            
+            console.log(`   ✅ Mês ${mesInfo.date} processado com ${Object.keys(dadosMes).filter(k => k.startsWith('agente_')).length} agentes`);
+        }
+
+        // Converter mapa de agentes para array (lista completa de todos os agentes que aparecem)
+        const topAgentes = Array.from(todosAgentes.values());
 
         const response = {
-            topAgentes: topAgentes,
+            topAgentes: topAgentes, // Lista de todos os agentes únicos que aparecem em qualquer mês
+            topAgentesPeriodo: topAgentesPeriodo, // Resumo do período geral (para tabela)
             dadosPorMes: dadosFormatados,
             periodo: {
                 startDate: finalStartDate,
@@ -148,6 +194,12 @@ exports.getTopAgentes = async (req, res) => {
         };
 
         console.log(`📤 Top Agentes - Enviando resposta: ${topAgentes.length} agentes, ${dadosFormatados.length} meses`);
+        console.log(`📤 Meses incluídos na resposta: ${dadosFormatados.map(d => d.date).join(', ')}`);
+        console.log(`📤 Detalhes dos meses:`);
+        dadosFormatados.forEach((mes, idx) => {
+            const agentesNoMes = Object.keys(mes).filter(k => k.startsWith('agente_')).length;
+            console.log(`   ${idx + 1}. ${mes.date}: ${agentesNoMes} agentes`);
+        });
 
         // Armazenar no cache
         if (!noCache) {

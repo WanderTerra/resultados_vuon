@@ -237,13 +237,22 @@ class RecebimentoCobradorModel {
     }
 
     // Buscar top agentes por período (últimos N meses)
+    // Ordena por média mensal de valor recebido
     static async getTopAgentesPorPeriodo(startDate = null, endDate = null, limit = 5) {
         const db = await getDB();
         
         let dateFilter = '';
         const queryParams = [];
         
+        // Calcular número de meses no período
+        let numMeses = 3; // padrão
         if (startDate && endDate) {
+            const start = new Date(startDate);
+            const end = new Date(endDate);
+            // Calcular diferença em meses de forma mais precisa
+            const yearDiff = end.getFullYear() - start.getFullYear();
+            const monthDiff = end.getMonth() - start.getMonth();
+            numMeses = Math.max(1, yearDiff * 12 + monthDiff + 1); // +1 para incluir ambos os meses
             dateFilter = `AND DATE(data_pagamento) >= ? AND DATE(data_pagamento) <= ?`;
             queryParams.push(startDate, endDate);
         }
@@ -254,7 +263,8 @@ class RecebimentoCobradorModel {
                 agente_nome,
                 COALESCE(SUM(valor_recebido), 0) as total_valor_recebido,
                 COUNT(*) as total_acordos,
-                COALESCE(SUM(valor_recebido) / NULLIF(COUNT(*), 0), 0) as media_por_acordo
+                COALESCE(SUM(valor_recebido) / NULLIF(COUNT(*), 0), 0) as media_por_acordo,
+                COALESCE(SUM(valor_recebido), 0) / ? as media_mensal
             FROM recebimentos_por_cobrador
             WHERE data_pagamento IS NOT NULL
                 AND valor_recebido IS NOT NULL
@@ -262,10 +272,11 @@ class RecebimentoCobradorModel {
                 AND agente_nome IS NOT NULL
                 ${dateFilter}
             GROUP BY agente_id, agente_nome
-            ORDER BY total_valor_recebido DESC
+            ORDER BY media_mensal DESC
             LIMIT ?
         `;
 
+        queryParams.unshift(numMeses); // Adicionar numMeses no início
         queryParams.push(limit);
 
         const [rows] = await db.execute(query, queryParams);
@@ -275,7 +286,82 @@ class RecebimentoCobradorModel {
             agente_nome: row.agente_nome,
             total_valor_recebido: parseFloat(row.total_valor_recebido || 0),
             total_acordos: parseInt(row.total_acordos || 0),
-            media_por_acordo: parseFloat(row.media_por_acordo || 0)
+            media_por_acordo: parseFloat(row.media_por_acordo || 0),
+            media_mensal: parseFloat(row.media_mensal || 0)
+        }));
+    }
+
+    // Buscar top agentes por mês específico
+    static async getTopAgentesPorMes(ano, mes, limit = 5) {
+        const db = await getDB();
+        
+        const query = `
+            SELECT 
+                agente_id,
+                agente_nome,
+                COALESCE(SUM(valor_recebido), 0) as valor_recebido,
+                COUNT(*) as num_acordos
+            FROM recebimentos_por_cobrador
+            WHERE data_pagamento IS NOT NULL
+                AND valor_recebido IS NOT NULL
+                AND agente_id IS NOT NULL
+                AND agente_nome IS NOT NULL
+                AND YEAR(data_pagamento) = ?
+                AND MONTH(data_pagamento) = ?
+            GROUP BY agente_id, agente_nome
+            ORDER BY valor_recebido DESC
+            LIMIT ?
+        `;
+
+        console.log(`   🔎 Query para ${mes}/${ano}: YEAR(data_pagamento) = ${ano} AND MONTH(data_pagamento) = ${mes}`);
+        
+        // Diagnóstico: verificar se há dados de dezembro na tabela
+        if (mes === 12 && ano === 2025) {
+            try {
+                const [diagnostico] = await db.execute(`
+                    SELECT 
+                        COUNT(*) as total_registros,
+                        COUNT(DISTINCT DATE(data_pagamento)) as dias_com_pagamento,
+                        MIN(data_pagamento) as primeira_data,
+                        MAX(data_pagamento) as ultima_data,
+                        COUNT(CASE WHEN data_pagamento IS NOT NULL THEN 1 END) as com_data_pagamento,
+                        COUNT(CASE WHEN valor_recebido IS NOT NULL THEN 1 END) as com_valor,
+                        COUNT(CASE WHEN agente_id IS NOT NULL THEN 1 END) as com_agente_id
+                    FROM recebimentos_por_cobrador
+                    WHERE YEAR(data_pagamento) = ? OR YEAR(data_vencimento) = ? OR YEAR(data_importacao) = ?
+                `, [ano, ano, ano]);
+                
+                console.log(`   🔍 Diagnóstico Dezembro 2025:`, diagnostico[0]);
+                
+                // Verificar datas específicas
+                const [datas] = await db.execute(`
+                    SELECT DISTINCT DATE(data_pagamento) as data, COUNT(*) as total
+                    FROM recebimentos_por_cobrador
+                    WHERE data_pagamento IS NOT NULL
+                        AND (YEAR(data_pagamento) = ? OR MONTH(data_pagamento) = ?)
+                    GROUP BY DATE(data_pagamento)
+                    ORDER BY data DESC
+                    LIMIT 10
+                `, [ano, mes]);
+                
+                console.log(`   📅 Últimas 10 datas encontradas:`, datas.map(d => `${d.data} (${d.total} registros)`).join(', '));
+            } catch (err) {
+                console.log(`   ⚠️ Erro no diagnóstico:`, err.message);
+            }
+        }
+        
+        const [rows] = await db.execute(query, [ano, mes, limit]);
+        
+        console.log(`   📈 Query retornou ${rows.length} registros para ${mes}/${ano}`);
+        if (rows.length > 0) {
+            console.log(`   📋 Primeiros agentes: ${rows.slice(0, 3).map(r => `${r.agente_nome} (R$ ${parseFloat(r.valor_recebido || 0).toFixed(2)})`).join(', ')}`);
+        }
+        
+        return rows.map(row => ({
+            agente_id: parseInt(row.agente_id),
+            agente_nome: row.agente_nome,
+            valor_recebido: parseFloat(row.valor_recebido || 0),
+            num_acordos: parseInt(row.num_acordos || 0)
         }));
     }
 
