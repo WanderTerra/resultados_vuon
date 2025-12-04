@@ -5,6 +5,8 @@ import CpcCpcaChart from '../components/CpcCpcaChart';
 import AcoesChart from '../components/AcoesChart';
 import RecebimentoChart from '../components/RecebimentoChart';
 import DiarioBordoChart from '../components/DiarioBordoChart';
+import ProdutividadeChart from '../components/ProdutividadeChart';
+import ProdutividadeBarChart from '../components/ProdutividadeBarChart';
 import PeriodFilter from '../components/PeriodFilter';
 
 const Dashboard = () => {
@@ -103,6 +105,26 @@ const Dashboard = () => {
                     </div>
                 </div>
                 <DiarioBordoChart />
+            </section>
+
+            {/* Produtividade do Agente */}
+            <section>
+                <div className="flex items-center justify-between mb-6">
+                    <div>
+                        <h2 className="text-xl font-bold text-slate-800">Produtividade do Agente</h2>
+                        <p className="text-slate-500">Análise de valor recebido, número de acordos e distribuição por blocos</p>
+                    </div>
+                    <Link 
+                        to="/produtividade" 
+                        className="text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors"
+                    >
+                        Ver detalhes →
+                    </Link>
+                </div>
+                <div className="space-y-6">
+                    <ProdutividadeChart />
+                    <ProdutividadeBarChart />
+                </div>
             </section>
 
             {/* Análise ALO, CPC e CPCA */}

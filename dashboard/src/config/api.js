@@ -20,4 +20,6 @@ export const API_ENDPOINTS = {
     aloCpcCpcaSummary: `${API_BASE_URL}/api/alo/cpc-cpca/summary`,
     aloDateRange: `${API_BASE_URL}/api/alo/date-range`,
     diarioBordo: `${API_BASE_URL}/api/dashboard/diario-bordo`,
+    produtividade: `${API_BASE_URL}/api/dashboard/produtividade`,
+    produtividadeTopAgentes: `${API_BASE_URL}/api/dashboard/produtividade/top-agentes`,
 };
