@@ -14,18 +14,17 @@ const CpcCpcaChart = ({ startDate = null, endDate = null }) => {
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-    const [viewMode, setViewMode] = useState('area'); // 'area' ou 'line'
     const [showAverage, setShowAverage] = useState(true);
 
     useEffect(() => {
         let cancelled = false;
-        
+
         const fetchData = async () => {
             try {
                 setLoading(true);
                 setError(null);
                 const response = await aloService.getCpcCpcaByDate(startDate, endDate);
-                
+
                 // Só atualizar se a requisição não foi cancelada
                 if (!cancelled) {
                     setData(response.data);
@@ -41,9 +40,9 @@ const CpcCpcaChart = ({ startDate = null, endDate = null }) => {
                 }
             }
         };
-        
+
         fetchData();
-        
+
         // Cleanup: cancelar requisição se o componente for desmontado ou filtro mudar
         return () => {
             cancelled = true;
@@ -57,8 +56,8 @@ const CpcCpcaChart = ({ startDate = null, endDate = null }) => {
         }
 
         const formatted = data.map(item => ({
-            date: new Date(item.data).toLocaleDateString('pt-BR', { 
-                day: '2-digit', 
+            date: new Date(item.data).toLocaleDateString('pt-BR', {
+                day: '2-digit',
                 month: '2-digit',
                 year: 'numeric'
             }),
@@ -70,7 +69,7 @@ const CpcCpcaChart = ({ startDate = null, endDate = null }) => {
         // Calcular métricas
         const cpcValues = formatted.map(d => d.cpc);
         const cpcaValues = formatted.map(d => d.cpca);
-        
+
         const calculateStats = (values) => {
             const sum = values.reduce((a, b) => a + b, 0);
             const avg = Math.round(sum / values.length);
@@ -149,19 +148,19 @@ const CpcCpcaChart = ({ startDate = null, endDate = null }) => {
             {/* Métricas Resumidas */}
             {metrics && (
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-                    <div className="bg-blue-50 rounded-lg p-3 border border-blue-200">
+                    <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
                         <p className="text-xs text-blue-600 font-medium mb-1">CPC - Média</p>
                         <p className="text-lg font-bold text-blue-700">{metrics.cpc.avg.toLocaleString('pt-BR')}</p>
                     </div>
-                    <div className="bg-orange-50 rounded-lg p-3 border border-orange-200">
+                    <div className="bg-orange-50 rounded-lg p-4 border border-orange-200">
                         <p className="text-xs text-orange-600 font-medium mb-1">CPCA - Média</p>
                         <p className="text-lg font-bold text-orange-700">{metrics.cpca.avg.toLocaleString('pt-BR')}</p>
                     </div>
-                    <div className="bg-blue-50 rounded-lg p-3 border border-blue-200">
+                    <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
                         <p className="text-xs text-blue-600 font-medium mb-1">CPC - Máximo</p>
                         <p className="text-lg font-bold text-blue-700">{metrics.cpc.max.toLocaleString('pt-BR')}</p>
                     </div>
-                    <div className="bg-orange-50 rounded-lg p-3 border border-orange-200">
+                    <div className="bg-orange-50 rounded-lg p-4 border border-orange-200">
                         <p className="text-xs text-orange-600 font-medium mb-1">CPCA - Máximo</p>
                         <p className="text-lg font-bold text-orange-700">{metrics.cpca.max.toLocaleString('pt-BR')}</p>
                     </div>
@@ -170,29 +169,6 @@ const CpcCpcaChart = ({ startDate = null, endDate = null }) => {
 
             {/* Controles */}
             <div className="flex items-center gap-4 mb-4">
-                <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-slate-600">Visualização:</span>
-                    <button
-                        onClick={() => setViewMode('area')}
-                        className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
-                            viewMode === 'area'
-                                ? 'bg-blue-600 text-white'
-                                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                        }`}
-                    >
-                        Área
-                    </button>
-                    <button
-                        onClick={() => setViewMode('line')}
-                        className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
-                            viewMode === 'line'
-                                ? 'bg-blue-600 text-white'
-                                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                        }`}
-                    >
-                        Linha
-                    </button>
-                </div>
                 <label className="flex items-center gap-2 cursor-pointer">
                     <input
                         type="checkbox"
@@ -206,157 +182,86 @@ const CpcCpcaChart = ({ startDate = null, endDate = null }) => {
 
             <div style={{ width: '100%', height: '384px', minHeight: '384px', position: 'relative' }}>
                 <ResponsiveContainer width="100%" height={384}>
-                    {viewMode === 'area' ? (
-                        <AreaChart
-                            data={chartData}
-                            margin={{
-                                top: 10,
-                                right: 10,
-                                left: 10,
-                                bottom: 40,
+                    <AreaChart
+                        data={chartData}
+                        margin={{
+                            top: 10,
+                            right: 10,
+                            left: 10,
+                            bottom: 70,
+                        }}
+                    >
+                        <defs>
+                            <linearGradient id="colorCpc" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
+                                <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                            </linearGradient>
+                            <linearGradient id="colorCpca" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.3} />
+                                <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
+                            </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                        <XAxis
+                            dataKey="date"
+                            axisLine={true}
+                            tickLine={true}
+                            tick={{ fill: '#64748b', fontSize: 11 }}
+                            stroke="#cbd5e1"
+                            height={60}
+                            angle={-45}
+                            textAnchor="end"
+                            interval={xAxisInterval}
+                        />
+                        <YAxis
+                            axisLine={true}
+                            tickLine={true}
+                            tick={{ fill: '#64748b', fontSize: 12 }}
+                            stroke="#cbd5e1"
+                            tickFormatter={(value) => {
+                                if (value >= 1000) return `${(value / 1000).toFixed(1)}k`;
+                                return value.toString();
                             }}
-                        >
-                            <defs>
-                                <linearGradient id="colorCpc" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
-                                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
-                                </linearGradient>
-                                <linearGradient id="colorCpca" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.3}/>
-                                    <stop offset="95%" stopColor="#f59e0b" stopOpacity={0}/>
-                                </linearGradient>
-                            </defs>
-                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                            <XAxis 
-                                dataKey="date" 
-                                axisLine={true} 
-                                tickLine={true} 
-                                tick={{ fill: '#64748b', fontSize: 11 }} 
-                                stroke="#cbd5e1"
-                                height={60}
-                                angle={-45}
-                                textAnchor="end"
-                                interval={xAxisInterval}
-                            />
-                            <YAxis 
-                                axisLine={true} 
-                                tickLine={true} 
-                                tick={{ fill: '#64748b', fontSize: 12 }} 
-                                stroke="#cbd5e1"
-                                tickFormatter={(value) => {
-                                    if (value >= 1000) return `${(value / 1000).toFixed(1)}k`;
-                                    return value.toString();
-                                }}
-                            />
-                            <Tooltip content={<CustomTooltip />} />
-                            <Legend />
-                            {showAverage && metrics && (
-                                <>
-                                    <ReferenceLine 
-                                        y={metrics.cpc.avg} 
-                                        stroke="#3b82f6" 
-                                        strokeDasharray="5 5" 
-                                        label={{ value: `CPC Média: ${metrics.cpc.avg.toLocaleString('pt-BR')}`, position: "topRight", fill: '#3b82f6', fontSize: 11 }}
-                                    />
-                                    <ReferenceLine 
-                                        y={metrics.cpca.avg} 
-                                        stroke="#f59e0b" 
-                                        strokeDasharray="5 5" 
-                                        label={{ value: `CPCA Média: ${metrics.cpca.avg.toLocaleString('pt-BR')}`, position: "topRight", fill: '#f59e0b', fontSize: 11 }}
-                                    />
-                                </>
-                            )}
-                            <Area 
-                                type="monotone" 
-                                dataKey="cpc" 
-                                name="CPC" 
-                                stroke="#3b82f6" 
-                                strokeWidth={2}
-                                fill="url(#colorCpc)"
-                                dot={{ r: 2 }}
-                                activeDot={{ r: 5 }}
-                            />
-                            <Area 
-                                type="monotone" 
-                                dataKey="cpca" 
-                                name="CPCA" 
-                                stroke="#f59e0b" 
-                                strokeWidth={2}
-                                fill="url(#colorCpca)"
-                                dot={{ r: 2 }}
-                                activeDot={{ r: 5 }}
-                            />
-                        </AreaChart>
-                    ) : (
-                        <LineChart
-                            data={chartData}
-                            margin={{
-                                top: 10,
-                                right: 10,
-                                left: 10,
-                                bottom: 40,
-                            }}
-                        >
-                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                            <XAxis 
-                                dataKey="date" 
-                                axisLine={true} 
-                                tickLine={true} 
-                                tick={{ fill: '#64748b', fontSize: 11 }} 
-                                stroke="#cbd5e1"
-                                height={60}
-                                angle={-45}
-                                textAnchor="end"
-                                interval={xAxisInterval}
-                            />
-                            <YAxis 
-                                axisLine={true} 
-                                tickLine={true} 
-                                tick={{ fill: '#64748b', fontSize: 12 }} 
-                                stroke="#cbd5e1"
-                                tickFormatter={(value) => {
-                                    if (value >= 1000) return `${(value / 1000).toFixed(1)}k`;
-                                    return value.toString();
-                                }}
-                            />
-                            <Tooltip content={<CustomTooltip />} />
-                            <Legend />
-                            {showAverage && metrics && (
-                                <>
-                                    <ReferenceLine 
-                                        y={metrics.cpc.avg} 
-                                        stroke="#3b82f6" 
-                                        strokeDasharray="5 5" 
-                                        label={{ value: `CPC Média: ${metrics.cpc.avg.toLocaleString('pt-BR')}`, position: "topRight", fill: '#3b82f6', fontSize: 11 }}
-                                    />
-                                    <ReferenceLine 
-                                        y={metrics.cpca.avg} 
-                                        stroke="#f59e0b" 
-                                        strokeDasharray="5 5" 
-                                        label={{ value: `CPCA Média: ${metrics.cpca.avg.toLocaleString('pt-BR')}`, position: "topRight", fill: '#f59e0b', fontSize: 11 }}
-                                    />
-                                </>
-                            )}
-                            <Line 
-                                type="monotone" 
-                                dataKey="cpc" 
-                                name="CPC" 
-                                stroke="#3b82f6" 
-                                strokeWidth={3}
-                                dot={{ r: 3 }}
-                                activeDot={{ r: 6 }}
-                            />
-                            <Line 
-                                type="monotone" 
-                                dataKey="cpca" 
-                                name="CPCA" 
-                                stroke="#f59e0b" 
-                                strokeWidth={3}
-                                dot={{ r: 3 }}
-                                activeDot={{ r: 6 }}
-                            />
-                        </LineChart>
-                    )}
+                        />
+                        <Tooltip content={<CustomTooltip />} />
+                        <Legend />
+                        {showAverage && metrics && (
+                            <>
+                                <ReferenceLine
+                                    y={metrics.cpc.avg}
+                                    stroke="#3b82f6"
+                                    strokeDasharray="5 5"
+                                    label={{ value: `CPC Média: ${metrics.cpc.avg.toLocaleString('pt-BR')}`, position: "topRight", fill: '#3b82f6', fontSize: 11 }}
+                                />
+                                <ReferenceLine
+                                    y={metrics.cpca.avg}
+                                    stroke="#f59e0b"
+                                    strokeDasharray="5 5"
+                                    label={{ value: `CPCA Média: ${metrics.cpca.avg.toLocaleString('pt-BR')}`, position: "topRight", fill: '#f59e0b', fontSize: 11 }}
+                                />
+                            </>
+                        )}
+                        <Area
+                            type="monotone"
+                            dataKey="cpc"
+                            name="CPC"
+                            stroke="#3b82f6"
+                            strokeWidth={2}
+                            fill="url(#colorCpc)"
+                            dot={{ r: 2 }}
+                            activeDot={{ r: 5 }}
+                        />
+                        <Area
+                            type="monotone"
+                            dataKey="cpca"
+                            name="CPCA"
+                            stroke="#f59e0b"
+                            strokeWidth={2}
+                            fill="url(#colorCpca)"
+                            dot={{ r: 2 }}
+                            activeDot={{ r: 5 }}
+                        />
+                    </AreaChart>
                 </ResponsiveContainer>
             </div>
         </Card>

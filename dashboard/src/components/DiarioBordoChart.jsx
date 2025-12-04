@@ -4,7 +4,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsi
 import Loading from './Loading';
 
 const Card = ({ title, children, className = "" }) => (
-    <div className={`bg-white rounded-xl shadow-sm border border-slate-200 p-6 overflow-hidden ${className}`}>
+    <div className={`bg-white rounded-xl shadow-sm border border-slate-200 p-4 overflow-hidden ${className}`}>
         <h3 className="text-lg font-semibold text-slate-800 mb-4">{title}</h3>
         {children}
     </div>
@@ -34,13 +34,13 @@ const DiarioBordoChart = () => {
                 setLoading(true);
                 setError(null);
                 const token = localStorage.getItem('token');
-                
+
                 // Enviar parâmetro de data se selecionado, senão busca o dia mais recente
                 const params = new URLSearchParams();
                 if (dataSelecionada) {
                     params.append('data', dataSelecionada);
                 }
-                
+
                 const url = `${API_ENDPOINTS.diarioBordo}${params.toString() ? '?' + params.toString() : ''}`;
                 const response = await fetch(url, {
                     headers: {
@@ -54,29 +54,29 @@ const DiarioBordoChart = () => {
                 }
 
                 const result = await response.json();
-                
+
                 // Verificar se a data foi alterada automaticamente
                 if (result.dataAlterada && result.dataReferencia) {
                     // Atualizar a data selecionada para a data que foi usada
                     setDataSelecionada(result.dataReferencia);
                     setDataAlterada(true);
                     console.log(`ℹ️  Data alterada automaticamente de ${result.dataOriginal} para ${result.dataReferencia}`);
-                    
+
                     // Limpar a flag após 5 segundos
                     setTimeout(() => setDataAlterada(false), 5000);
                 } else {
                     setDataAlterada(false);
                 }
-                
+
                 // Salvar data de referência
                 if (result.dataReferencia) {
                     setDataReferencia(result.dataReferencia);
                 }
-                
+
                 if (result.data && result.data.length > 0) {
                     // Criar um mapa com todas as horas (0-23) preenchidas
                     const horasCompletas = new Map();
-                    
+
                     // Inicializar todas as horas com zeros
                     for (let h = 0; h < 24; h++) {
                         horasCompletas.set(h, {
@@ -88,7 +88,7 @@ const DiarioBordoChart = () => {
                             blocowo: 0
                         });
                     }
-                    
+
                     // Preencher com dados reais
                     result.data.forEach(item => {
                         const hora = item.hora;
@@ -103,11 +103,11 @@ const DiarioBordoChart = () => {
                             }
                         }
                     });
-                    
+
                     // Converter para array e ordenar
                     const chartData = Array.from(horasCompletas.values())
                         .sort((a, b) => a.hora - b.hora);
-                    
+
                     setData(chartData);
                 } else {
                     setData([]);
@@ -193,18 +193,18 @@ const DiarioBordoChart = () => {
         if (!dataStr) return '';
         try {
             const date = new Date(dataStr + 'T00:00:00');
-            return date.toLocaleDateString('pt-BR', { 
-                weekday: 'long', 
-                year: 'numeric', 
-                month: 'long', 
-                day: 'numeric' 
+            return date.toLocaleDateString('pt-BR', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
             });
         } catch {
             return dataStr;
         }
     };
 
-    const tituloCompleto = dataReferencia 
+    const tituloCompleto = dataReferencia
         ? `Diário de Bordo - Acordos por Hora (DDA e ACD) - ${formatarData(dataReferencia)}`
         : 'Diário de Bordo - Acordos por Hora (DDA e ACD)';
 
@@ -247,7 +247,7 @@ const DiarioBordoChart = () => {
                     </p>
                 )}
             </div>
-            
+
             {/* Filtro de Blocos */}
             <div className="mb-4">
                 <div className="flex items-center justify-between mb-2">
@@ -279,7 +279,7 @@ const DiarioBordoChart = () => {
                                 onChange={() => toggleBloco(bloco.key)}
                                 className="w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500"
                             />
-                            <span 
+                            <span
                                 className="text-sm text-slate-700"
                                 style={{ color: selectedBlocos.has(bloco.key) ? bloco.color : '#94a3b8' }}
                             >
@@ -303,29 +303,29 @@ const DiarioBordoChart = () => {
                             }}
                         >
                             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                            <XAxis 
-                                dataKey="horaFormatada" 
-                                axisLine={true} 
-                                tickLine={true} 
-                                tick={{ fill: '#64748b', fontSize: 11 }} 
+                            <XAxis
+                                dataKey="horaFormatada"
+                                axisLine={true}
+                                tickLine={true}
+                                tick={{ fill: '#64748b', fontSize: 11 }}
                                 stroke="#cbd5e1"
                                 height={60}
                                 angle={-45}
                                 textAnchor="end"
                                 interval={0}
                             />
-                            <YAxis 
-                                axisLine={true} 
-                                tickLine={true} 
-                                tick={{ fill: '#64748b', fontSize: 12 }} 
+                            <YAxis
+                                axisLine={true}
+                                tickLine={true}
+                                tick={{ fill: '#64748b', fontSize: 12 }}
                                 stroke="#cbd5e1"
                             />
                             <Tooltip
-                                contentStyle={{ 
-                                    backgroundColor: '#fff', 
-                                    borderRadius: '8px', 
-                                    border: '1px solid #e2e8f0', 
-                                    boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' 
+                                contentStyle={{
+                                    backgroundColor: '#fff',
+                                    borderRadius: '8px',
+                                    border: '1px solid #e2e8f0',
+                                    boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'
                                 }}
                                 formatter={(value, name) => {
                                     const blocoName = blocosConfig.find(b => b.key === name)?.name || name;
@@ -336,14 +336,14 @@ const DiarioBordoChart = () => {
                             {blocosConfig.map(bloco => {
                                 if (selectedBlocos.has(bloco.key)) {
                                     return (
-                                        <Line 
+                                        <Line
                                             key={bloco.key}
-                                            type="monotone" 
-                                            dataKey={bloco.key} 
-                                            name={bloco.name} 
-                                            stroke={bloco.color} 
-                                            strokeWidth={2} 
-                                            dot={{ r: 3 }} 
+                                            type="monotone"
+                                            dataKey={bloco.key}
+                                            name={bloco.name}
+                                            stroke={bloco.color}
+                                            strokeWidth={2}
+                                            dot={{ r: 3 }}
                                             activeDot={{ r: 5 }}
                                         />
                                     );

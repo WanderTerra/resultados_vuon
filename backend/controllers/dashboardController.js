@@ -83,13 +83,13 @@ exports.getBlocoData = async (req, res) => {
             cpcaXAcordos: formatChartData(blocoData.cpcaXAcordos),
             acordosXPagamentos: formatChartData(blocoData.acordosXPagamentos)
         };
-        
+
 
         console.log(`📤 Bloco ${bloco} - Enviando resposta: ${response.acionadosXCarteira.length} meses/dias`);
         if (response.acionadosXCarteira.length > 0) {
             const firstFew = response.acionadosXCarteira.slice(0, 5);
             console.log(`📤 Primeiros: ${firstFew.map(r => `${r.date} (C:${r.carteira}, A:${r.acionados}, %:${r.percent})`).join(', ')}`);
-            
+
             // Log detalhado de TODOS os meses para debug
             console.log(`\n📊 Bloco ${bloco} - DETALHAMENTO COMPLETO:`);
             response.acionadosXCarteira.forEach(r => {
@@ -110,7 +110,7 @@ exports.getBlocoData = async (req, res) => {
         res.json(response);
     } catch (error) {
         console.error('Bloco data error:', error);
-        res.status(500).json({ 
+        res.status(500).json({
             message: 'Server error',
             error: process.env.NODE_ENV === 'development' ? error.message : undefined
         });
@@ -120,7 +120,7 @@ exports.getBlocoData = async (req, res) => {
 exports.getDashboardData = async (req, res) => {
     try {
         const db = await getDbConnection();
-        
+
         if (!db) {
             return res.status(500).json({ message: 'Database connection failed' });
         }
@@ -247,7 +247,7 @@ exports.getDashboardData = async (req, res) => {
         console.error('Error message:', error.message);
         console.error('Error code:', error.code);
         console.error('Error stack:', error.stack);
-        res.status(500).json({ 
+        res.status(500).json({
             message: 'Server error',
             error: process.env.NODE_ENV === 'development' ? error.message : undefined
         });
@@ -255,11 +255,113 @@ exports.getDashboardData = async (req, res) => {
 };
 
 // Buscar dados do diário de bordo (acordos por hora)
-// Se dataSelecionada for fornecida, usa ela. Senão, usa o dia mais recente
+// Aceita três modos:
+// 1. ?data=YYYY-MM-DD - busca dados de uma data específica
+// 2. ?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD - busca dados de um período
+// 3. Sem parâmetros - busca o dia mais recente
 exports.getDiarioBordo = async (req, res) => {
     try {
         const dataSelecionada = req.query.data || null; // Parâmetro opcional: ?data=2025-05-05
-        
+        const startDate = req.query.startDate || null;
+        const endDate = req.query.endDate || null;
+
+        // Se houver startDate e endDate, usar modo de período
+        if (startDate && endDate) {
+            // Cache com chave baseada no período
+            const cacheKey = cache.generateKey('diarioBordo', 'periodo', startDate, endDate);
+            const cached = cache.get(cacheKey);
+            if (cached) {
+                return res.json(cached);
+            }
+
+            // Buscar dados de todos os blocos para o período
+            const data = await DiarioBordoModel.getAcordosPorHora(null, startDate, endDate);
+
+            // Se não houver dados, retornar resposta vazia
+            if (!data || data.length === 0) {
+                const response = {
+                    data: [],
+                    startDate: startDate,
+                    endDate: endDate,
+                    total: 0,
+                    totalPorBloco: {
+                        bloco1: 0,
+                        bloco2: 0,
+                        bloco3: 0,
+                        blocowo: 0
+                    }
+                };
+                cache.set(cacheKey, response, 300);
+                return res.json(response);
+            }
+
+            // Formatar dados para o gráfico - agrupar por data e hora
+            const horasMap = new Map();
+
+            data.forEach(row => {
+                const hora = row.hora !== null && row.hora !== undefined ? parseInt(row.hora) : 0;
+                const dataStr = row.data instanceof Date
+                    ? row.data.toISOString().split('T')[0]
+                    : (typeof row.data === 'string' ? row.data.split('T')[0] : String(row.data));
+
+                const key = `${dataStr}_${hora}`;
+
+                if (!horasMap.has(key)) {
+                    horasMap.set(key, {
+                        data: dataStr,
+                        hora: hora,
+                        horaFormatada: `${String(hora).padStart(2, '0')}:00`,
+                        dda: 0,
+                        acd: 0,
+                        total: 0
+                    });
+                }
+
+                const entry = horasMap.get(key);
+                entry.dda += parseInt(row.dda || 0);
+                entry.acd += parseInt(row.acd || 0);
+                entry.total += parseInt(row.total_acordos || 0);
+            });
+
+            // Converter para array e ordenar
+            const formattedData = Array.from(horasMap.values())
+                .sort((a, b) => {
+                    if (a.data !== b.data) return a.data.localeCompare(b.data);
+                    return a.hora - b.hora;
+                });
+
+            // Calcular totais por bloco (buscar de cada bloco separadamente)
+            const [bloco1Data, bloco2Data, bloco3Data, blocoWOData] = await Promise.all([
+                DiarioBordoModel.getAcordosPorHora(1, startDate, endDate),
+                DiarioBordoModel.getAcordosPorHora(2, startDate, endDate),
+                DiarioBordoModel.getAcordosPorHora(3, startDate, endDate),
+                DiarioBordoModel.getAcordosPorHora('wo', startDate, endDate)
+            ]);
+
+            const calcularTotal = (data) => {
+                return data.reduce((sum, row) => sum + parseInt(row.total_acordos || 0), 0);
+            };
+
+            const response = {
+                data: formattedData,
+                startDate: startDate,
+                endDate: endDate,
+                total: formattedData.reduce((sum, item) => sum + item.total, 0),
+                totalPorBloco: {
+                    bloco1: calcularTotal(bloco1Data),
+                    bloco2: calcularTotal(bloco2Data),
+                    bloco3: calcularTotal(bloco3Data),
+                    blocowo: calcularTotal(blocoWOData)
+                }
+            };
+
+            // Armazenar no cache
+            cache.set(cacheKey, response, 300); // 5 minutos de cache
+
+            return res.json(response);
+        }
+
+        // Modo original: data específica ou dia mais recente
         // Cache com chave baseada na data selecionada ou "diaMaisRecente"
         const cacheKey = cache.generateKey('diarioBordo', dataSelecionada || 'diaMaisRecente');
         const cached = cache.get(cacheKey);
@@ -273,7 +375,7 @@ exports.getDiarioBordo = async (req, res) => {
         // Verificar se a data foi alterada automaticamente
         let dataUsada = dataSelecionada;
         let dataAlterada = false;
-        
+
         if (data && data._dataAlterada) {
             dataUsada = data._dataUsada;
             dataAlterada = true;
@@ -298,13 +400,13 @@ exports.getDiarioBordo = async (req, res) => {
         // Formatar dados para o gráfico
         // Agrupar por hora e separar por blocos
         const horasMap = new Map();
-        
+
         // Obter a data do primeiro registro (todos serão do mesmo dia)
         let dataReferencia = dataUsada || null;
-        
+
         data.forEach(row => {
             const hora = row.hora !== null && row.hora !== undefined ? parseInt(row.hora) : 0;
-            
+
             // Capturar a data de referência (primeira vez)
             if (!dataReferencia && row.data) {
                 if (row.data instanceof Date) {
@@ -315,10 +417,10 @@ exports.getDiarioBordo = async (req, res) => {
                     dataReferencia = String(row.data);
                 }
             }
-            
+
             const key = hora; // Usar apenas a hora como chave, já que é tudo do mesmo dia
             const blocoKey = row.bloco !== null && row.bloco !== undefined ? String(row.bloco) : 'outros';
-            
+
             if (!horasMap.has(key)) {
                 horasMap.set(key, {
                     data: dataReferencia,
@@ -327,7 +429,7 @@ exports.getDiarioBordo = async (req, res) => {
                     blocos: {}
                 });
             }
-            
+
             const entry = horasMap.get(key);
             entry.blocos[`bloco${blocoKey}`] = {
                 dda: parseInt(row.dda || 0),
@@ -358,7 +460,7 @@ exports.getDiarioBordo = async (req, res) => {
         res.json(response);
     } catch (error) {
         console.error('Diário de bordo error:', error);
-        res.status(500).json({ 
+        res.status(500).json({
             message: 'Server error',
             error: process.env.NODE_ENV === 'development' ? error.message : undefined
         });
