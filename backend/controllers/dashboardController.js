@@ -2,6 +2,7 @@ const { getDB } = require('../config/db');
 const BlocoModel = require('../models/blocoModel');
 const PagamentoModel = require('../models/pagamentoModel');
 const DiarioBordoModel = require('../models/diarioBordoModel');
+const ClientesVirgensModel = require('../models/clientesVirgensModel');
 const cache = require('../utils/cache');
 
 // Initialize DB connection (will be reused)
@@ -460,6 +461,38 @@ exports.getDiarioBordo = async (req, res) => {
         res.json(response);
     } catch (error) {
         console.error('Diário de bordo error:', error);
+        res.status(500).json({
+            message: 'Server error',
+            error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
+    }
+};
+
+// Buscar dados de clientes virgens
+exports.getClientesVirgens = async (req, res) => {
+    try {
+        const blocoParam = req.query.bloco;
+        
+        // Converter parâmetro de bloco
+        let bloco = null;
+        if (blocoParam) {
+            if (blocoParam === 'wo' || blocoParam === 'WO') {
+                bloco = 'wo';
+            } else {
+                const blocoNum = parseInt(blocoParam);
+                if (!isNaN(blocoNum) && [1, 2, 3].includes(blocoNum)) {
+                    bloco = blocoNum;
+                } else {
+                    return res.status(400).json({ message: 'Bloco inválido. Use 1, 2, 3 ou wo.' });
+                }
+            }
+        }
+        
+        const data = await ClientesVirgensModel.getClientesVirgens(bloco);
+        
+        res.json({ data });
+    } catch (error) {
+        console.error('Clientes virgens error:', error);
         res.status(500).json({
             message: 'Server error',
             error: process.env.NODE_ENV === 'development' ? error.message : undefined

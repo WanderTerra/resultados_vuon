@@ -7,6 +7,7 @@ import RecebimentoChart from '../components/RecebimentoChart';
 import DiarioBordoChart from '../components/DiarioBordoChart';
 import ProdutividadeChart from '../components/ProdutividadeChart';
 import ProdutividadeBarChart from '../components/ProdutividadeBarChart';
+import ClientesVirgensChart from '../components/ClientesVirgensChart';
 import PeriodFilter from '../components/PeriodFilter';
 
 const Dashboard = () => {
@@ -94,6 +95,17 @@ const Dashboard = () => {
                     </div>
                 </div>
                 <RecebimentoChart />
+            </section>
+
+            {/* Clientes Virgens, Pagamentos e Acordos */}
+            <section>
+                <div className="flex items-center justify-between mb-6">
+                    <div>
+                        <h2 className="text-xl font-bold text-slate-800">Clientes Virgens, Pagamentos e Acordos</h2>
+                        <p className="text-slate-500">Evolução mensal de clientes virgens, total de pagamentos e acordos</p>
+                    </div>
+                </div>
+                <ClientesVirgensChart />
             </section>
 
             {/* Diário de Bordo */}

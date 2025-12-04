@@ -3,6 +3,7 @@ import { API_ENDPOINTS } from '../config/api';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Line, ComposedChart } from 'recharts';
 import DateFilter from '../components/DateFilter';
 import Loading from '../components/Loading';
+import ClientesVirgensChart from '../components/ClientesVirgensChart';
 
 const Card = React.memo(({ title, children, className = "" }) => (
     <div className={`bg-white rounded-xl shadow-sm border border-slate-200 p-6 overflow-hidden ${className}`}>
@@ -343,6 +344,15 @@ const Bloco1 = () => {
                         compareData={compareData?.bloco1?.acordosXPagamentos}
                     />
                 </div>
+            </section>
+
+            {/* Clientes Virgens, Pagamentos e Acordos */}
+            <section>
+                <div className="mb-6">
+                    <h2 className="text-xl font-bold text-slate-800">Clientes Virgens, Pagamentos e Acordos</h2>
+                    <p className="text-slate-500">Evolução mensal de clientes virgens, total de pagamentos e acordos no Bloco 1 (61 a 90 dias de atraso)</p>
+                </div>
+                <ClientesVirgensChart bloco={1} />
             </section>
         </div>
     );

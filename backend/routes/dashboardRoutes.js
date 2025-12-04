@@ -21,5 +21,8 @@ router.get('/diario-bordo', dashboardController.getDiarioBordo);
 router.get('/produtividade/top-agentes', produtividadeController.getTopAgentes);
 router.get('/produtividade', produtividadeController.getProdutividadeData);
 
+// Rota de clientes virgens
+router.get('/clientes-virgens', dashboardController.getClientesVirgens);
+
 module.exports = router;
 

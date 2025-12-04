@@ -22,4 +22,5 @@ export const API_ENDPOINTS = {
     diarioBordo: `${API_BASE_URL}/api/dashboard/diario-bordo`,
     produtividade: `${API_BASE_URL}/api/dashboard/produtividade`,
     produtividadeTopAgentes: `${API_BASE_URL}/api/dashboard/produtividade/top-agentes`,
+    clientesVirgens: `${API_BASE_URL}/api/dashboard/clientes-virgens`,
 };
