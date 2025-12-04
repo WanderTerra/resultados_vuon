@@ -6,6 +6,7 @@ import Bloco1 from './pages/Bloco1';
 import Bloco2 from './pages/Bloco2';
 import Bloco3 from './pages/Bloco3';
 import BlocoWO from './pages/BlocoWO';
+import Produtividade from './pages/Produtividade';
 import Login from './pages/Login';
 import CadastroUsuario from './pages/CadastroUsuario';
 import { API_ENDPOINTS } from './config/api';
@@ -207,6 +208,16 @@ function App() {
             <ProtectedRoute>
               <Layout>
                 <BlocoWO />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/produtividade"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <Produtividade />
               </Layout>
             </ProtectedRoute>
           }
