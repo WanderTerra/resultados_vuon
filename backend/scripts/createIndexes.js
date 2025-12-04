@@ -56,6 +56,26 @@ const createIndexes = async () => {
                 name: 'idx_codigo',
                 query: `CREATE INDEX idx_codigo ON vuon_resultados(codigo)`
             },
+            // Índice para cpf_cnpj (usado em COUNT DISTINCT para acionados únicos)
+            {
+                name: 'idx_cpf_cnpj',
+                query: `CREATE INDEX idx_cpf_cnpj ON vuon_resultados(cpf_cnpj)`
+            },
+            // Índice composto: data + cpf_cnpj + acao (otimiza COUNT DISTINCT cpf_cnpj com filtros de data e acao)
+            {
+                name: 'idx_data_cpf_cnpj_acao',
+                query: `CREATE INDEX idx_data_cpf_cnpj_acao ON vuon_resultados(data, cpf_cnpj, acao)`
+            },
+            // Índice composto: atraso + data + cpf_cnpj (otimiza queries de bloco com COUNT DISTINCT cpf_cnpj)
+            {
+                name: 'idx_atraso_data_cpf_cnpj',
+                query: `CREATE INDEX idx_atraso_data_cpf_cnpj ON vuon_resultados(atraso, data, cpf_cnpj)`
+            },
+            // Índice composto: atraso + data + cpf_cnpj + acao (otimiza queries completas de acionados)
+            {
+                name: 'idx_atraso_data_cpf_cnpj_acao',
+                query: `CREATE INDEX idx_atraso_data_cpf_cnpj_acao ON vuon_resultados(atraso, data, cpf_cnpj, acao)`
+            },
             // Índices compostos adicionais para otimização
             // Índice composto: data + agente + acao (otimiza queries de ALO, CPC, CPCA)
             {

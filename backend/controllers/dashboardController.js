@@ -52,6 +52,13 @@ exports.getBlocoData = async (req, res) => {
             cached = cache.get(cacheKey);
             if (cached) {
                 console.log(`📦 Bloco ${bloco} - Retornando do cache`);
+                // Mesmo do cache, mostrar valores para debug
+                if (cached.acionadosXCarteira && cached.acionadosXCarteira.length > 0) {
+                    console.log(`📊 Bloco ${bloco} - DADOS DO CACHE:`);
+                    cached.acionadosXCarteira.forEach(r => {
+                        console.log(`   ${r.date}: Carteira=${r.carteira?.toLocaleString() || r.carteira}, Acionados=${r.acionados?.toLocaleString() || r.acionados}, %=${r.percent || 0}%`);
+                    });
+                }
                 return res.json(cached);
             }
         } else {
@@ -76,17 +83,27 @@ exports.getBlocoData = async (req, res) => {
             cpcaXAcordos: formatChartData(blocoData.cpcaXAcordos),
             acordosXPagamentos: formatChartData(blocoData.acordosXPagamentos)
         };
+        
 
         console.log(`📤 Bloco ${bloco} - Enviando resposta: ${response.acionadosXCarteira.length} meses/dias`);
         if (response.acionadosXCarteira.length > 0) {
-            console.log(`📤 Primeiros: ${response.acionadosXCarteira.slice(0, 5).map(r => r.date).join(', ')}`);
+            const firstFew = response.acionadosXCarteira.slice(0, 5);
+            console.log(`📤 Primeiros: ${firstFew.map(r => `${r.date} (C:${r.carteira}, A:${r.acionados}, %:${r.percent})`).join(', ')}`);
+            
+            // Log detalhado de TODOS os meses para debug
+            console.log(`\n📊 Bloco ${bloco} - DETALHAMENTO COMPLETO:`);
+            response.acionadosXCarteira.forEach(r => {
+                console.log(`   ${r.date}: Carteira=${r.carteira.toLocaleString()}, Acionados=${r.acionados.toLocaleString()}, %=${r.percent}%`);
+            });
+            console.log('');
         }
 
         // Armazenar no cache apenas se não houver flag para ignorar cache
         if (!noCache) {
             const cacheKey = cache.generateKey('bloco', bloco, startDate || 'all', endDate || 'all', groupBy);
-            // Reduzir TTL quando há filtros de data para evitar cache muito longo
-            const cacheTtl = (startDate || endDate) ? (5 * 60 * 1000) : (30 * 60 * 1000); // 5 min com filtros, 30 min sem filtros
+            // TTL do cache: 1 hora sem filtros, 30 minutos com filtros
+            // COUNT(DISTINCT) é muito lento, então cache longo é essencial
+            const cacheTtl = (startDate || endDate) ? (30 * 60 * 1000) : (60 * 60 * 1000); // 30 min com filtros, 1 hora sem filtros
             cache.set(cacheKey, response, cacheTtl);
         }
 
@@ -134,17 +151,24 @@ exports.getDashboardData = async (req, res) => {
         // Verificar se é agrupamento por dia ou mês
         const groupBy = req.query.groupBy || 'month';
 
+        // OTIMIZAÇÃO: Passar groupBy explicitamente para usar tabela materializada
+        console.log(`📊 Dashboard - Buscando dados: startDate=${startDate}, endDate=${endDate}, groupBy=${groupBy}`);
+        const dashboardStart = Date.now();
+
         // Buscar dados de todos os blocos em paralelo
         const [bloco1Data, bloco2Data, bloco3Data, woRecebimento, recebimento1, recebimento2, recebimento3, recebimentoWO] = await Promise.all([
-            BlocoModel.getBlocoData(1, startDate, endDate),
-            BlocoModel.getBlocoData(2, startDate, endDate),
-            BlocoModel.getBlocoData(3, startDate, endDate),
+            BlocoModel.getBlocoData(1, startDate, endDate, groupBy),
+            BlocoModel.getBlocoData(2, startDate, endDate, groupBy),
+            BlocoModel.getBlocoData(3, startDate, endDate, groupBy),
             BlocoModel.getRecebimento('wo', startDate, endDate),
             PagamentoModel.getRecebimentoData(1, startDate, endDate, groupBy),
             PagamentoModel.getRecebimentoData(2, startDate, endDate, groupBy),
             PagamentoModel.getRecebimentoData(3, startDate, endDate, groupBy),
             PagamentoModel.getRecebimentoData('wo', startDate, endDate, groupBy)
         ]);
+
+        const dashboardTime = Date.now() - dashboardStart;
+        console.log(`⏱️  Dashboard - Todas as queries executadas em ${(dashboardTime / 1000).toFixed(2)}s (${dashboardTime}ms)`);
 
         // Estrutura do dashboard com dados reais
         const dashboardData = {

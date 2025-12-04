@@ -24,7 +24,9 @@ class BlocoModel {
     }
 
     // Acionados x Carteira por data
-    // Carteira = total de registros naquela data (não clientes únicos)
+    // Carteira = CPFs únicos na carteira (clientes únicos no período)
+    // Acionados = CPFs únicos com ação (clientes únicos que têm ação)
+    // IMPORTANTE: Este método usa query DIRETA da tabela vuon_resultados - NÃO usa views
     static async getAcionadosXCarteira(bloco, startDate = null, endDate = null) {
         const db = await getDB();
         const blocoCondition = this.getBlocoCondition(bloco);
@@ -37,11 +39,13 @@ class BlocoModel {
         const query = `
             SELECT 
                 data as date,
-                COUNT(*) as carteira,
-                COUNT(CASE WHEN acao IS NOT NULL AND acao != '' THEN 1 END) as acionados,
+                -- Carteira: CPFs únicos na carteira (todos os CPFs no período)
+                COUNT(DISTINCT CASE WHEN cpf_cnpj IS NOT NULL AND cpf_cnpj != '' THEN cpf_cnpj END) as carteira,
+                -- Acionados: CPFs únicos com ação
+                COUNT(DISTINCT CASE WHEN acao IS NOT NULL AND acao != '' AND cpf_cnpj IS NOT NULL AND cpf_cnpj != '' THEN cpf_cnpj END) as acionados,
                 ROUND(
-                    COUNT(CASE WHEN acao IS NOT NULL AND acao != '' THEN 1 END) * 100.0 / 
-                    NULLIF(COUNT(*), 0), 
+                    COUNT(DISTINCT CASE WHEN acao IS NOT NULL AND acao != '' AND cpf_cnpj IS NOT NULL AND cpf_cnpj != '' THEN cpf_cnpj END) * 100.0 / 
+                    NULLIF(COUNT(DISTINCT CASE WHEN cpf_cnpj IS NOT NULL AND cpf_cnpj != '' THEN cpf_cnpj END), 0), 
                     2
                 ) as percent
             FROM vuon_resultados
@@ -55,6 +59,8 @@ class BlocoModel {
     }
 
     // Acionados x Alô por data
+    // Acionados = clientes únicos (por CPF) que têm ação naquela data
+    // Alô = clientes únicos (por CPF) que têm agente naquela data
     static async getAcionadosXAlo(bloco, startDate = null, endDate = null) {
         const db = await getDB();
         const blocoCondition = this.getBlocoCondition(bloco);
@@ -67,17 +73,17 @@ class BlocoModel {
         const query = `
             SELECT 
                 data as date,
-                COUNT(CASE WHEN acao IS NOT NULL AND acao != '' THEN 1 END) as acionados,
-                COUNT(CASE 
-                    WHEN agente != '0' AND agente IS NOT NULL AND agente != '' 
-                    THEN 1 
+                COUNT(DISTINCT CASE WHEN acao IS NOT NULL AND acao != '' AND cpf_cnpj IS NOT NULL AND cpf_cnpj != '' THEN cpf_cnpj END) as acionados,
+                COUNT(DISTINCT CASE 
+                    WHEN agente != '0' AND agente IS NOT NULL AND agente != '' AND cpf_cnpj IS NOT NULL AND cpf_cnpj != ''
+                    THEN cpf_cnpj 
                 END) as alo,
                 ROUND(
-                    COUNT(CASE 
-                        WHEN agente != '0' AND agente IS NOT NULL AND agente != '' 
-                        THEN 1 
+                    COUNT(DISTINCT CASE 
+                        WHEN agente != '0' AND agente IS NOT NULL AND agente != '' AND cpf_cnpj IS NOT NULL AND cpf_cnpj != ''
+                        THEN cpf_cnpj 
                     END) * 100.0 / 
-                    NULLIF(COUNT(CASE WHEN acao IS NOT NULL AND acao != '' THEN 1 END), 0), 
+                    NULLIF(COUNT(DISTINCT CASE WHEN acao IS NOT NULL AND acao != '' AND cpf_cnpj IS NOT NULL AND cpf_cnpj != '' THEN cpf_cnpj END), 0), 
                     2
                 ) as percent
             FROM vuon_resultados
@@ -91,7 +97,8 @@ class BlocoModel {
     }
 
     // Alô x CPC por data
-    // CPC: Todas as ações com agente (EIO, CSA, ACD, SCP, APH, DEF, SRP, APC, JUR, DDA)
+    // Alô: CPFs únicos com agente (cliente único que teve contato)
+    // CPC: Ações com agente (EIO, CSA, ACD, SCP, APH, DEF, SRP, APC, JUR, DDA) - contagem de ações, não CPFs
     static async getAloXCpc(bloco, startDate = null, endDate = null) {
         const db = await getDB();
         const blocoCondition = this.getBlocoCondition(bloco);
@@ -104,10 +111,12 @@ class BlocoModel {
         const query = `
             SELECT 
                 data as date,
-                COUNT(CASE 
-                    WHEN agente != '0' AND agente IS NOT NULL AND agente != '' 
-                    THEN 1 
+                -- Alô: CPFs únicos com agente (1 CPF = 1 alô, mesmo com múltiplas ações)
+                COUNT(DISTINCT CASE 
+                    WHEN agente != '0' AND agente IS NOT NULL AND agente != '' AND cpf_cnpj IS NOT NULL AND cpf_cnpj != ''
+                    THEN cpf_cnpj 
                 END) as alo,
+                -- CPC: Total de ações (não CPFs únicos, pois um CPF pode ter múltiplas ações CPC)
                 COUNT(CASE 
                     WHEN agente != '0' 
                         AND agente IS NOT NULL 
@@ -123,9 +132,9 @@ class BlocoModel {
                             AND acao IN ('EIO', 'CSA', 'ACD', 'SCP', 'APH', 'DEF', 'SRP', 'APC', 'JUR', 'DDA')
                         THEN 1 
                     END) * 100.0 / 
-                    NULLIF(COUNT(CASE 
-                        WHEN agente != '0' AND agente IS NOT NULL AND agente != '' 
-                        THEN 1 
+                    NULLIF(COUNT(DISTINCT CASE 
+                        WHEN agente != '0' AND agente IS NOT NULL AND agente != '' AND cpf_cnpj IS NOT NULL AND cpf_cnpj != ''
+                        THEN cpf_cnpj 
                     END), 0), 
                     2
                 ) as percent
@@ -309,8 +318,30 @@ class BlocoModel {
     // Total de spins por bloco (total de registros únicos por cliente)
     static async getSpins(bloco) {
         const db = await getDB();
-        const blocoCondition = this.getBlocoCondition(bloco);
         
+        // OTIMIZAÇÃO: Usar tabela materializada quando possível (muito mais rápido)
+        // A tabela materializada tem o campo 'spins' já calculado
+        const blocoName = bloco === 'wo' ? 'wo' : String(bloco);
+        
+        try {
+            // Tentar buscar da tabela materializada primeiro (muito mais rápido)
+            const query = `
+                SELECT SUM(spins) as spins
+                FROM bloco_summary
+                WHERE bloco = ?
+            `;
+            const [rows] = await db.execute(query, [blocoName]);
+            const spins = rows[0]?.spins || 0;
+            if (spins > 0) {
+                return parseInt(spins);
+            }
+        } catch (error) {
+            // Se a tabela materializada não existir ou houver erro, usar fallback
+            console.log(`⚠️  getSpins - Erro ao usar tabela materializada, usando fallback: ${error.message}`);
+        }
+        
+        // Fallback: query direta (mais lenta)
+        const blocoCondition = this.getBlocoCondition(bloco);
         const query = `
             SELECT COUNT(DISTINCT codigo) as spins
             FROM vuon_resultados
@@ -323,11 +354,59 @@ class BlocoModel {
     // Recebimento financeiro por bloco
     static async getRecebimento(bloco, startDate = null, endDate = null) {
         const db = await getDB();
-        const blocoCondition = this.getBlocoCondition(bloco);
+        const blocoName = bloco === 'wo' ? 'wo' : String(bloco);
         
+        // OTIMIZAÇÃO: Usar tabela materializada quando possível (muito mais rápido)
+        // A tabela materializada tem o campo 'recebimento' já calculado
+        try {
+            let query, queryParams;
+            
+            if (startDate && endDate) {
+                // Filtrar por range de datas na tabela materializada usando ano/mês
+                const startYear = parseInt(startDate.split('-')[0]);
+                const startMonth = parseInt(startDate.split('-')[1]);
+                const endYear = parseInt(endDate.split('-')[0]);
+                const endMonth = parseInt(endDate.split('-')[1]);
+                
+                query = `
+                    SELECT COALESCE(SUM(recebimento), 0) as total
+                    FROM bloco_summary
+                    WHERE bloco = ?
+                        AND (
+                            (ano > ? OR (ano = ? AND mes >= ?))
+                            AND (ano < ? OR (ano = ? AND mes <= ?))
+                        )
+                `;
+                queryParams = [blocoName, startYear, startYear, startMonth, endYear, endYear, endMonth];
+            } else {
+                // Sem filtros: buscar todos os meses
+                query = `
+                    SELECT COALESCE(SUM(recebimento), 0) as total
+                    FROM bloco_summary
+                    WHERE bloco = ?
+                `;
+                queryParams = [blocoName];
+            }
+            
+            const [rows] = await db.execute(query, queryParams);
+            const total = parseFloat(rows[0]?.total || 0);
+            if (total > 0 || !startDate || !endDate) {
+                // Se encontrou dados ou não há filtros, retornar
+                return total;
+            }
+        } catch (error) {
+            // Se a tabela materializada não existir ou houver erro, usar fallback
+            console.log(`⚠️  getRecebimento - Erro ao usar tabela materializada, usando fallback: ${error.message}`);
+        }
+        
+        // Fallback: query direta (mais lenta)
+        const blocoCondition = this.getBlocoCondition(bloco);
         let dateFilter = '';
+        const queryParams = [];
+        
         if (startDate && endDate) {
-            dateFilter = `AND data >= '${startDate}' AND data <= '${endDate}'`;
+            dateFilter = `AND data >= ? AND data <= ?`;
+            queryParams.push(startDate, endDate);
         }
         
         const query = `
@@ -337,257 +416,262 @@ class BlocoModel {
                 AND valor > 0
                 ${dateFilter}
         `;
-        const [rows] = await db.execute(query);
+        const [rows] = queryParams.length > 0 
+            ? await db.execute(query, queryParams)
+            : await db.execute(query);
         return parseFloat(rows[0]?.total || 0);
     }
 
-    // Buscar todos os dados de um bloco - OTIMIZADO: usa views pré-computadas
+    // Buscar todos os dados de um bloco - OTIMIZADO: usa queries diretas da tabela
+    // IMPORTANTE: Eliminamos completamente o uso de views para acionadosXCarteira
+    // Todas as queries são diretas da tabela vuon_resultados para melhor performance
     static async getBlocoData(bloco, startDate = null, endDate = null, groupBy = 'month') {
         const db = await getDB();
         
-        // Determinar nome da view baseado no bloco
-        const blocoName = bloco === 'wo' ? 'wo' : String(bloco);
-        const viewName = `v_bloco${blocoName}_agregado`;
+        // NOTA: Views agregadas são MUITO LENTAS (30-90s) porque fazem COUNT(DISTINCT) em toda a tabela
+        // Por isso, SEMPRE usamos queries diretas na tabela vuon_resultados
+        // Eliminamos completamente o uso de views para acionadosXCarteira
         
-        // Verificar se a view existe, caso contrário usar queries diretas
-        let useViews = true;
-        try {
-            await db.execute(`SELECT 1 FROM ${viewName} LIMIT 1`);
-        } catch (error) {
-            // Se a view não existe, usar queries diretas (fallback)
-            console.warn(`⚠️  View ${viewName} não encontrada. Usando queries diretas. Execute: npm run create-blocos-views`);
-            useViews = false;
+        const blocoName = bloco === 'wo' ? 'wo' : String(bloco);
+        
+        // Usar prepared statements para melhor performance e segurança
+        // IMPORTANTE: queryParams será usado para queries de acordos/pagamentos
+        let dateFilter = '';
+        const queryParams = [];
+        
+        if (startDate && endDate) {
+            // IMPORTANTE: Filtrar pela coluna 'data' da tabela vuon_resultados
+            // Mesmo quando agrupamos por mês, precisamos filtrar pela data original
+            dateFilter = `AND data >= ? AND data <= ?`;
+            queryParams.push(startDate, endDate);
+            console.log(`📊 Bloco ${bloco} - Aplicando filtro: ${startDate} até ${endDate}, groupBy: ${groupBy}`);
         }
         
-        // Se views não estão disponíveis, usar método antigo
-        if (!useViews) {
-            const blocoCondition = this.getBlocoCondition(bloco);
+        // Preservar queryParams originais para usar nas queries de acordos/pagamentos
+        const originalQueryParams = [...queryParams];
+
+        // Determinar agrupamento: por dia ou por mês
+        let dateSelect, dateFormatted, groupByClause, orderByClause;
+        
+        if (groupBy === 'day') {
+            // Agrupamento por dia - usar DATE() diretamente
+            dateSelect = `DATE(data) as date`;
+            dateFormatted = `DATE_FORMAT(data, '%d/%m/%Y') as date_formatted`;
+            groupByClause = `DATE(data)`;
+            orderByClause = `DATE(data) ASC`;
+        } else {
+            // Agrupamento por mês (padrão) - usar funções SQL diretamente
+            // IMPORTANTE: Não usar campos da view, usar funções SQL
+            dateSelect = `CONCAT(YEAR(data), '-', LPAD(MONTH(data), 2, '0')) as date`;
+            dateFormatted = `CONCAT(LPAD(MONTH(data), 2, '0'), '/', YEAR(data)) as date_formatted`;
+            groupByClause = `YEAR(data), MONTH(data)`;
+            orderByClause = `YEAR(data) ASC, MONTH(data) ASC`;
+        }
+
+        // Query otimizada: quando agrupar por mês, contar DISTINCT cpf_cnpj diretamente
+        // IMPORTANTE: Cada CPF conta apenas 1 vez por mês, mesmo que tenha múltiplas ações
+        // 
+        // ESTRATÉGIA DE OTIMIZAÇÃO:
+        // - Se groupBy === 'month': usar query direta (mais rápido)
+        // - Se groupBy === 'day' E há filtros de data: usar query direta (mais rápido que view sem filtro)
+        // - Se groupBy === 'day' E NÃO há filtros: usar view (pré-computada, mas ainda lenta)
+        let query;
+        
+        // Determinar se vamos usar tabela materializada (sempre para month, nunca para day)
+        const useSummaryTable = groupBy === 'month';
+        let summaryQueryParams; // Declarar no escopo externo para usar na execução da query
+        
+        if (groupBy === 'month') {
+            // OTIMIZAÇÃO: SEMPRE usar tabela materializada para month (MUITO mais rápida)
+            // A tabela materializada tem todos os meses, então podemos filtrar por ano/mês
+            const blocoName = bloco === 'wo' ? 'wo' : String(bloco);
+            console.log(`⚡ Usando tabela materializada bloco_summary para Bloco ${bloco} (OTIMIZADO)`);
             
-            let dateFilter = '';
-            const queryParams = [];
+            let summaryFilter = '';
+            const summaryParams = [blocoName];
             
             if (startDate && endDate) {
-                dateFilter = `AND data >= ? AND data <= ?`;
-                queryParams.push(startDate, endDate);
+                // Filtrar por range de datas na tabela materializada usando ano/mês
+                const startYear = parseInt(startDate.split('-')[0]);
+                const startMonth = parseInt(startDate.split('-')[1]);
+                const endYear = parseInt(endDate.split('-')[0]);
+                const endMonth = parseInt(endDate.split('-')[1]);
+                
+                // Criar condições para filtrar por ano/mês
+                summaryFilter = `AND (
+                    (ano > ? OR (ano = ? AND mes >= ?))
+                    AND (ano < ? OR (ano = ? AND mes <= ?))
+                )`;
+                summaryParams.push(startYear, startYear, startMonth, endYear, endYear, endMonth);
+                console.log(`   📅 Filtrando: ${startMonth}/${startYear} até ${endMonth}/${endYear}`);
             }
-
-            let dateSelect, dateFormatted, groupByClause, orderByClause;
             
-            if (groupBy === 'day') {
-                dateSelect = `DATE(data) as date`;
-                dateFormatted = `DATE_FORMAT(data, '%d/%m/%Y') as date_formatted`;
-                groupByClause = `DATE(data)`;
-                orderByClause = `DATE(data) ASC`;
-            } else {
-                dateSelect = `CONCAT(YEAR(data), '-', LPAD(MONTH(data), 2, '0')) as date`;
-                dateFormatted = `CONCAT(LPAD(MONTH(data), 2, '0'), '/', YEAR(data)) as date_formatted`;
-                groupByClause = `YEAR(data), MONTH(data)`;
-                orderByClause = `YEAR(data) ASC, MONTH(data) ASC`;
-            }
-
-            const query = `
+            query = `
+                SELECT 
+                    date_formatted as date,
+                    date_formatted,
+                    carteira,
+                    acionados,
+                    alo,
+                    cpc,
+                    cpca,
+                    acordos_resultados,
+                    pgto_resultados,
+                    spins,
+                    recebimento
+                FROM bloco_summary
+                WHERE bloco = ?
+                    ${summaryFilter}
+                ORDER BY ano ASC, mes ASC
+            `;
+            
+            // Usar os parâmetros da summary para a query principal
+            // Mas manter originalQueryParams para queries de acordos/pagamentos
+            summaryQueryParams = [...summaryParams];
+        } else {
+            // groupBy === 'day' - ainda usar query direta (não temos tabela materializada para dias)
+            const blocoCondition = this.getBlocoCondition(bloco);
+            
+            if (startDate && endDate) {
+                // OTIMIZADO: Query direta com filtros de data (mais rápido que view)
+                console.log(`⚡ Usando query direta para groupBy='day' com filtros de data (otimizado)`);
+                query = `
                 SELECT 
                     ${dateSelect},
                     ${dateFormatted},
-                    COUNT(*) as carteira,
-                    SUM(acao IS NOT NULL AND acao != '') as acionados,
-                    SUM(agente != '0' AND agente IS NOT NULL AND agente != '') as alo,
-                    SUM(
-                        agente != '0' 
-                        AND agente IS NOT NULL 
-                        AND agente != ''
+                    -- Carteira: CPFs únicos na carteira no mês
+                    COUNT(DISTINCT CASE WHEN cpf_cnpj IS NOT NULL AND cpf_cnpj != '' THEN cpf_cnpj END) as carteira,
+                    -- Acionados: CPFs únicos com ação no mês (1 CPF = 1 acionado, mesmo com múltiplas ações)
+                    COUNT(DISTINCT CASE WHEN acao IS NOT NULL AND acao != '' AND cpf_cnpj IS NOT NULL AND cpf_cnpj != '' THEN cpf_cnpj END) as acionados,
+                    -- Alô: CPFs únicos com agente no mês
+                    COUNT(DISTINCT CASE WHEN agente != '0' AND agente IS NOT NULL AND agente != '' AND cpf_cnpj IS NOT NULL AND cpf_cnpj != '' THEN cpf_cnpj END) as alo,
+                    -- Alô x CPC
+                    SUM(CASE 
+                        WHEN agente != '0' AND agente IS NOT NULL AND agente != ''
                         AND acao IN ('EIO', 'CSA', 'ACD', 'SCP', 'APH', 'DEF', 'SRP', 'APC', 'JUR', 'DDA')
+                        THEN 1 ELSE 0 END
                     ) as cpc,
-                    SUM(
-                        agente != '0' 
-                        AND agente IS NOT NULL 
-                        AND agente != ''
+                    -- CPC x CPCA
+                    SUM(CASE 
+                        WHEN agente != '0' AND agente IS NOT NULL AND agente != ''
                         AND acao IN ('CSA', 'ACD', 'SCP', 'APH', 'DEF', 'SRP', 'JUR', 'DDA')
+                        THEN 1 ELSE 0 END
                     ) as cpca,
-                    SUM(
-                        agente != '0' 
-                        AND agente IS NOT NULL 
-                        AND agente != ''
-                        AND acao IN ('DDA')
+                    -- CPCA x Acordos (será combinado com dados de novacoes)
+                    SUM(CASE 
+                        WHEN agente != '0' AND agente IS NOT NULL AND agente != ''
+                        AND acao = 'DDA'
+                        THEN 1 ELSE 0 END
                     ) as acordos_resultados,
-                    SUM(
-                        agente != '0' 
-                        AND agente IS NOT NULL 
-                        AND agente != ''
+                    -- Acordos x Pagamentos (será combinado com dados de pagamentos)
+                    SUM(CASE 
+                        WHEN agente != '0' AND agente IS NOT NULL AND agente != ''
                         AND valor > 0
-                    ) as pgto_resultados
+                        THEN 1 ELSE 0 END
+                    ) as pgto_resultados,
+                    -- Spins (códigos únicos no mês)
+                    COUNT(DISTINCT codigo) as spins,
+                    -- Recebimento
+                    COALESCE(SUM(CASE WHEN valor > 0 THEN valor ELSE 0 END), 0) as recebimento
                 FROM vuon_resultados
                 WHERE ${blocoCondition}
                     ${dateFilter}
                 GROUP BY ${groupByClause}
                 ORDER BY ${orderByClause}
             `;
-
-            const [rows] = queryParams.length > 0 
-                ? await db.execute(query, queryParams)
-                : await db.execute(query);
-            
-            // Processar dados (mesmo código de processamento abaixo)
-            const acionadosXCarteira = rows.map(row => ({
-                date: row.date_formatted || row.date,
-                carteira: row.carteira,
-                acionados: row.acionados,
-                percent: row.carteira > 0 ? parseFloat((row.acionados * 100.0 / row.carteira).toFixed(2)) : 0
-            }));
-
-            const acionadosXAlo = rows.map(row => ({
-                date: row.date_formatted || row.date,
-                acionados: row.acionados,
-                alo: row.alo,
-                percent: row.acionados > 0 ? parseFloat((row.alo * 100.0 / row.acionados).toFixed(2)) : 0
-            }));
-
-            const aloXCpc = rows.map(row => ({
-                date: row.date_formatted || row.date,
-                alo: row.alo,
-                cpc: row.cpc,
-                percent: row.alo > 0 ? parseFloat((row.cpc * 100.0 / row.alo).toFixed(2)) : 0
-            }));
-
-            const cpcXCpca = rows.map(row => ({
-                date: row.date_formatted || row.date,
-                cpc: row.cpc,
-                cpca: row.cpca,
-                percent: row.cpc > 0 ? parseFloat((row.cpca * 100.0 / row.cpc).toFixed(2)) : 0
-            }));
-
-            const [acordosNovacoes, pagamentosBordero] = await Promise.all([
-                NovacaoModel.getAcordosPorBloco(bloco, startDate, endDate, groupBy),
-                PagamentoModel.getPagamentosPorBloco(bloco, startDate, endDate, groupBy)
-            ]);
-            
-            const acordosMap = new Map();
-            acordosNovacoes.forEach(item => {
-                acordosMap.set(item.date, item.total_acordos);
-            });
-
-            const pagamentosMap = new Map();
-            pagamentosBordero.forEach(item => {
-                pagamentosMap.set(item.date, item.quantidade_pagamentos || 0);
-            });
-
-            const cpcaXAcordos = rows.map(row => {
-                const dateKey = row.date_formatted || row.date;
-                const acordos = acordosMap.get(dateKey) || 0;
-                return {
-                    date: dateKey,
-                    cpca: row.cpca,
-                    acordos: acordos,
-                    percent: row.cpca > 0 ? parseFloat((acordos * 100.0 / row.cpca).toFixed(2)) : 0
-                };
-            });
-
-            const acordosXPagamentos = rows.map(row => {
-                const dateKey = row.date_formatted || row.date;
-                const acordos = acordosMap.get(dateKey) || 0;
-                const pagamentos = pagamentosMap.get(dateKey) || 0;
-                return {
-                    date: dateKey,
-                    acordos: acordos,
-                    pgto: pagamentos,
-                    percent: acordos > 0 ? parseFloat((pagamentos * 100.0 / acordos).toFixed(2)) : 0
-                };
-            });
-
-            const [spins, recebimento] = await Promise.all([
-                this.getSpins(bloco),
-                this.getRecebimento(bloco, startDate, endDate)
-            ]);
-
-            return {
-                spins,
-                recebimento,
-                acionadosXCarteira,
-                acionadosXAlo,
-                aloXCpc,
-                cpcXCpca,
-                cpcaXAcordos,
-                acordosXPagamentos
-            };
-        }
-        
-        // Usar prepared statements para melhor performance e segurança
-        let dateFilter = '';
-        const queryParams = [];
-        
-        if (startDate && endDate) {
-            // IMPORTANTE: Sempre filtrar pela coluna 'data' da view (que é DATE)
-            // Mesmo quando agrupamos por mês, precisamos filtrar pela data original
-            dateFilter = `AND data >= ? AND data <= ?`;
-            queryParams.push(startDate, endDate);
-            console.log(`📊 Bloco ${bloco} - Aplicando filtro: ${startDate} até ${endDate}, groupBy: ${groupBy}`);
+            } else {
+                // Sem filtros de data para groupBy='day' - usar query direta (ainda lenta)
+                console.log(`⚠️  Usando query direta para groupBy='day' sem filtros (lenta)`);
+                query = `
+                    SELECT 
+                        ${dateSelect},
+                        ${dateFormatted},
+                        -- Carteira: CPFs únicos na carteira no dia
+                        COUNT(DISTINCT CASE WHEN cpf_cnpj IS NOT NULL AND cpf_cnpj != '' THEN cpf_cnpj END) as carteira,
+                        -- Acionados: CPFs únicos com ação no dia (1 CPF = 1 acionado por dia)
+                        COUNT(DISTINCT CASE WHEN acao IS NOT NULL AND acao != '' AND cpf_cnpj IS NOT NULL AND cpf_cnpj != '' THEN cpf_cnpj END) as acionados,
+                        -- Alô: CPFs únicos com agente no dia
+                        COUNT(DISTINCT CASE WHEN agente != '0' AND agente IS NOT NULL AND agente != '' AND cpf_cnpj IS NOT NULL AND cpf_cnpj != '' THEN cpf_cnpj END) as alo,
+                        -- Alô x CPC
+                        SUM(CASE 
+                            WHEN agente != '0' AND agente IS NOT NULL AND agente != ''
+                            AND acao IN ('EIO', 'CSA', 'ACD', 'SCP', 'APH', 'DEF', 'SRP', 'APC', 'JUR', 'DDA')
+                            THEN 1 ELSE 0 END
+                        ) as cpc,
+                        -- CPC x CPCA
+                        SUM(CASE 
+                            WHEN agente != '0' AND agente IS NOT NULL AND agente != ''
+                            AND acao IN ('CSA', 'ACD', 'SCP', 'APH', 'DEF', 'SRP', 'JUR', 'DDA')
+                            THEN 1 ELSE 0 END
+                        ) as cpca,
+                        -- CPCA x Acordos (será combinado com dados de novacoes)
+                        SUM(CASE 
+                            WHEN agente != '0' AND agente IS NOT NULL AND agente != ''
+                            AND acao = 'DDA'
+                            THEN 1 ELSE 0 END
+                        ) as acordos_resultados,
+                        -- Acordos x Pagamentos (será combinado com dados de pagamentos)
+                        SUM(CASE 
+                            WHEN agente != '0' AND agente IS NOT NULL AND agente != ''
+                            AND valor > 0
+                            THEN 1 ELSE 0 END
+                        ) as pgto_resultados,
+                        -- Spins (códigos únicos no dia)
+                        COUNT(DISTINCT codigo) as spins,
+                        -- Recebimento
+                        COALESCE(SUM(CASE WHEN valor > 0 THEN valor ELSE 0 END), 0) as recebimento
+                    FROM vuon_resultados
+                    WHERE ${blocoCondition}
+                    GROUP BY ${groupByClause}
+                    ORDER BY ${orderByClause}
+                `;
+            }
         }
 
-        // Determinar agrupamento: por dia ou por mês
-        let dateSelect, dateFormatted, groupByClause, orderByClause;
-        
-        if (groupBy === 'day') {
-            // Agrupamento por dia - usar data diretamente da view
-            dateSelect = `data as date`;
-            dateFormatted = `DATE_FORMAT(data, '%d/%m/%Y') as date_formatted`;
-            groupByClause = `data`;
-            orderByClause = `data ASC`;
+        const queryStart = Date.now();
+        // Usar summaryQueryParams se existir (tabela materializada), senão usar queryParams
+        let paramsToUse;
+        if (groupBy === 'month' && typeof summaryQueryParams !== 'undefined') {
+            paramsToUse = summaryQueryParams;
         } else {
-            // Agrupamento por mês (padrão) - usar campos pré-computados da view
-            // IMPORTANTE: Filtrar pela coluna 'data' mas agrupar por 'ano, mes'
-            dateSelect = `date_month as date`;
-            dateFormatted = `date_formatted`;
-            groupByClause = `ano, mes, date_month, date_formatted`;
-            orderByClause = `ano ASC, mes ASC`;
+            paramsToUse = queryParams;
         }
-
-        // Query otimizada usando view pré-computada
-        // A view já tem todos os cálculos feitos, apenas filtramos e agrupamos
-        const query = `
-            SELECT 
-                ${dateSelect},
-                ${dateFormatted},
-                -- Acionados x Carteira
-                SUM(carteira) as carteira,
-                SUM(acionados) as acionados,
-                -- Acionados x Alô
-                SUM(alo) as alo,
-                -- Alô x CPC
-                SUM(cpc) as cpc,
-                -- CPC x CPCA
-                SUM(cpca) as cpca,
-                -- CPCA x Acordos (será combinado com dados de novacoes)
-                SUM(acordos_resultados) as acordos_resultados,
-                -- Acordos x Pagamentos (será combinado com dados de pagamentos)
-                SUM(pgto_resultados) as pgto_resultados,
-                -- Spins (média ponderada ou soma, dependendo da necessidade)
-                MAX(spins) as spins,
-                -- Recebimento
-                SUM(recebimento) as recebimento
-            FROM ${viewName}
-            WHERE 1=1
-                ${dateFilter}
-            GROUP BY ${groupByClause}
-            ORDER BY ${orderByClause}
-        `;
-
-        const [rows] = queryParams.length > 0 
-            ? await db.execute(query, queryParams)
+        const [rows] = paramsToUse.length > 0 
+            ? await db.execute(query, paramsToUse)
             : await db.execute(query);
+        const queryTime = Date.now() - queryStart;
+        console.log(`⏱️  Query executada em ${(queryTime / 1000).toFixed(2)}s (${queryTime}ms)`);
         
         console.log(`📊 Bloco ${bloco} - Total de registros retornados: ${rows.length}`);
         if (rows.length > 0) {
             console.log(`📊 Primeiros meses: ${rows.slice(0, 3).map(r => r.date_formatted || r.date).join(', ')}`);
+            
+            // Log detalhado dos primeiros 3 registros para debug
+            console.log(`\n🔍 Bloco ${bloco} - DETALHAMENTO DOS PRIMEIROS REGISTROS:`);
+            rows.slice(0, 3).forEach(r => {
+                const percent = r.carteira > 0 ? parseFloat((r.acionados * 100.0 / r.carteira).toFixed(2)) : 0;
+                console.log(`   ${r.date_formatted || r.date}: Carteira=${r.carteira.toLocaleString()}, Acionados=${r.acionados.toLocaleString()}, %=${percent}%`);
+            });
+            console.log('');
         }
         
         // Processar os dados para criar os arrays de cada gráfico
         // Usar date_formatted para exibição
-        const acionadosXCarteira = rows.map(row => ({
-            date: row.date_formatted || row.date,
-            carteira: row.carteira,
-            acionados: row.acionados,
-            percent: row.carteira > 0 ? parseFloat((row.acionados * 100.0 / row.carteira).toFixed(2)) : 0
-        }));
+        const acionadosXCarteira = rows.map(row => {
+            const percent = row.carteira > 0 ? parseFloat((row.acionados * 100.0 / row.carteira).toFixed(2)) : 0;
+            
+            // Log para debug (apenas se percentual estiver muito baixo)
+            if (percent < 90 && row.carteira > 100) {
+                console.log(`⚠️  Bloco ${bloco} - ${row.date_formatted || row.date}: Carteira=${row.carteira}, Acionados=${row.acionados}, %=${percent}`);
+            }
+            
+            return {
+                date: row.date_formatted || row.date,
+                carteira: row.carteira,
+                acionados: row.acionados,
+                percent: percent
+            };
+        });
 
         const acionadosXAlo = rows.map(row => ({
             date: row.date_formatted || row.date,
@@ -611,11 +695,14 @@ class BlocoModel {
         }));
 
         // OTIMIZAÇÃO: Buscar acordos e pagamentos usando views pré-computadas
-        const acordosViewName = `v_bloco${blocoName}_acordos`;
-        const pagamentosViewName = `v_bloco${blocoName}_pagamentos`;
-        
+        // IMPORTANTE: Sempre buscar acordos/pagamentos, mesmo quando usamos tabela materializada
+        // A tabela materializada tem apenas contadores de ações DDA, não os dados reais de novacoes/pagamentos
         let acordosNovacoes = [];
         let pagamentosBordero = [];
+        
+        // Sempre buscar acordos/pagamentos das views ou tabelas
+        const acordosViewName = `v_bloco${blocoName}_acordos`;
+        const pagamentosViewName = `v_bloco${blocoName}_pagamentos`;
         
         // Tentar usar views (mais rápido) - sem query de teste desnecessária
         try {
@@ -630,7 +717,7 @@ class BlocoModel {
                         date_formatted,
                         total_acordos
                     FROM ${acordosViewName}
-                    WHERE 1=1 ${dateFilter ? 'AND data >= ? AND data <= ?' : ''}
+                    WHERE 1=1 ${originalQueryParams.length > 0 ? 'AND data >= ? AND data <= ?' : ''}
                     ORDER BY data ASC
                 `;
                 
@@ -640,7 +727,7 @@ class BlocoModel {
                         date_formatted,
                         quantidade_pagamentos
                     FROM ${pagamentosViewName}
-                    WHERE 1=1 ${dateFilter ? 'AND data >= ? AND data <= ?' : ''}
+                    WHERE 1=1 ${originalQueryParams.length > 0 ? 'AND data >= ? AND data <= ?' : ''}
                     ORDER BY data ASC
                 `;
             } else {
@@ -653,7 +740,7 @@ class BlocoModel {
                         date_formatted,
                         SUM(total_acordos) as total_acordos
                     FROM ${acordosViewName}
-                    WHERE 1=1 ${dateFilter ? 'AND data >= ? AND data <= ?' : ''}
+                    WHERE 1=1 ${originalQueryParams.length > 0 ? 'AND data >= ? AND data <= ?' : ''}
                     GROUP BY ano, mes, date_month, date_formatted
                     ORDER BY ano ASC, mes ASC
                 `;
@@ -666,25 +753,31 @@ class BlocoModel {
                         date_formatted,
                         SUM(quantidade_pagamentos) as quantidade_pagamentos
                     FROM ${pagamentosViewName}
-                    WHERE 1=1 ${dateFilter ? 'AND data >= ? AND data <= ?' : ''}
+                    WHERE 1=1 ${originalQueryParams.length > 0 ? 'AND data >= ? AND data <= ?' : ''}
                     GROUP BY ano, mes, date_month, date_formatted
                     ORDER BY ano ASC, mes ASC
                 `;
             }
             
             const [acordosResult, pagamentosResult] = await Promise.all([
-                queryParams.length > 0 
-                    ? db.execute(acordosQuery, queryParams)
+                originalQueryParams.length > 0 
+                    ? db.execute(acordosQuery, originalQueryParams)
                     : db.execute(acordosQuery),
-                queryParams.length > 0 
-                    ? db.execute(pagamentosQuery, queryParams)
+                originalQueryParams.length > 0 
+                    ? db.execute(pagamentosQuery, originalQueryParams)
                     : db.execute(pagamentosQuery)
             ]);
             
             acordosNovacoes = acordosResult[0] || [];
             pagamentosBordero = pagamentosResult[0] || [];
+            
+            // Log resumido apenas se não houver dados (para debug)
+            if (acordosNovacoes.length === 0 || pagamentosBordero.length === 0) {
+                console.log(`⚠️  Bloco ${bloco} - Acordos: ${acordosNovacoes.length}, Pagamentos: ${pagamentosBordero.length}`);
+            }
         } catch (viewError) {
             // Se a view não existe, usar fallback para buscar diretamente das tabelas
+            console.log(`⚠️  Views não encontradas, usando fallback para buscar acordos/pagamentos diretamente das tabelas: ${viewError.message}`);
             const NovacaoModel = require('./novacaoModel');
             const PagamentoModel = require('./pagamentoModel');
             
@@ -692,6 +785,8 @@ class BlocoModel {
                 NovacaoModel.getAcordosPorBloco(bloco, startDate, endDate, groupBy),
                 PagamentoModel.getPagamentosPorBloco(bloco, startDate, endDate, groupBy)
             ]);
+            
+            console.log(`📊 Bloco ${bloco} - Acordos (fallback): ${acordosNovacoes.length}, Pagamentos (fallback): ${pagamentosBordero.length}`);
         }
         
         // Criar mapas de datas para facilitar a combinação (otimizado)
@@ -711,7 +806,7 @@ class BlocoModel {
                 acordosMap.set(item.date, totalAcordos);
             }
         });
-
+        
         const pagamentosMap = new Map();
         pagamentosBordero.forEach(item => {
             // Sempre usar date_formatted como chave (formato de exibição)
@@ -740,6 +835,7 @@ class BlocoModel {
         });
 
         // Combinar Acordos (de vuon_novacoes) com Pagamentos (de vuon_bordero_pagamento)
+        // IMPORTANTE: Usar date_formatted como chave principal para correspondência correta
         const acordosXPagamentos = rows.map(row => {
             const dateKey = row.date_formatted || row.date;
             // Tentar buscar com date_formatted primeiro, depois com date
@@ -768,10 +864,13 @@ class BlocoModel {
         });
 
         // Buscar spins e recebimento em paralelo (queries simples)
+        const spinsRecebimentoStart = Date.now();
         const [spins, recebimento] = await Promise.all([
             this.getSpins(bloco),
             this.getRecebimento(bloco, startDate, endDate)
         ]);
+        const spinsRecebimentoTime = Date.now() - spinsRecebimentoStart;
+        console.log(`⏱️  getSpins + getRecebimento executados em ${(spinsRecebimentoTime / 1000).toFixed(2)}s (${spinsRecebimentoTime}ms)`);
 
         return {
             spins,

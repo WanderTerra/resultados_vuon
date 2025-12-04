@@ -67,9 +67,9 @@ class SimpleCache {
     }
 }
 
-// Instância global do cache - TTL aumentado para 30 minutos para melhor performance
-// IMPORTANTE: Views no MySQL são recalculadas a cada consulta, então o cache é crítico
-const cache = new SimpleCache(30 * 60 * 1000); // 30 minutos
+// Instância global do cache - TTL aumentado para 1 hora para melhor performance
+// IMPORTANTE: Queries com COUNT(DISTINCT) são lentas, então o cache é crítico
+const cache = new SimpleCache(60 * 60 * 1000); // 1 hora (aumentado de 30 minutos)
 
 // Limpar cache expirado a cada 20 minutos
 setInterval(() => {

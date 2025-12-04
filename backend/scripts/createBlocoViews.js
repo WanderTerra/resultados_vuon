@@ -44,11 +44,13 @@ const createBlocoViews = async () => {
                         MONTH(data) as mes,
                         CONCAT(YEAR(data), '-', LPAD(MONTH(data), 2, '0')) as date_month,
                         CONCAT(LPAD(MONTH(data), 2, '0'), '/', YEAR(data)) as date_formatted,
-                        -- Acionados x Carteira
-                        COUNT(*) as carteira,
-                        SUM(acao IS NOT NULL AND acao != '') as acionados,
-                        -- Acionados x Alô
-                        SUM(agente != '0' AND agente IS NOT NULL AND agente != '') as alo,
+                        -- Carteira: CPFs únicos na carteira naquele dia
+                        COUNT(DISTINCT CASE WHEN cpf_cnpj IS NOT NULL AND cpf_cnpj != '' THEN cpf_cnpj END) as carteira,
+                        -- Acionados: CPFs únicos com ação naquele dia
+                        -- NOTA: Para agrupamento por dia, cada CPF conta 1 vez por dia
+                        COUNT(DISTINCT CASE WHEN acao IS NOT NULL AND acao != '' AND cpf_cnpj IS NOT NULL AND cpf_cnpj != '' THEN cpf_cnpj END) as acionados,
+                        -- Acionados x Alô: CPFs únicos com agente naquele dia
+                        COUNT(DISTINCT CASE WHEN agente != '0' AND agente IS NOT NULL AND agente != '' AND cpf_cnpj IS NOT NULL AND cpf_cnpj != '' THEN cpf_cnpj END) as alo,
                         -- Alô x CPC
                         SUM(
                             agente != '0' 

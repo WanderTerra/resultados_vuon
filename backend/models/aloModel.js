@@ -38,6 +38,8 @@ class AloModel {
             params.push(endDate);
         }
         
+        // OTIMIZAÇÃO: Usar índices criados (idx_agente_acao_data)
+        // COUNT(DISTINCT) é inerentemente lento, mas os índices ajudam
         const query = `
             SELECT 
                 COUNT(*) as total_alo,
