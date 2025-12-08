@@ -3,6 +3,7 @@ const router = express.Router();
 const dashboardController = require('../controllers/dashboardController');
 const pagamentoController = require('../controllers/pagamentoController');
 const produtividadeController = require('../controllers/produtividadeController');
+const comparativoController = require('../controllers/comparativoController');
 
 // Rota para buscar dados de todos os blocos (dashboard geral)
 router.get('/data', dashboardController.getDashboardData);
@@ -23,6 +24,10 @@ router.get('/produtividade', produtividadeController.getProdutividadeData);
 
 // Rota de clientes virgens
 router.get('/clientes-virgens', dashboardController.getClientesVirgens);
+
+// Rotas de comparativo
+router.get('/comparativo', comparativoController.getComparativo);
+router.get('/comparativo/agentes', comparativoController.getAgentes);
 
 module.exports = router;
 

@@ -205,7 +205,7 @@ const DiarioBordoChart = () => {
     };
 
     const tituloCompleto = dataReferencia
-        ? `Diário de Bordo - Acordos por Hora (DDA e ACD) - ${formatarData(dataReferencia)}`
+        ? 'Diário de Bordo - Acordos por Hora (DDA e ACD)'
         : 'Diário de Bordo - Acordos por Hora (DDA e ACD)';
 
     return (

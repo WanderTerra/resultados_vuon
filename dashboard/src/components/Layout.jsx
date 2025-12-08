@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, LogOut, BarChart3, UserPlus } from 'lucide-react';
+import { LayoutDashboard, LogOut, BarChart3, UserPlus, TrendingUp } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 const Sidebar = () => {
@@ -39,6 +39,7 @@ const Sidebar = () => {
         if (path === '/bloco2') return 'Bloco 2 - 91 a 180 dias';
         if (path === '/bloco3') return 'Bloco 3 - 181 a 360 dias';
         if (path === '/wo') return 'Bloco WO - Mais de 360 dias';
+        if (path === '/comparativo') return 'Comparativo';
         return 'Dashboard';
     };
 
@@ -85,6 +86,13 @@ const Sidebar = () => {
                     <BarChart3 size={20} />
                     <span className="font-medium">WO</span>
                 </Link>
+                <Link
+                    to="/comparativo"
+                    className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${isActive('/comparativo') ? 'bg-blue-600 text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
+                >
+                    <TrendingUp size={20} />
+                    <span className="font-medium">Comparativo</span>
+                </Link>
                 {isAdmin() && (
                     <Link
                         to="/cadastro-usuario"
@@ -119,6 +127,7 @@ const Layout = ({ children }) => {
         if (path === '/bloco2') return 'Bloco 2 - 91 a 180 dias';
         if (path === '/bloco3') return 'Bloco 3 - 181 a 360 dias';
         if (path === '/wo') return 'Bloco WO - Mais de 360 dias';
+        if (path === '/comparativo') return 'Comparativo';
         if (path === '/cadastro-usuario') return 'Cadastrar Usuário';
         return 'Dashboard';
     };

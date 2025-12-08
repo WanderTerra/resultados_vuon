@@ -119,6 +119,31 @@ const Dashboard = () => {
                 <DiarioBordoChart />
             </section>
 
+            {/* Comparativo Outubro vs Novembro */}
+            <section>
+                <div className="flex items-center justify-between mb-6">
+                    <div>
+                        <h2 className="text-xl font-bold text-slate-800">Comparativo Outubro vs Novembro</h2>
+                        <p className="text-slate-500">Análise comparativa de produção entre os dois períodos</p>
+                    </div>
+                    <Link 
+                        to="/comparativo" 
+                        className="text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors"
+                    >
+                        Ver detalhes →
+                    </Link>
+                </div>
+                <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-8 text-center">
+                    <p className="text-slate-600 mb-4">Acesse a página de Comparativo para analisar as diferenças entre outubro e novembro</p>
+                    <Link 
+                        to="/comparativo" 
+                        className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                    >
+                        Abrir Comparativo
+                    </Link>
+                </div>
+            </section>
+
             {/* Produtividade do Agente */}
             <section>
                 <div className="flex items-center justify-between mb-6">
