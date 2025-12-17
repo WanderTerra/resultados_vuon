@@ -121,16 +121,15 @@ const DateFilter = ({ onFilterChange, initialStartDate = null, initialEndDate = 
 
     // useEffect separado para sincronizar selectedMonth quando as datas iniciais mudarem
     // Isso garante que o campo mostre o mês correto quando os dados carregam
+    // IMPORTANTE: Este useEffect é apenas para modo diário (viewMode === 'day')
     useEffect(() => {
-        console.log('📅 DateFilter - useEffect separado executado:', { 
-            viewMode, 
-            initialStartDate, 
-            initialEndDate, 
-            selectedMonth 
-        });
+        // Apenas processar no modo diário
+        if (viewMode !== 'day') {
+            return; // No modo mensal, não precisa fazer nada aqui
+        }
         
         // Se estiver no modo diário e houver datas iniciais, sincronizar selectedMonth
-        if (viewMode === 'day' && initialStartDate && initialEndDate) {
+        if (initialStartDate && initialEndDate) {
             try {
                 // Usar parse de string para evitar problemas de timezone
                 // Formato esperado: 'YYYY-MM-DD'
@@ -143,47 +142,18 @@ const DateFilter = ({ onFilterChange, initialStartDate = null, initialEndDate = 
                     const endYear = endParts[0];
                     const endMonth = endParts[1]; // 1-12
                     
-                    console.log('📅 DateFilter - useEffect separado: Verificando datas (parse direto):', { 
-                        initialStartDate, 
-                        initialEndDate, 
-                        startYear, 
-                        startMonth, 
-                        endYear, 
-                        endMonth
-                    });
-                    
                     // Verificar se as datas são do mesmo mês
                     if (startYear === endYear && startMonth === endMonth) {
                         const monthStr = `${startYear}-${String(startMonth).padStart(2, '0')}`;
-                        console.log('📅 DateFilter - useEffect separado: Mês extraído:', monthStr, 'selectedMonth atual:', selectedMonth);
                         // Sempre atualizar para garantir que o campo mostre o valor correto
                         if (monthStr !== selectedMonth) {
-                            console.log('📅 DateFilter - useEffect separado: Sincronizando selectedMonth:', monthStr, '(atual:', selectedMonth, ')');
                             setSelectedMonth(monthStr);
-                        } else {
-                            console.log('📅 DateFilter - useEffect separado: selectedMonth já está correto:', monthStr);
                         }
-                    } else {
-                        console.log('📅 DateFilter - useEffect separado: Datas não são do mesmo mês:', {
-                            sameYear: startYear === endYear,
-                            sameMonth: startMonth === endMonth
-                        });
                     }
                 }
             } catch (e) {
                 console.error('Erro ao sincronizar selectedMonth no useEffect separado:', e);
             }
-        } else if (viewMode === 'day' && selectedMonth && (!initialStartDate || !initialEndDate)) {
-            // Se estiver no modo diário mas não houver datas iniciais, manter o selectedMonth
-            // (não limpar, pois o usuário pode ter selecionado)
-            console.log('📅 DateFilter - useEffect separado: Mantendo selectedMonth sem datas iniciais:', selectedMonth);
-        } else {
-            console.log('📅 DateFilter - useEffect separado: Condições não atendidas', {
-                viewModeIsDay: viewMode === 'day',
-                hasInitialStartDate: !!initialStartDate,
-                hasInitialEndDate: !!initialEndDate,
-                hasSelectedMonth: !!selectedMonth
-            });
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [initialStartDate, initialEndDate, viewMode]); // Executar sempre que as datas iniciais ou viewMode mudarem

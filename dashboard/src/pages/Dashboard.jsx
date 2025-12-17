@@ -9,10 +9,19 @@ import ProdutividadeChart from '../components/ProdutividadeChart';
 import ProdutividadeBarChart from '../components/ProdutividadeBarChart';
 import ClientesVirgensChart from '../components/ClientesVirgensChart';
 import PeriodFilter from '../components/PeriodFilter';
+import DateFilter from '../components/DateFilter';
 
 const Dashboard = () => {
     const [aloFilterDates, setAloFilterDates] = useState(null); // { start, end } ou null para todos
     const [filterInitialized, setFilterInitialized] = useState(false); // Flag para saber se o filtro foi inicializado
+    const [clientesUnicosFilters, setClientesUnicosFilters] = useState({
+        startDate: null,
+        endDate: null,
+        compareMode: false,
+        compareStartDate: null,
+        compareEndDate: null,
+        groupBy: 'month'
+    });
 
     const handlePeriodChange = (dates) => {
         // Atualizar filtro e marcar como inicializado
@@ -101,11 +110,21 @@ const Dashboard = () => {
             <section>
                 <div className="flex items-center justify-between mb-6">
                     <div>
-                        <h2 className="text-xl font-bold text-slate-800">Clientes Virgens, Pagamentos e Acordos</h2>
-                        <p className="text-slate-500">Evolução mensal de clientes virgens, total de pagamentos e acordos</p>
+                        <h2 className="text-xl font-bold text-slate-800">Clientes únicos</h2>
+                        <p className="text-slate-500">Evolução mensal de clientes únicos por faixa de atraso</p>
                     </div>
                 </div>
-                <ClientesVirgensChart />
+                <DateFilter
+                    onFilterChange={setClientesUnicosFilters}
+                    initialStartDate={clientesUnicosFilters.startDate}
+                    initialEndDate={clientesUnicosFilters.endDate}
+                    initialViewMode={clientesUnicosFilters.groupBy === 'day' ? 'day' : 'month'}
+                />
+                <ClientesVirgensChart
+                    showAllBlocos={true}
+                    startDate={clientesUnicosFilters.startDate}
+                    endDate={clientesUnicosFilters.endDate}
+                />
             </section>
 
             {/* Diário de Bordo */}

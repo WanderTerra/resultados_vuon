@@ -9,10 +9,16 @@ const getAuthHeaders = () => {
 };
 
 export const clientesVirgensService = {
-    getClientesVirgens: async (bloco = null) => {
+    getClientesVirgens: async (bloco = null, startDate = null, endDate = null) => {
         const params = new URLSearchParams();
         if (bloco) {
             params.append('bloco', bloco);
+        }
+        if (startDate) {
+            params.append('startDate', startDate);
+        }
+        if (endDate) {
+            params.append('endDate', endDate);
         }
         // Adicionar timestamp para evitar cache do navegador
         params.append('_t', Date.now().toString());

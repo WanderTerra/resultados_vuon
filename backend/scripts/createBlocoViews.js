@@ -156,7 +156,8 @@ const createBlocoViews = async () => {
                         MONTH(bp.data_pagamento) as mes,
                         CONCAT(YEAR(bp.data_pagamento), '-', LPAD(MONTH(bp.data_pagamento), 2, '0')) as date_month,
                         CONCAT(LPAD(MONTH(bp.data_pagamento), 2, '0'), '/', YEAR(bp.data_pagamento)) as date_formatted,
-                        COUNT(*) as quantidade_pagamentos,
+                        -- IMPORTANTE: Contar apenas entradas (parcela = 1) - um acordo parcelado conta como 1 pagamento
+                        COUNT(DISTINCT bp.cpf_cnpj) as quantidade_pagamentos,
                         COALESCE(SUM(bp.valor_recebido), 0) as valor_total
                     FROM vuon_bordero_pagamento bp
                     INNER JOIN (
@@ -171,6 +172,8 @@ const createBlocoViews = async () => {
                             AND cpf_cnpj != ''
                     ) acordos_agentes ON bp.cpf_cnpj = acordos_agentes.cpf_cnpj
                     WHERE bp.data_pagamento IS NOT NULL
+                        AND bp.valor_recebido > 0
+                        AND bp.parcela = 1
                         AND ${atrasoCondition}
                     GROUP BY DATE(bp.data_pagamento), YEAR(bp.data_pagamento), MONTH(bp.data_pagamento)
                     ORDER BY data ASC

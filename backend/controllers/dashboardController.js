@@ -472,6 +472,8 @@ exports.getDiarioBordo = async (req, res) => {
 exports.getClientesVirgens = async (req, res) => {
     try {
         const blocoParam = req.query.bloco;
+        const startDate = req.query.startDate || null;
+        const endDate = req.query.endDate || null;
         
         // Converter parâmetro de bloco
         let bloco = null;
@@ -488,7 +490,9 @@ exports.getClientesVirgens = async (req, res) => {
             }
         }
         
-        const data = await ClientesVirgensModel.getClientesVirgens(bloco);
+        // IMPORTANTE: Passar startDate e endDate para garantir que os filtros sejam aplicados
+        // da mesma forma que no gráfico "Acordos x Pagamentos"
+        const data = await ClientesVirgensModel.getClientesVirgens(bloco, startDate, endDate);
         
         res.json({ data });
     } catch (error) {

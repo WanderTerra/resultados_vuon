@@ -54,11 +54,13 @@ const createViews = async () => {
                     WHEN (atraso_real >= 360 AND atraso_real <= 9999) OR (atraso_real IS NULL AND atraso >= 360 AND atraso <= 9999) THEN 'wo'
                     ELSE NULL
                 END AS CHAR) as bloco,
+                -- IMPORTANTE: Contar apenas entradas (parcela = 1) - um acordo parcelado conta como 1 pagamento
                 COUNT(DISTINCT cpf_cnpj) as quantidade_pagamentos,
                 COALESCE(SUM(valor_recebido), 0) as valor_recebido_total
             FROM vuon_bordero_pagamento
             WHERE data_pagamento IS NOT NULL
                 AND valor_recebido > 0
+                AND parcela = 1
             GROUP BY 
                 YEAR(DATE(data_pagamento)), 
                 MONTH(DATE(data_pagamento)),

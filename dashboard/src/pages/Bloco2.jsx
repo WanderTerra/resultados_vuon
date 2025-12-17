@@ -337,13 +337,19 @@ const Bloco2 = () => {
                 </div>
             </section>
 
-            {/* Clientes Virgens, Pagamentos e Acordos */}
+            {/* Clientes únicos x Acordos */}
             <section>
                 <div className="mb-6">
-                    <h2 className="text-xl font-bold text-slate-800">Clientes Virgens, Pagamentos e Acordos</h2>
-                    <p className="text-slate-500">Evolução mensal de clientes virgens, total de pagamentos e acordos no Bloco 2 (91 a 180 dias de atraso)</p>
+                    <h2 className="text-xl font-bold text-slate-800">Clientes únicos x Acordos</h2>
+                    <p className="text-slate-500">Evolução mensal de clientes únicos e acordos no Bloco 2 (91 a 180 dias de atraso)</p>
                 </div>
-                <ClientesVirgensChart bloco={2} />
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    <div className="lg:col-span-2 flex justify-center">
+                        <div className="w-full lg:w-1/2">
+                            <ClientesVirgensChart bloco={2} startDate={filters.startDate} endDate={filters.endDate} />
+                        </div>
+                    </div>
+                </div>
             </section>
         </div>
     );

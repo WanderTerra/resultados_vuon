@@ -389,3 +389,4 @@ const ProdutividadeChart = ({ startDate = null, endDate = null }) => {
 export default ProdutividadeChart;
 
 
+

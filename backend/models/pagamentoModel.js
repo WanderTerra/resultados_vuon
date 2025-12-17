@@ -102,18 +102,44 @@ class PagamentoModel {
                 ? `AND date_key >= '${startDate.substring(0, 7)}' AND date_key <= '${endDate.substring(0, 7)}'`
                 : '';
             
-            const query = `
-                SELECT 
-                    date_key as date,
-                    date_formatted,
-                    quantidade_pagamentos
-                FROM vw_pagamentos_por_bloco_mes
-                WHERE bloco = ?
-                    ${viewDateFilter}
-                ORDER BY date_key ASC
-            `;
+            // Para modo mensal, buscar diretamente contando apenas entradas (parcela = 1)
+            // Não usar view porque pode não estar atualizada com a lógica de parcela
+            let query, queryParams = [];
             
-            const [rows] = await db.execute(query, [blocoStr]);
+            if (startDate && endDate) {
+                query = `
+                    SELECT 
+                        CONCAT(YEAR(data_pagamento), '-', LPAD(MONTH(data_pagamento), 2, '0')) as date,
+                        CONCAT(LPAD(MONTH(data_pagamento), 2, '0'), '/', YEAR(data_pagamento)) as date_formatted,
+                        COUNT(DISTINCT cpf_cnpj) as quantidade_pagamentos
+                    FROM vuon_bordero_pagamento
+                    WHERE ${blocoCondition}
+                        AND data_pagamento IS NOT NULL
+                        AND parcela = 1
+                        AND DATE(data_pagamento) >= ? 
+                        AND DATE(data_pagamento) <= ?
+                    GROUP BY YEAR(data_pagamento), MONTH(data_pagamento)
+                    ORDER BY YEAR(data_pagamento) ASC, MONTH(data_pagamento) ASC
+                `;
+                queryParams = [startDate, endDate];
+            } else {
+                query = `
+                    SELECT 
+                        CONCAT(YEAR(data_pagamento), '-', LPAD(MONTH(data_pagamento), 2, '0')) as date,
+                        CONCAT(LPAD(MONTH(data_pagamento), 2, '0'), '/', YEAR(data_pagamento)) as date_formatted,
+                        COUNT(DISTINCT cpf_cnpj) as quantidade_pagamentos
+                    FROM vuon_bordero_pagamento
+                    WHERE ${blocoCondition}
+                        AND data_pagamento IS NOT NULL
+                        AND parcela = 1
+                    GROUP BY YEAR(data_pagamento), MONTH(data_pagamento)
+                    ORDER BY YEAR(data_pagamento) ASC, MONTH(data_pagamento) ASC
+                `;
+            }
+            
+            const [rows] = queryParams.length > 0
+                ? await db.execute(query, queryParams)
+                : await db.execute(query);
             
             return rows.map(row => ({
                 date: row.date_formatted || row.date,
@@ -122,14 +148,17 @@ class PagamentoModel {
         }
 
         // Query direta para agrupamento por dia
+        // IMPORTANTE: Contar apenas entradas (parcela = 1) - um acordo parcelado conta como 1 pagamento apenas
+        // Usar COUNT(DISTINCT cpf_cnpj) para garantir que cada CPF conta apenas 1 vez
         const query = `
             SELECT 
                 ${dateSelect},
                 ${dateFormatted},
-                COUNT(*) as quantidade_pagamentos
+                COUNT(DISTINCT cpf_cnpj) as quantidade_pagamentos
             FROM vuon_bordero_pagamento
             WHERE ${blocoCondition}
                 AND data_pagamento IS NOT NULL
+                AND parcela = 1
                 ${dateFilter}
             GROUP BY ${groupByClause}
             ORDER BY ${orderByClause}

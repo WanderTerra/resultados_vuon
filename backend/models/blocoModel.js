@@ -754,8 +754,6 @@ class BlocoModel {
                     ORDER BY ano ASC, mes ASC
                 `;
                 
-                // Pagamentos: filtrados por bloco na view usando atraso_real/atraso
-                // IMPORTANTE: Filtrar pela coluna 'data' (data_pagamento) mas agrupar por mês
                 pagamentosQuery = `
                     SELECT 
                         date_month as date,
@@ -768,17 +766,53 @@ class BlocoModel {
                 `;
             }
             
+            // IMPORTANTE: Para modo mensal, usar PagamentoModel diretamente para garantir mesma lógica do ClientesVirgensModel
+            // A view agrupa por DIA, e somar pode contar CPFs múltiplas vezes se pagaram em dias diferentes
+            if (groupBy === 'month') {
+                const PagamentoModel = require('./pagamentoModel');
+                const pagamentosFromModel = await PagamentoModel.getPagamentosPorBloco(bloco, startDate, endDate, 'month');
+                // PagamentoModel.getPagamentosPorBloco() retorna: { date: 'MM/YYYY' (prioriza date_formatted), quantidade_pagamentos: number }
+                // Precisamos converter para o formato esperado pelo restante do código
+                pagamentosBordero = pagamentosFromModel.map(item => {
+                    // item.date pode ser 'MM/YYYY' ou 'YYYY-MM', dependendo do que foi retornado
+                    let dateFormatted = item.date; // Formato MM/YYYY
+                    let date = item.date; // Formato para comparação
+                    
+                    // Se está no formato MM/YYYY, converter para YYYY-MM para date
+                    if (item.date && item.date.includes('/')) {
+                        const [month, year] = item.date.split('/');
+                        date = `${year}-${month.padStart(2, '0')}`; // YYYY-MM
+                    } else if (item.date && item.date.includes('-')) {
+                        // Se já está em YYYY-MM, converter para MM/YYYY para date_formatted
+                        if (item.date.length === 7) {
+                            const [year, month] = item.date.split('-');
+                            dateFormatted = `${month}/${year}`;
+                        }
+                    }
+                    
+                    return {
+                        date: date, // Formato: YYYY-MM
+                        date_formatted: dateFormatted, // Formato: MM/YYYY
+                        quantidade_pagamentos: item.quantidade_pagamentos
+                    };
+                });
+            }
+            
             const [acordosResult, pagamentosResult] = await Promise.all([
                 originalQueryParams.length > 0 
                     ? db.execute(acordosQuery, originalQueryParams)
                     : db.execute(acordosQuery),
-                originalQueryParams.length > 0 
+                groupBy === 'day' && originalQueryParams.length > 0 
                     ? db.execute(pagamentosQuery, originalQueryParams)
-                    : db.execute(pagamentosQuery)
+                    : groupBy === 'day' 
+                    ? db.execute(pagamentosQuery)
+                    : Promise.resolve([[]])
             ]);
             
             acordosNovacoes = acordosResult[0] || [];
-            pagamentosBordero = pagamentosResult[0] || [];
+            if (groupBy === 'day') {
+                pagamentosBordero = pagamentosResult[0] || [];
+            }
             
             // Log resumido apenas se não houver dados (para debug)
             if (acordosNovacoes.length === 0 || pagamentosBordero.length === 0) {
