@@ -97,8 +97,9 @@ class BlocoModel {
     }
 
     // Alô x CPC por data
-    // Alô: CPFs únicos com agente (cliente único que teve contato)
-    // CPC: Ações com agente (EIO, CSA, ACD, SCP, APH, DEF, SRP, APC, JUR, DDA) - contagem de ações, não CPFs
+    // Alô: Todas as ocorrências de contato com agente (não CPF único, pois cliente pode atender várias vezes por dia)
+    // CPC: Ações específicas com agente (EIO, CSA, ACD, SCP, APH, DEF, SRP, APC, JUR, DDA)
+    // IMPORTANTE: CPC sempre será <= Alô, pois só é possível ter CPC se houve Alô (contato) primeiro
     static async getAloXCpc(bloco, startDate = null, endDate = null) {
         const db = await getDB();
         const blocoCondition = this.getBlocoCondition(bloco);
@@ -111,12 +112,16 @@ class BlocoModel {
         const query = `
             SELECT 
                 data as date,
-                -- Alô: CPFs únicos com agente (1 CPF = 1 alô, mesmo com múltiplas ações)
-                COUNT(DISTINCT CASE 
-                    WHEN agente != '0' AND agente IS NOT NULL AND agente != '' AND cpf_cnpj IS NOT NULL AND cpf_cnpj != ''
-                    THEN cpf_cnpj 
+                -- Alô: Todas as ocorrências de contato com agente (não é CPF único)
+                COUNT(CASE 
+                    WHEN agente != '0' 
+                        AND agente IS NOT NULL 
+                        AND agente != '' 
+                        AND cpf_cnpj IS NOT NULL 
+                        AND cpf_cnpj != ''
+                    THEN 1 
                 END) as alo,
-                -- CPC: Total de ações (não CPFs únicos, pois um CPF pode ter múltiplas ações CPC)
+                -- CPC: Total de ações CPC (subconjunto de Alô, sempre <= Alô)
                 COUNT(CASE 
                     WHEN agente != '0' 
                         AND agente IS NOT NULL 
@@ -132,9 +137,13 @@ class BlocoModel {
                             AND acao IN ('EIO', 'CSA', 'ACD', 'SCP', 'APH', 'DEF', 'SRP', 'APC', 'JUR', 'DDA')
                         THEN 1 
                     END) * 100.0 / 
-                    NULLIF(COUNT(DISTINCT CASE 
-                        WHEN agente != '0' AND agente IS NOT NULL AND agente != '' AND cpf_cnpj IS NOT NULL AND cpf_cnpj != ''
-                        THEN cpf_cnpj 
+                    NULLIF(COUNT(CASE 
+                        WHEN agente != '0' 
+                            AND agente IS NOT NULL 
+                            AND agente != '' 
+                            AND cpf_cnpj IS NOT NULL 
+                            AND cpf_cnpj != ''
+                        THEN 1 
                     END), 0), 
                     2
                 ) as percent
@@ -543,8 +552,8 @@ class BlocoModel {
                     COUNT(DISTINCT CASE WHEN cpf_cnpj IS NOT NULL AND cpf_cnpj != '' THEN cpf_cnpj END) as carteira,
                     -- Acionados: CPFs únicos com ação no mês (1 CPF = 1 acionado, mesmo com múltiplas ações)
                     COUNT(DISTINCT CASE WHEN acao IS NOT NULL AND acao != '' AND cpf_cnpj IS NOT NULL AND cpf_cnpj != '' THEN cpf_cnpj END) as acionados,
-                    -- Alô: CPFs únicos com agente no mês
-                    COUNT(DISTINCT CASE WHEN agente != '0' AND agente IS NOT NULL AND agente != '' AND cpf_cnpj IS NOT NULL AND cpf_cnpj != '' THEN cpf_cnpj END) as alo,
+                    -- Alô: Todas as ocorrências de contato com agente (não CPF único, cliente pode atender várias vezes)
+                    COUNT(CASE WHEN agente != '0' AND agente IS NOT NULL AND agente != '' AND cpf_cnpj IS NOT NULL AND cpf_cnpj != '' THEN 1 END) as alo,
                     -- Alô x CPC
                     SUM(CASE 
                         WHEN agente != '0' AND agente IS NOT NULL AND agente != ''
@@ -590,8 +599,8 @@ class BlocoModel {
                         COUNT(DISTINCT CASE WHEN cpf_cnpj IS NOT NULL AND cpf_cnpj != '' THEN cpf_cnpj END) as carteira,
                         -- Acionados: CPFs únicos com ação no dia (1 CPF = 1 acionado por dia)
                         COUNT(DISTINCT CASE WHEN acao IS NOT NULL AND acao != '' AND cpf_cnpj IS NOT NULL AND cpf_cnpj != '' THEN cpf_cnpj END) as acionados,
-                        -- Alô: CPFs únicos com agente no dia
-                        COUNT(DISTINCT CASE WHEN agente != '0' AND agente IS NOT NULL AND agente != '' AND cpf_cnpj IS NOT NULL AND cpf_cnpj != '' THEN cpf_cnpj END) as alo,
+                        -- Alô: Todas as ocorrências de contato com agente no dia (não CPF único, cliente pode atender várias vezes)
+                        COUNT(CASE WHEN agente != '0' AND agente IS NOT NULL AND agente != '' AND cpf_cnpj IS NOT NULL AND cpf_cnpj != '' THEN 1 END) as alo,
                         -- Alô x CPC
                         SUM(CASE 
                             WHEN agente != '0' AND agente IS NOT NULL AND agente != ''

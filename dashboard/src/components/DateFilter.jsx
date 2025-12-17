@@ -1,14 +1,24 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { getLast3Months } from '../utils/dateUtils';
 
 // DateFilter component for filtering dashboard data by date range
 const DateFilter = ({ onFilterChange, initialStartDate = null, initialEndDate = null, initialViewMode = 'month' }) => {
+    // Calcular últimos 3 meses como padrão se não houver datas iniciais
+    const defaultDates = useMemo(() => {
+        if (initialStartDate && initialEndDate) {
+            return { startDate: initialStartDate, endDate: initialEndDate };
+        }
+        return getLast3Months();
+    }, [initialStartDate, initialEndDate]);
+    
     const [viewMode, setViewMode] = useState(initialViewMode); // 'month' ou 'day'
-    const [startDate, setStartDate] = useState(() => initialStartDate || '');
-    const [endDate, setEndDate] = useState(() => initialEndDate || '');
+    const [startDate, setStartDate] = useState(() => initialStartDate || defaultDates.startDate);
+    const [endDate, setEndDate] = useState(() => initialEndDate || defaultDates.endDate);
     const [selectedMonth, setSelectedMonth] = useState(''); // Inicializar vazio - usuário deve selecionar
     const [error, setError] = useState('');
     const lastFilterRef = useRef(null);
     const isInternalUpdateRef = useRef(false);
+    const hasInitialized = useRef(false); // Flag para garantir que só inicialize uma vez
     
     // Sincronizar viewMode com props
     useEffect(() => {
@@ -188,6 +198,25 @@ const DateFilter = ({ onFilterChange, initialStartDate = null, initialEndDate = 
         });
     }, [viewMode, startDate, endDate, selectedMonth]);
 
+    // Inicializar com últimos 3 meses na primeira renderização se não houver datas iniciais
+    useEffect(() => {
+        if (!hasInitialized.current && !initialStartDate && !initialEndDate && viewMode === 'month') {
+            hasInitialized.current = true;
+            // Aplicar filtro inicial com últimos 3 meses
+            const filterData = {
+                startDate: defaultDates.startDate,
+                endDate: defaultDates.endDate,
+                compareMode: false,
+                compareStartDate: null,
+                compareEndDate: null,
+                groupBy: 'month'
+            };
+            const filterKey = JSON.stringify(filterData);
+            lastFilterRef.current = filterKey;
+            onFilterChange(filterData);
+        }
+    }, [initialStartDate, initialEndDate, viewMode, defaultDates, onFilterChange]);
+    
     // Aplicar filtro quando ambas as datas estiverem preenchidas (modo mensal) ou quando mês for selecionado (modo diário)
     useEffect(() => {
         if (viewMode === 'day') {
@@ -239,17 +268,17 @@ const DateFilter = ({ onFilterChange, initialStartDate = null, initialEndDate = 
     const handleViewModeChange = (mode) => {
         isInternalUpdateRef.current = true;
         setViewMode(mode);
-        setStartDate('');
-        setEndDate('');
         setError('');
         
-        // Se mudar para modo mensal, limpar o mês selecionado
+        // Se mudar para modo mensal, voltar para últimos 3 meses
         if (mode === 'month') {
             setSelectedMonth('');
-            // Limpar filtro quando voltar para modo mensal sem datas selecionadas
+            const last3Months = getLast3Months();
+            setStartDate(last3Months.startDate);
+            setEndDate(last3Months.endDate);
             const filterData = {
-                startDate: null,
-                endDate: null,
+                startDate: last3Months.startDate,
+                endDate: last3Months.endDate,
                 compareMode: false,
                 compareStartDate: null,
                 compareEndDate: null,
@@ -258,6 +287,8 @@ const DateFilter = ({ onFilterChange, initialStartDate = null, initialEndDate = 
             lastFilterRef.current = JSON.stringify(filterData);
             onFilterChange(filterData);
         } else if (mode === 'day') {
+            setStartDate('');
+            setEndDate('');
             // Se mudar para modo diário, limpar o filtro para não mostrar dados antigos
             // O usuário precisa selecionar um mês primeiro
             console.log('📅 DateFilter - Mudando para modo diário, limpando filtro');
@@ -334,9 +365,6 @@ const DateFilter = ({ onFilterChange, initialStartDate = null, initialEndDate = 
 
     const clearFilter = () => {
         isInternalUpdateRef.current = true;
-        setStartDate('');
-        setEndDate('');
-        setError('');
         
         // Se estiver no modo diário, limpar o mês selecionado
         if (viewMode === 'day') {
@@ -353,10 +381,14 @@ const DateFilter = ({ onFilterChange, initialStartDate = null, initialEndDate = 
             lastFilterRef.current = JSON.stringify(filterData);
             onFilterChange(filterData);
         } else {
-            // Aplicar filtro limpo para buscar todos os dados
+            // Voltar para últimos 3 meses quando limpar no modo mensal
+            const last3Months = getLast3Months();
+            setStartDate(last3Months.startDate);
+            setEndDate(last3Months.endDate);
+            setError('');
             const filterData = {
-                startDate: null,
-                endDate: null,
+                startDate: last3Months.startDate,
+                endDate: last3Months.endDate,
                 compareMode: false,
                 compareStartDate: null,
                 compareEndDate: null,

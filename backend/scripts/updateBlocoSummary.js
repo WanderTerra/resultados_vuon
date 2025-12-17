@@ -57,7 +57,8 @@ const updateBlocoSummary = async () => {
                         CONCAT(LPAD(?, 2, '0'), '/', ?) as date_formatted,
                         COUNT(DISTINCT CASE WHEN cpf_cnpj IS NOT NULL AND cpf_cnpj != '' THEN cpf_cnpj END) as carteira,
                         COUNT(DISTINCT CASE WHEN acao IS NOT NULL AND acao != '' AND cpf_cnpj IS NOT NULL AND cpf_cnpj != '' THEN cpf_cnpj END) as acionados,
-                        COUNT(DISTINCT CASE WHEN agente != '0' AND agente IS NOT NULL AND agente != '' AND cpf_cnpj IS NOT NULL AND cpf_cnpj != '' THEN cpf_cnpj END) as alo,
+                        -- Alô: Todas as ocorrências de contato (não CPF único, cliente pode atender várias vezes)
+                        COUNT(CASE WHEN agente != '0' AND agente IS NOT NULL AND agente != '' AND cpf_cnpj IS NOT NULL AND cpf_cnpj != '' THEN 1 END) as alo,
                         SUM(CASE 
                             WHEN agente != '0' AND agente IS NOT NULL AND agente != ''
                             AND acao IN ('EIO', 'CSA', 'ACD', 'SCP', 'APH', 'DEF', 'SRP', 'APC', 'JUR', 'DDA')

@@ -3,7 +3,7 @@
 const API_URL = import.meta.env.VITE_API_URL || 
     (import.meta.env.PROD 
         ? 'https://api-resultados.vuon.portes.com.br'
-        : 'http://localhost:3001');
+        : 'http://localhost:3002');
 
 export const API_BASE_URL = API_URL;
 

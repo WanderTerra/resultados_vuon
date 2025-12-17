@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Calendar } from 'lucide-react';
 import { aloService } from '../services/aloService';
+import { getLast3Months } from '../utils/dateUtils';
 
 const PeriodFilter = ({ onPeriodChange }) => {
-    const [selectedPeriod, setSelectedPeriod] = useState('all'); // 'all', 'lastWeek', 'lastMonth', 'last7Days', 'last30Days', 'custom'
+    const [selectedPeriod, setSelectedPeriod] = useState('last3Months'); // Padrão: últimos 3 meses
     const [customStartDate, setCustomStartDate] = useState('');
     const [customEndDate, setCustomEndDate] = useState('');
     const [allDatesRange, setAllDatesRange] = useState(null); // { min_date, max_date } quando 'all' está selecionado
@@ -15,6 +16,14 @@ const PeriodFilter = ({ onPeriodChange }) => {
         today.setHours(23, 59, 59, 999);
         
         switch (period) {
+            case 'last3Months':
+                // Últimos 3 meses (do primeiro dia do mês de 3 meses atrás até hoje)
+                const last3Months = getLast3Months();
+                return {
+                    start: last3Months.startDate,
+                    end: last3Months.endDate
+                };
+            
             case 'lastWeek':
                 // Semana passada (segunda a domingo da semana anterior)
                 const lastWeekEnd = new Date(today);
@@ -111,12 +120,13 @@ const PeriodFilter = ({ onPeriodChange }) => {
 
     // Notificar mudanças de período
     useEffect(() => {
-        // No mount inicial, apenas marcar como não inicial mais e notificar 'all'
+        // No mount inicial, notificar o período padrão (últimos 3 meses)
         if (isInitialMount.current) {
             isInitialMount.current = false;
-            // No mount inicial, notificar 'all' (sem filtro) para carregar dados gerais
-            if (onPeriodChange) {
-                onPeriodChange(null);
+            // No mount inicial, notificar últimos 3 meses
+            if (onPeriodChange && selectedPeriod === 'last3Months') {
+                const dates = getLast3Months();
+                onPeriodChange(dates);
             }
             return;
         }
@@ -210,6 +220,17 @@ const PeriodFilter = ({ onPeriodChange }) => {
                 </div>
                 
                 <div className="flex gap-2 flex-wrap">
+                    <button
+                        onClick={() => handlePeriodChange('last3Months')}
+                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                            selectedPeriod === 'last3Months'
+                                ? 'bg-blue-600 text-white shadow-sm'
+                                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                        }`}
+                    >
+                        Últimos 3 Meses
+                    </button>
+                    
                     <button
                         onClick={() => handlePeriodChange('all')}
                         className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
