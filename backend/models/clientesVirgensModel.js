@@ -63,8 +63,18 @@ class ClientesVirgensModel {
         // que o gráfico "Acordos x Pagamentos" usa
         // IMPORTANTE: Passar startDate e endDate para filtrar os mesmos períodos
         // Isso garante que ambos usem exatamente a mesma query e condições
-        const PagamentoModel = require('./pagamentoModel');
-        const pagamentosFromModel = await PagamentoModel.getPagamentosPorBloco(bloco, startDate, endDate, 'month');
+        let pagamentosFromModel = [];
+        try {
+            pagamentosFromModel = await PagamentoModel.getPagamentosPorBloco(bloco, startDate, endDate, 'month');
+            if (!Array.isArray(pagamentosFromModel)) {
+                console.warn('PagamentoModel.getPagamentosPorBloco returned non-array:', typeof pagamentosFromModel);
+                pagamentosFromModel = [];
+            }
+        } catch (error) {
+            console.error('Error fetching pagamentos:', error.message);
+            console.error('Error stack:', error.stack);
+            pagamentosFromModel = [];
+        }
         
         // Converter para chave YYYY-MM-01 mas manter o date_formatted (MM/YYYY) igual ao gráfico Acordos x Pagamentos
         const pagamentosRows = pagamentosFromModel.map(item => {
@@ -113,19 +123,43 @@ class ClientesVirgensModel {
                 ORDER BY ano ASC, mes ASC
             `;
 
-            const [rows] = acordosParams.length > 0
-                ? await db.execute(acordosQuery, acordosParams)
-                : await db.execute(acordosQuery);
+            try {
+                const [rows] = acordosParams.length > 0
+                    ? await db.execute(acordosQuery, acordosParams)
+                    : await db.execute(acordosQuery);
 
-            acordosRows = rows.map(r => ({
-                mes: `${r.date}-01`, // date_month vem como YYYY-MM
-                total_acordos: parseInt(r.total_acordos || 0),
-                date_formatted: r.date_formatted || null
-            }));
+                acordosRows = rows.map(r => ({
+                    mes: `${r.date}-01`, // date_month vem como YYYY-MM
+                    total_acordos: parseInt(r.total_acordos || 0),
+                    date_formatted: r.date_formatted || null
+                }));
+            } catch (error) {
+                console.error(`Error querying view ${acordosViewName}:`, error.message);
+                console.error('Query:', acordosQuery);
+                console.error('Params:', acordosParams);
+                // Se a view não existir, retornar array vazio em vez de quebrar
+                if (error.code === 'ER_NO_SUCH_TABLE' || error.message.includes('doesn\'t exist')) {
+                    console.warn(`View ${acordosViewName} does not exist. Returning empty acordos data.`);
+                    acordosRows = [];
+                } else {
+                    throw error; // Re-throw se for outro tipo de erro
+                }
+            }
         } else {
             // Caso sem bloco: manter o método antigo (mais "correto" por mês), pois não existe equivalente direto no BlocoModel
             const NovacaoModel = require('./novacaoModel');
-            const acordosFromModel = await NovacaoModel.getAcordosPorBloco(bloco, startDate, endDate, 'month');
+            let acordosFromModel = [];
+            try {
+                acordosFromModel = await NovacaoModel.getAcordosPorBloco(bloco, startDate, endDate, 'month');
+                if (!Array.isArray(acordosFromModel)) {
+                    console.warn('NovacaoModel.getAcordosPorBloco returned non-array:', typeof acordosFromModel);
+                    acordosFromModel = [];
+                }
+            } catch (error) {
+                console.error('Error fetching acordos from NovacaoModel:', error.message);
+                console.error('Error stack:', error.stack);
+                acordosFromModel = [];
+            }
 
             acordosRows = acordosFromModel.map(item => {
                 let mes = null;
@@ -151,11 +185,9 @@ class ClientesVirgensModel {
         }
         
         // Executar query de clientes virgens
-        const [clientesVirgensRows] = await Promise.all([
-            queryParams.length > 0 
-                ? db.execute(clientesVirgensQuery, queryParams)
-                : db.execute(clientesVirgensQuery)
-        ]);
+        const [clientesVirgensRows] = queryParams.length > 0 
+            ? await db.execute(clientesVirgensQuery, queryParams)
+            : await db.execute(clientesVirgensQuery);
         
         // Criar maps de pagamentos e acordos por mês, guardando também date_formatted
         const pagamentosMap = new Map();
@@ -178,7 +210,9 @@ class ClientesVirgensModel {
         
         // Coletar todos os meses únicos
         const allMonths = new Set();
-        clientesVirgensRows[0].forEach(row => allMonths.add(row.mes));
+        if (clientesVirgensRows && Array.isArray(clientesVirgensRows)) {
+            clientesVirgensRows.forEach(row => allMonths.add(row.mes));
+        }
         pagamentosRows.forEach(row => allMonths.add(row.mes));
         acordosRows.forEach(row => allMonths.add(row.mes));
         
@@ -196,10 +230,13 @@ class ClientesVirgensModel {
                 pagamentosDateMap.get(mes) ||
                 acordosDateMap.get(mes) ||
                 formatMonth(mes);
+            const clientesVirgensRow = clientesVirgensRows && Array.isArray(clientesVirgensRows) 
+                ? clientesVirgensRows.find(cv => cv.mes === mes)
+                : null;
             return {
                 mes: mes,
                 date_formatted: dateFormatted,
-                qtd_clientes_virgens: clientesVirgensRows[0].find(cv => cv.mes === mes)?.qtd_clientes_virgens || 0,
+                qtd_clientes_virgens: clientesVirgensRow?.qtd_clientes_virgens || 0,
                 total_pagamentos: pagamentosMap.get(mes) || 0,
                 total_acordos: acordosMap.get(mes) || 0
             };
