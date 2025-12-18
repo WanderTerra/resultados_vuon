@@ -499,9 +499,12 @@ exports.getClientesVirgens = async (req, res) => {
         res.json({ data });
     } catch (error) {
         console.error('Clientes virgens error:', error);
+        console.error('Error stack:', error.stack);
+        console.error('Request params:', { bloco: req.query.bloco, startDate: req.query.startDate, endDate: req.query.endDate });
         res.status(500).json({
             message: 'Server error',
-            error: process.env.NODE_ENV === 'development' ? error.message : undefined
+            error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+            stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
         });
     }
 };
