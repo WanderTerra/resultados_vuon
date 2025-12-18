@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Metrics from '../components/Metrics';
 import CpcCpcaChart from '../components/CpcCpcaChart';
@@ -10,6 +10,7 @@ import ProdutividadeBarChart from '../components/ProdutividadeBarChart';
 import ClientesVirgensChart from '../components/ClientesVirgensChart';
 import PeriodFilter from '../components/PeriodFilter';
 import DateFilter from '../components/DateFilter';
+import { spinsService } from '../services/spinsService';
 
 const Dashboard = () => {
     const [aloFilterDates, setAloFilterDates] = useState(null); // { start, end } ou null para todos
@@ -22,6 +23,7 @@ const Dashboard = () => {
         compareEndDate: null,
         groupBy: 'month'
     });
+    const [lastDaySpins, setLastDaySpins] = useState(null);
 
     const handlePeriodChange = (dates) => {
         // Atualizar filtro e marcar como inicializado
@@ -30,6 +32,33 @@ const Dashboard = () => {
             setFilterInitialized(true);
         }
     };
+
+    const yesterdayStr = useMemo(() => {
+        const now = new Date();
+        const y = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+        return y.toISOString().split('T')[0];
+    }, []);
+
+    const formatPtBR = (yyyyMmDd) => {
+        if (!yyyyMmDd) return '-';
+        const [y, m, d] = yyyyMmDd.split('-').map(Number);
+        if (!y || !m || !d) return yyyyMmDd;
+        return `${String(d).padStart(2, '0')}/${String(m).padStart(2, '0')}/${y}`;
+    };
+
+    useEffect(() => {
+        let cancelled = false;
+        const load = async () => {
+            try {
+                const res = await spinsService.getSpinsLastDay();
+                if (!cancelled) setLastDaySpins(res.data || null);
+            } catch (e) {
+                if (!cancelled) setLastDaySpins(null);
+            }
+        };
+        load();
+        return () => { cancelled = true; };
+    }, []);
 
     return (
         <div className="space-y-6 px-4">
@@ -48,6 +77,12 @@ const Dashboard = () => {
                             </div>
                         </div>
                         <p className="text-sm text-slate-500 mb-2">61 a 90 dias de atraso</p>
+                        {lastDaySpins?.bloco1?.date && (
+                            <p className="text-xs text-slate-500 mb-1">
+                                {lastDaySpins.bloco1.date === yesterdayStr ? 'Ontem' : 'Último dia'} ({formatPtBR(lastDaySpins.bloco1.date)}):{' '}
+                                <span className="font-semibold text-slate-700">{Number(lastDaySpins.bloco1.spins || 0).toLocaleString('pt-BR')} Spins</span>
+                            </p>
+                        )}
                         <p className="text-xs text-slate-400">Visualizar gráficos detalhados →</p>
                     </Link>
 
@@ -62,6 +97,12 @@ const Dashboard = () => {
                             </div>
                         </div>
                         <p className="text-sm text-slate-500 mb-2">91 a 180 dias de atraso</p>
+                        {lastDaySpins?.bloco2?.date && (
+                            <p className="text-xs text-slate-500 mb-1">
+                                {lastDaySpins.bloco2.date === yesterdayStr ? 'Ontem' : 'Último dia'} ({formatPtBR(lastDaySpins.bloco2.date)}):{' '}
+                                <span className="font-semibold text-slate-700">{Number(lastDaySpins.bloco2.spins || 0).toLocaleString('pt-BR')} Spins</span>
+                            </p>
+                        )}
                         <p className="text-xs text-slate-400">Visualizar gráficos detalhados →</p>
                     </Link>
 
@@ -76,6 +117,12 @@ const Dashboard = () => {
                             </div>
                         </div>
                         <p className="text-sm text-slate-500 mb-2">181 a 360 dias de atraso</p>
+                        {lastDaySpins?.bloco3?.date && (
+                            <p className="text-xs text-slate-500 mb-1">
+                                {lastDaySpins.bloco3.date === yesterdayStr ? 'Ontem' : 'Último dia'} ({formatPtBR(lastDaySpins.bloco3.date)}):{' '}
+                                <span className="font-semibold text-slate-700">{Number(lastDaySpins.bloco3.spins || 0).toLocaleString('pt-BR')} Spins</span>
+                            </p>
+                        )}
                         <p className="text-xs text-slate-400">Visualizar gráficos detalhados →</p>
                     </Link>
 
@@ -90,6 +137,12 @@ const Dashboard = () => {
                             </div>
                         </div>
                         <p className="text-sm text-slate-500 mb-2">Mais de 360 dias de atraso</p>
+                        {lastDaySpins?.wo?.date && (
+                            <p className="text-xs text-slate-500 mb-1">
+                                {lastDaySpins.wo.date === yesterdayStr ? 'Ontem' : 'Último dia'} ({formatPtBR(lastDaySpins.wo.date)}):{' '}
+                                <span className="font-semibold text-slate-700">{Number(lastDaySpins.wo.spins || 0).toLocaleString('pt-BR')} Spins</span>
+                            </p>
+                        )}
                         <p className="text-xs text-slate-400">Visualizar gráficos detalhados →</p>
                     </Link>
                 </div>

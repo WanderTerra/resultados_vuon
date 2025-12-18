@@ -25,6 +25,9 @@ router.get('/produtividade', produtividadeController.getProdutividadeData);
 // Rota de clientes virgens
 router.get('/clientes-virgens', dashboardController.getClientesVirgens);
 
+// Spins do último dia (ontem; fallback último disponível)
+router.get('/spins-last-day', dashboardController.getSpinsLastDay);
+
 // Rotas de comparativo
 router.get('/comparativo', comparativoController.getComparativo);
 router.get('/comparativo/agentes', comparativoController.getAgentes);

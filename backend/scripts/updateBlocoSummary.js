@@ -59,27 +59,27 @@ const updateBlocoSummary = async () => {
                         COUNT(DISTINCT CASE WHEN acao IS NOT NULL AND acao != '' AND cpf_cnpj IS NOT NULL AND cpf_cnpj != '' THEN cpf_cnpj END) as acionados,
                         -- Alô: Todas as ocorrências de contato (não CPF único, cliente pode atender várias vezes)
                         COUNT(CASE WHEN agente != '0' AND agente IS NOT NULL AND agente != '' AND cpf_cnpj IS NOT NULL AND cpf_cnpj != '' THEN 1 END) as alo,
-                        SUM(CASE 
+                        COALESCE(SUM(CASE 
                             WHEN agente != '0' AND agente IS NOT NULL AND agente != ''
                             AND acao IN ('EIO', 'CSA', 'ACD', 'SCP', 'APH', 'DEF', 'SRP', 'APC', 'JUR', 'DDA')
                             THEN 1 ELSE 0 END
-                        ) as cpc,
-                        SUM(CASE 
+                        ), 0) as cpc,
+                        COALESCE(SUM(CASE 
                             WHEN agente != '0' AND agente IS NOT NULL AND agente != ''
                             AND acao IN ('CSA', 'ACD', 'SCP', 'APH', 'DEF', 'SRP', 'JUR', 'DDA')
                             THEN 1 ELSE 0 END
-                        ) as cpca,
-                        SUM(CASE 
+                        ), 0) as cpca,
+                        COALESCE(SUM(CASE 
                             WHEN agente != '0' AND agente IS NOT NULL AND agente != ''
                             AND acao = 'DDA'
                             THEN 1 ELSE 0 END
-                        ) as acordos_resultados,
-                        SUM(CASE 
+                        ), 0) as acordos_resultados,
+                        COALESCE(SUM(CASE 
                             WHEN agente != '0' AND agente IS NOT NULL AND agente != ''
                             AND valor > 0
                             THEN 1 ELSE 0 END
-                        ) as pgto_resultados,
-                        COUNT(DISTINCT codigo) as spins,
+                        ), 0) as pgto_resultados,
+                        COUNT(1) as spins,
                         COALESCE(SUM(CASE WHEN valor > 0 THEN valor ELSE 0 END), 0) as recebimento
                     FROM vuon_resultados
                     WHERE ${bloco.condition}

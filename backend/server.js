@@ -55,6 +55,7 @@ const authRoutes = require('./routes/authRoutes');
 const dashboardRoutes = require('./routes/dashboardRoutes');
 const aloRoutes = require('./routes/aloRoutes');
 const { updateMissingMonths } = require('./utils/updateBlocoSummary');
+const { updateBlocoSpinsDaily } = require('./utils/updateBlocoSpinsDaily');
 
 const app = express();
 const PORT = process.env.PORT || 3002;
@@ -132,6 +133,11 @@ const server = app.listen(PORT, async () => {
     updateMissingMonths().catch(err => {
         console.error('⚠️  Erro ao atualizar bloco_summary:', err.message);
     });
+
+    // Atualizar spins diários (até ontem) na inicialização (não bloqueia)
+    updateBlocoSpinsDaily(true).catch(err => {
+        console.error('⚠️  Erro ao atualizar bloco_spins_diario:', err.message);
+    });
     
     // Configurar verificação periódica
     // Pode ser configurado via variável de ambiente UPDATE_INTERVAL_HOURS (padrão: 4 horas)
@@ -145,6 +151,11 @@ const server = app.listen(PORT, async () => {
         console.log(`\n⏰ [${now}] Verificação periódica de meses faltantes iniciada...`);
         updateMissingMonths(true).catch(err => {
             console.error('⚠️  Erro na verificação periódica de bloco_summary:', err.message);
+        });
+
+        // Spins diários (até ontem)
+        updateBlocoSpinsDaily(true).catch(err => {
+            console.error('⚠️  Erro na verificação periódica de bloco_spins_diario:', err.message);
         });
     }, UPDATE_INTERVAL_MS);
     

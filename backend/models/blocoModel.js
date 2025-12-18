@@ -324,13 +324,76 @@ class BlocoModel {
         return rows;
     }
 
-    // Total de spins por bloco (total de registros únicos por cliente)
-    static async getSpins(bloco) {
+    // Total de spins por bloco
+    // DEFINIÇÃO (2025-12): Spins = total de acionamentos no período (todas as linhas em vuon_resultados)
+    // => NÃO usar DISTINCT (uma pessoa pode receber múltiplos acionamentos no mesmo dia).
+    // IMPORTANTE: quando houver startDate/endDate, aplicar filtro de data (para o número mudar quando o filtro muda).
+    static async getSpins(bloco, startDate = null, endDate = null) {
         const db = await getDB();
         
         // OTIMIZAÇÃO: Usar tabela materializada quando possível (muito mais rápido)
         // A tabela materializada tem o campo 'spins' já calculado
         const blocoName = bloco === 'wo' ? 'wo' : String(bloco);
+
+        // Se há filtro de data, preferir tabela materializada diária (bloco_spins_diario) por performance.
+        // Observação: o job atualiza até ontem. Se endDate incluir hoje, somamos hoje direto da vuon_resultados.
+        if (startDate && endDate) {
+            const blocoName = bloco === 'wo' ? 'wo' : String(bloco);
+
+            // 1) somar do materializado diário
+            let total = 0;
+            try {
+                const [rows] = await db.execute(
+                    `
+                    SELECT COALESCE(SUM(spins), 0) as total
+                    FROM bloco_spins_diario
+                    WHERE bloco = ?
+                      AND data >= ?
+                      AND data <= ?
+                    `,
+                    [blocoName, startDate, endDate]
+                );
+                total = parseInt(rows[0]?.total || 0, 10);
+            } catch (e) {
+                // Se a tabela não existir ainda, cair para query direta
+                total = 0;
+            }
+
+            // 2) se endDate inclui hoje, adicionar hoje via query direta (1 dia)
+            const todayStr = new Date().toISOString().split('T')[0];
+            if (endDate >= todayStr) {
+                const blocoCondition = this.getBlocoCondition(bloco);
+                const [rowsToday] = await db.execute(
+                    `
+                    SELECT COUNT(1) as spins
+                    FROM vuon_resultados
+                    WHERE ${blocoCondition}
+                      AND data = ?
+                    `,
+                    [todayStr]
+                );
+                total += parseInt(rowsToday[0]?.spins || 0, 10);
+            }
+
+            // 3) fallback total: se a tabela diária não estava disponível e total ficou 0,
+            // executar a query direta no período.
+            if (total === 0) {
+                const blocoCondition = this.getBlocoCondition(bloco);
+                const [rows] = await db.execute(
+                    `
+                    SELECT COUNT(1) as spins
+                    FROM vuon_resultados
+                    WHERE ${blocoCondition}
+                      AND data >= ?
+                      AND data <= ?
+                    `,
+                    [startDate, endDate]
+                );
+                return rows[0]?.spins || 0;
+            }
+
+            return total;
+        }
         
         try {
             // Tentar buscar da tabela materializada primeiro (muito mais rápido)
@@ -352,12 +415,81 @@ class BlocoModel {
         // Fallback: query direta (mais lenta)
         const blocoCondition = this.getBlocoCondition(bloco);
         const query = `
-            SELECT COUNT(DISTINCT codigo) as spins
+            SELECT COUNT(1) as spins
             FROM vuon_resultados
             WHERE ${blocoCondition}
         `;
         const [rows] = await db.execute(query);
         return rows[0]?.spins || 0;
+    }
+
+    /**
+     * Retorna o spins do "último dia" para o bloco:
+     * - Preferência: ontem (yesterday)
+     * - Fallback: último dia disponível na tabela bloco_spins_diario para o bloco
+     *
+     * @param {number|string} bloco
+     * @returns {Promise<{date: string|null, spins: number}>}
+     */
+    static async getLastDaySpins(bloco) {
+        const db = await getDB();
+        const blocoName = bloco === 'wo' ? 'wo' : String(bloco);
+
+        const today = new Date();
+        const yesterdayDate = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1);
+        const yesterday = yesterdayDate.toISOString().split('T')[0];
+
+        try {
+            // 1) tentar ontem
+            const [rowsY] = await db.execute(
+                `
+                SELECT spins
+                FROM bloco_spins_diario
+                WHERE bloco = ? AND data = ?
+                LIMIT 1
+                `,
+                [blocoName, yesterday]
+            );
+            if (rowsY.length > 0) {
+                return { date: yesterday, spins: parseInt(rowsY[0].spins || 0, 10) };
+            }
+
+            // 2) fallback: último dia disponível
+            const [rowsLast] = await db.execute(
+                `
+                SELECT data, spins
+                FROM bloco_spins_diario
+                WHERE bloco = ?
+                ORDER BY data DESC
+                LIMIT 1
+                `,
+                [blocoName]
+            );
+            if (rowsLast.length > 0) {
+                const d = rowsLast[0].data;
+                const dateStr = d ? new Date(d).toISOString().split('T')[0] : null;
+                return { date: dateStr, spins: parseInt(rowsLast[0].spins || 0, 10) };
+            }
+        } catch (_) {
+            // Se a tabela não existir ou houver erro, devolver vazio
+        }
+
+        return { date: null, spins: 0 };
+    }
+
+    static async getLastDaySpinsAll() {
+        const [b1, b2, b3, bwo] = await Promise.all([
+            this.getLastDaySpins(1),
+            this.getLastDaySpins(2),
+            this.getLastDaySpins(3),
+            this.getLastDaySpins('wo'),
+        ]);
+        return {
+            bloco1: b1,
+            bloco2: b2,
+            bloco3: b3,
+            wo: bwo,
+        };
     }
 
     // Recebimento financeiro por bloco
@@ -578,8 +710,8 @@ class BlocoModel {
                         AND valor > 0
                         THEN 1 ELSE 0 END
                     ) as pgto_resultados,
-                    -- Spins (códigos únicos no mês)
-                    COUNT(DISTINCT codigo) as spins,
+                    -- Spins (total de acionamentos no mês)
+                    COUNT(1) as spins,
                     -- Recebimento
                     COALESCE(SUM(CASE WHEN valor > 0 THEN valor ELSE 0 END), 0) as recebimento
                 FROM vuon_resultados
@@ -625,8 +757,8 @@ class BlocoModel {
                             AND valor > 0
                             THEN 1 ELSE 0 END
                         ) as pgto_resultados,
-                        -- Spins (códigos únicos no dia)
-                        COUNT(DISTINCT codigo) as spins,
+                        -- Spins (total de acionamentos no dia)
+                        COUNT(1) as spins,
                         -- Recebimento
                         COALESCE(SUM(CASE WHEN valor > 0 THEN valor ELSE 0 END), 0) as recebimento
                     FROM vuon_resultados
@@ -908,15 +1040,18 @@ class BlocoModel {
 
         // Buscar spins e recebimento em paralelo (queries simples)
         const spinsRecebimentoStart = Date.now();
-        const [spins, recebimento] = await Promise.all([
-            this.getSpins(bloco),
-            this.getRecebimento(bloco, startDate, endDate)
+        const [spins, recebimento, lastDay] = await Promise.all([
+            this.getSpins(bloco, startDate, endDate),
+            this.getRecebimento(bloco, startDate, endDate),
+            this.getLastDaySpins(bloco)
         ]);
         const spinsRecebimentoTime = Date.now() - spinsRecebimentoStart;
         console.log(`⏱️  getSpins + getRecebimento executados em ${(spinsRecebimentoTime / 1000).toFixed(2)}s (${spinsRecebimentoTime}ms)`);
 
         return {
             spins,
+            spinsLastDay: lastDay?.spins || 0,
+            spinsLastDayDate: lastDay?.date || null,
             recebimento,
             acionadosXCarteira,
             acionadosXAlo,

@@ -23,6 +23,7 @@ export const API_ENDPOINTS = {
     produtividade: `${API_BASE_URL}/api/dashboard/produtividade`,
     produtividadeTopAgentes: `${API_BASE_URL}/api/dashboard/produtividade/top-agentes`,
     clientesVirgens: `${API_BASE_URL}/api/dashboard/clientes-virgens`,
+    spinsLastDay: `${API_BASE_URL}/api/dashboard/spins-last-day`,
     comparativo: `${API_BASE_URL}/api/dashboard/comparativo`,
     comparativoAgentes: `${API_BASE_URL}/api/dashboard/comparativo/agentes`,
 };

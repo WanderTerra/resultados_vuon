@@ -79,8 +79,8 @@ const createBlocoViews = async () => {
                             AND agente != ''
                             AND valor > 0
                         ) as pgto_resultados,
-                        -- Spins (códigos únicos)
-                        COUNT(DISTINCT codigo) as spins,
+                        -- Spins (total de acionamentos)
+                        COUNT(1) as spins,
                         -- Recebimento
                         COALESCE(SUM(CASE WHEN valor > 0 THEN valor ELSE 0 END), 0) as recebimento
                     FROM vuon_resultados

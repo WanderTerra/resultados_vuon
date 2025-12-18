@@ -77,6 +77,8 @@ exports.getBlocoData = async (req, res) => {
         // Formatar resposta
         const response = {
             spins: blocoData.spins,
+            spinsLastDay: blocoData.spinsLastDay,
+            spinsLastDayDate: blocoData.spinsLastDayDate,
             acionadosXCarteira: formatChartData(blocoData.acionadosXCarteira),
             acionadosXAlo: formatChartData(blocoData.acionadosXAlo),
             aloXCpc: formatChartData(blocoData.aloXCpc),
@@ -497,6 +499,34 @@ exports.getClientesVirgens = async (req, res) => {
         res.json({ data });
     } catch (error) {
         console.error('Clientes virgens error:', error);
+        res.status(500).json({
+            message: 'Server error',
+            error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
+    }
+};
+
+// Spins do último dia (ontem; fallback para último dia disponível)
+exports.getSpinsLastDay = async (req, res) => {
+    try {
+        const noCache = req.query._nocache === 'true' || req.query._t;
+        const cacheKey = cache.generateKey('spins-last-day');
+
+        if (!noCache) {
+            const cached = cache.get(cacheKey);
+            if (cached) {
+                return res.json(cached);
+            }
+        }
+
+        const data = await BlocoModel.getLastDaySpinsAll();
+        const response = { data };
+
+        // Cache curto: é dado do "último dia" e muda no máximo 1x/dia
+        cache.set(cacheKey, response, 5 * 60 * 1000); // 5 minutos
+        res.json(response);
+    } catch (error) {
+        console.error('Spins last day error:', error);
         res.status(500).json({
             message: 'Server error',
             error: process.env.NODE_ENV === 'development' ? error.message : undefined

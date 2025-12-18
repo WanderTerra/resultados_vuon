@@ -63,7 +63,6 @@ class ClientesVirgensModel {
         // que o gráfico "Acordos x Pagamentos" usa
         // IMPORTANTE: Passar startDate e endDate para filtrar os mesmos períodos
         // Isso garante que ambos usem exatamente a mesma query e condições
-        const PagamentoModel = require('./pagamentoModel');
         const pagamentosFromModel = await PagamentoModel.getPagamentosPorBloco(bloco, startDate, endDate, 'month');
         
         // Converter para chave YYYY-MM-01 mas manter o date_formatted (MM/YYYY) igual ao gráfico Acordos x Pagamentos
@@ -124,7 +123,6 @@ class ClientesVirgensModel {
             }));
         } else {
             // Caso sem bloco: manter o método antigo (mais "correto" por mês), pois não existe equivalente direto no BlocoModel
-            const NovacaoModel = require('./novacaoModel');
             const acordosFromModel = await NovacaoModel.getAcordosPorBloco(bloco, startDate, endDate, 'month');
 
             acordosRows = acordosFromModel.map(item => {

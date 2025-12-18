@@ -42,6 +42,7 @@
     "test-acordos-pagamentos": "node scripts/testAcordosPagamentos.js",
     "create-bloco-summary": "node scripts/createBlocoSummaryTable.js",
     "update-bloco-summary": "node scripts/updateBlocoSummary.js",
+    "create-spins-diario": "node scripts/createBlocoSpinsDailyTable.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],

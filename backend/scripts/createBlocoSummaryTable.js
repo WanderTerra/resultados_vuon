@@ -94,7 +94,7 @@ const createBlocoSummaryTable = async () => {
                         AND valor > 0
                         THEN 1 ELSE 0 END
                     ) as pgto_resultados,
-                    COUNT(DISTINCT codigo) as spins,
+                    COUNT(1) as spins,
                     COALESCE(SUM(CASE WHEN valor > 0 THEN valor ELSE 0 END), 0) as recebimento
                 FROM vuon_resultados
                 WHERE ${bloco.condition}

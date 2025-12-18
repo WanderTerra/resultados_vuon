@@ -4,6 +4,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsive
 import DateFilter from '../components/DateFilter';
 import Loading from '../components/Loading';
 import ClientesVirgensChart from '../components/ClientesVirgensChart';
+import { getLast3Months } from '../utils/dateUtils';
 
 const Card = React.memo(({ title, children, className = "" }) => (
     <div className={`bg-white rounded-xl shadow-sm border border-slate-200 p-6 overflow-hidden ${className}`}>
@@ -156,6 +157,8 @@ const Bloco2 = () => {
             const data = await response.json();
             return {
                 spins: data.spins || 0,
+                spinsLastDay: data.spinsLastDay || 0,
+                spinsLastDayDate: data.spinsLastDayDate || null,
                 acionadosXCarteira: data.acionadosXCarteira || [],
                 acionadosXAlo: data.acionadosXAlo || [],
                 aloXCpc: data.aloXCpc || [],
@@ -281,6 +284,22 @@ const Bloco2 = () => {
         );
     }
 
+    const formatPtBR = (yyyyMmDd) => {
+        if (!yyyyMmDd) return '-';
+        const [y, m, d] = yyyyMmDd.split('-').map(Number);
+        if (!y || !m || !d) return yyyyMmDd;
+        return `${String(d).padStart(2, '0')}/${String(m).padStart(2, '0')}/${y}`;
+    };
+
+    const getSpinsPeriodoLabel = () => {
+        if (!filters.startDate || !filters.endDate) return 'Todos';
+        const def = getLast3Months();
+        if (filters.startDate === def.startDate && filters.endDate === def.endDate) {
+            return 'Últimos 3 meses';
+        }
+        return `${formatPtBR(filters.startDate)} a ${formatPtBR(filters.endDate)}`;
+    };
+
     return (
         <div className="space-y-6 px-4">
             {/* Filtros de Data */}
@@ -298,9 +317,16 @@ const Bloco2 = () => {
                         <h2 className="text-xl font-bold text-slate-800">Bloco 2</h2>
                         <p className="text-slate-500">91 a 180 dias de atraso</p>
                     </div>
-                    <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">
-                        {dashboardData?.bloco2?.spins || 0} Spins
-                    </span>
+                    <div className="flex items-center gap-2">
+                        <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">
+                            {(dashboardData?.bloco2?.spins || 0).toLocaleString('pt-BR')} Spins ({getSpinsPeriodoLabel()})
+                        </span>
+                        {dashboardData?.bloco2?.spinsLastDayDate && (
+                            <span className="px-3 py-1 bg-slate-100 text-slate-700 rounded-full text-sm font-medium">
+                                {(dashboardData?.bloco2?.spinsLastDay || 0).toLocaleString('pt-BR')} Spins ({formatPtBR(dashboardData.bloco2.spinsLastDayDate)})
+                            </span>
+                        )}
+                    </div>
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
