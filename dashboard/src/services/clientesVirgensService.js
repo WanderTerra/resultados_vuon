@@ -9,7 +9,7 @@ const getAuthHeaders = () => {
 };
 
 export const clientesVirgensService = {
-    getClientesVirgens: async (bloco = null, startDate = null, endDate = null) => {
+    getClientesVirgens: async (bloco = null, startDate = null, endDate = null, groupBy = 'month') => {
         const params = new URLSearchParams();
         if (bloco) {
             params.append('bloco', bloco);
@@ -20,7 +20,9 @@ export const clientesVirgensService = {
         if (endDate) {
             params.append('endDate', endDate);
         }
-        // Adicionar timestamp para evitar cache do navegador
+        if (groupBy) {
+            params.append('groupBy', groupBy);
+        }
         params.append('_t', Date.now().toString());
         
         const url = `${API_ENDPOINTS.clientesVirgens}${params.toString() ? '?' + params.toString() : ''}`;

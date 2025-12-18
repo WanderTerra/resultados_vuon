@@ -5,320 +5,316 @@ const NovacaoModel = require('./novacaoModel');
 
 class ClientesVirgensModel {
     /**
-     * Busca dados de clientes virgens (clientes que aparecem pela primeira vez), total de pagamentos e acordos
+     * Busca dados de clientes virgens (clientes que aparecem pela primeira vez), valores em R$ de pagamentos e acordos
      * @param {number|string|null} bloco - Bloco para filtrar (1, 2, 3, 'wo') ou null para todos
-     * @param {string|null} startDate - Data inicial para filtrar (formato: 'YYYY-MM-DD') ou null para todos
-     * @param {string|null} endDate - Data final para filtrar (formato: 'YYYY-MM-DD') ou null para todos
-     * @returns {Promise<Array>} Array com dados formatados [{ mes: 'YYYY-MM-01', qtd_clientes_virgens: number, total_pagamentos: number, total_acordos: number }, ...]
+     * @param {string|null} startDate - Data inicial no formato 'YYYY-MM-DD' ou null
+     * @param {string|null} endDate - Data final no formato 'YYYY-MM-DD' ou null
+     * @param {string} groupBy - Agrupamento: 'month' ou 'day'
+     * @returns {Promise<Array>} Array com dados formatados [{ mes/data: 'YYYY-MM-01' ou 'YYYY-MM-DD', qtd_clientes_virgens: number, total_pagamentos: number, valor_pagamentos: number, total_acordos: number, valor_acordos: number }, ...]
      */
-    static async getClientesVirgens(bloco = null, startDate = null, endDate = null) {
-        try {
-            console.log(`🔍 getClientesVirgens chamado - bloco: ${bloco}, startDate: ${startDate}, endDate: ${endDate}`);
-            const db = await getDB();
-            
-            // Construir condição de filtro de atraso se bloco for fornecido
-            let atrasoCondition = '';
-            let pagamentoBlocoCondition = '';
-            let acordosBlocoCondition = '';
-            if (bloco !== null) {
-                const blocoCondition = BlocoModel.getBlocoCondition(bloco);
-                atrasoCondition = `AND ${blocoCondition}`;
-                // Usar mesma lógica do PagamentoModel.getBlocoCondition (mesma do gráfico Acordos x Pagamentos)
-                pagamentoBlocoCondition = PagamentoModel.getBlocoCondition(bloco);
-                acordosBlocoCondition = NovacaoModel.getBlocoCondition(bloco);
-            } else {
-                pagamentoBlocoCondition = '1=1';
-                acordosBlocoCondition = '1=1';
-            }
-            
-            // Query para clientes virgens
-            // IMPORTANTE: Aplicar filtros de data se fornecidos (mesma lógica do gráfico Acordos x Pagamentos)
-            let dateFilterCondition = '';
-            const queryParams = [];
-            if (startDate && endDate) {
-                dateFilterCondition = 'AND t.first_date >= ? AND t.first_date <= ?';
-                queryParams.push(startDate, endDate);
-            }
-            
-            const clientesVirgensQuery = `
-            SELECT
-                DATE_FORMAT(t.first_date, '%Y-%m-01') AS mes,
-                COUNT(*) AS qtd_clientes_virgens
-            FROM (
+    static async getClientesVirgens(bloco = null, startDate = null, endDate = null, groupBy = 'month') {
+        const db = await getDB();
+        
+        // Construir condição de filtro de atraso se bloco for fornecido
+        let atrasoCondition = '';
+        let pagamentoBlocoCondition = '';
+        let acordosBlocoCondition = '';
+        if (bloco !== null) {
+            const blocoCondition = BlocoModel.getBlocoCondition(bloco);
+            atrasoCondition = `AND ${blocoCondition}`;
+            pagamentoBlocoCondition = PagamentoModel.getBlocoCondition(bloco);
+            acordosBlocoCondition = NovacaoModel.getBlocoCondition(bloco);
+        } else {
+            pagamentoBlocoCondition = '1=1';
+            acordosBlocoCondition = '1=1';
+        }
+        
+        // Construir condições de filtro de data
+        // Validar formato de data (YYYY-MM-DD)
+        const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+        let clientesVirgensDateCondition = '';
+        let pagamentosDateCondition = '';
+        let acordosDateCondition = '';
+        let hasDateFilter = false;
+        
+        if (startDate && endDate && dateRegex.test(startDate) && dateRegex.test(endDate)) {
+            hasDateFilter = true;
+            // Para clientes virgens, filtrar pela primeira data de aparição
+            clientesVirgensDateCondition = `AND t.first_date >= ? AND t.first_date <= ?`;
+            // Para pagamentos, filtrar pela data de pagamento
+            pagamentosDateCondition = `AND data_pagamento >= ? AND data_pagamento <= ?`;
+            // Para acordos, filtrar pela data de emissão
+            acordosDateCondition = `AND DATE(data_emissao) >= ? AND DATE(data_emissao) <= ?`;
+        }
+        
+        // Query para clientes virgens - construir dinamicamente baseado no groupBy
+        let clientesVirgensQuery;
+        if (groupBy === 'day') {
+            clientesVirgensQuery = `
                 SELECT
-                    cpf_cnpj,
-                    MIN(data) AS first_date
-                FROM vuon_resultados
-                WHERE
-                    cpf_cnpj IS NOT NULL
-                    AND cpf_cnpj <> ''
-                    ${atrasoCondition}
-                GROUP BY cpf_cnpj
-            ) AS t
-            WHERE 1=1 ${dateFilterCondition}
-            GROUP BY mes
-            ORDER BY mes
+                    DATE_FORMAT(t.first_date, '%Y-%m-%d') AS data,
+                    COUNT(*) AS qtd_clientes_virgens
+                FROM (
+                    SELECT
+                        cpf_cnpj,
+                        MIN(data) AS first_date
+                    FROM vuon_resultados
+                    WHERE
+                        cpf_cnpj IS NOT NULL
+                        AND cpf_cnpj <> ''
+                        ${atrasoCondition}
+                    GROUP BY cpf_cnpj
+                ) AS t
+                WHERE 1=1
+                    ${clientesVirgensDateCondition}
+                GROUP BY DATE_FORMAT(t.first_date, '%Y-%m-%d')
+                ORDER BY DATE_FORMAT(t.first_date, '%Y-%m-%d')
             `;
-            
-            // Query para total de pagamentos por mês
-            // IMPORTANTE: Usar PagamentoModel.getPagamentosPorBloco() diretamente para garantir mesma lógica
-            // que o gráfico "Acordos x Pagamentos" usa
-            // IMPORTANTE: Passar startDate e endDate para filtrar os mesmos períodos
-            // Isso garante que ambos usem exatamente a mesma query e condições
-            let pagamentosFromModel = [];
-            try {
-                pagamentosFromModel = await PagamentoModel.getPagamentosPorBloco(bloco, startDate, endDate, 'month');
-                if (!Array.isArray(pagamentosFromModel)) {
-                    console.warn('PagamentoModel.getPagamentosPorBloco returned non-array:', typeof pagamentosFromModel);
-                    pagamentosFromModel = [];
-                }
-            } catch (error) {
-                console.error('Error fetching pagamentos:', error.message);
-                console.error('Error stack:', error.stack);
-                pagamentosFromModel = [];
+        } else {
+            clientesVirgensQuery = `
+                SELECT
+                    DATE_FORMAT(t.first_date, '%Y-%m-01') AS mes,
+                    COUNT(*) AS qtd_clientes_virgens
+                FROM (
+                    SELECT
+                        cpf_cnpj,
+                        MIN(data) AS first_date
+                    FROM vuon_resultados
+                    WHERE
+                        cpf_cnpj IS NOT NULL
+                        AND cpf_cnpj <> ''
+                        ${atrasoCondition}
+                    GROUP BY cpf_cnpj
+                ) AS t
+                WHERE 1=1
+                    ${clientesVirgensDateCondition}
+                GROUP BY DATE_FORMAT(t.first_date, '%Y-%m-01')
+                ORDER BY DATE_FORMAT(t.first_date, '%Y-%m-01')
+            `;
+        }
+        
+        // Query para quantidade e valor total de pagamentos - construir dinamicamente
+        // IMPORTANTE: Usar mesma lógica do PagamentoModel.getPagamentosPorBloco:
+        // - Contar apenas entradas (parcela = 1) - um acordo parcelado conta como 1 pagamento apenas
+        // - Usar COUNT(DISTINCT cpf_cnpj) para garantir que cada CPF conta apenas 1 vez
+        let pagamentosQuery;
+        if (groupBy === 'day') {
+            pagamentosQuery = `
+                SELECT
+                    DATE(data_pagamento) AS data,
+                    COUNT(DISTINCT cpf_cnpj) AS total_pagamentos,
+                    COALESCE(SUM(valor_recebido), 0) AS valor_pagamentos
+                FROM vuon_bordero_pagamento
+                WHERE
+                    data_pagamento IS NOT NULL
+                    AND valor_recebido > 0
+                    AND parcela = 1
+                    AND (${pagamentoBlocoCondition})
+                    ${pagamentosDateCondition}
+                GROUP BY DATE(data_pagamento)
+                ORDER BY DATE(data_pagamento)
+            `;
+        } else {
+            pagamentosQuery = `
+                SELECT
+                    CONCAT(YEAR(data_pagamento), '-', LPAD(MONTH(data_pagamento), 2, '0'), '-01') AS mes,
+                    COUNT(DISTINCT cpf_cnpj) AS total_pagamentos,
+                    COALESCE(SUM(valor_recebido), 0) AS valor_pagamentos
+                FROM vuon_bordero_pagamento
+                WHERE
+                    data_pagamento IS NOT NULL
+                    AND valor_recebido > 0
+                    AND parcela = 1
+                    AND (${pagamentoBlocoCondition})
+                    ${pagamentosDateCondition}
+                GROUP BY YEAR(data_pagamento), MONTH(data_pagamento)
+                ORDER BY YEAR(data_pagamento), MONTH(data_pagamento)
+            `;
+        }
+        
+        // Query para quantidade e valor total de acordos - construir dinamicamente
+        let acordosQuery;
+        if (groupBy === 'day') {
+            acordosQuery = `
+                SELECT
+                    DATE(data_emissao) AS data,
+                    COUNT(DISTINCT cpf_cnpj) AS total_acordos,
+                    COALESCE(SUM(valor_total), 0) AS valor_acordos
+                FROM (
+                    SELECT 
+                        cpf_cnpj,
+                        DATE(data_emissao) as data_emissao,
+                        SUM(valor_total) as valor_total
+                    FROM vuon_novacoes
+                    WHERE tipo = 'NOV'
+                        AND atraso_real IS NOT NULL
+                        AND (${acordosBlocoCondition})
+                        ${acordosDateCondition}
+                    GROUP BY cpf_cnpj, DATE(data_emissao)
+                ) as acordos_agrupados
+                GROUP BY DATE(data_emissao)
+                ORDER BY DATE(data_emissao)
+            `;
+        } else {
+            acordosQuery = `
+                SELECT
+                    CONCAT(YEAR(data_emissao), '-', LPAD(MONTH(data_emissao), 2, '0'), '-01') AS mes,
+                    COUNT(DISTINCT cpf_cnpj) AS total_acordos,
+                    COALESCE(SUM(valor_total), 0) AS valor_acordos
+                FROM (
+                    SELECT 
+                        cpf_cnpj,
+                        DATE(data_emissao) as data_emissao,
+                        SUM(valor_total) as valor_total
+                    FROM vuon_novacoes
+                    WHERE tipo = 'NOV'
+                        AND atraso_real IS NOT NULL
+                        AND (${acordosBlocoCondition})
+                        ${acordosDateCondition}
+                    GROUP BY cpf_cnpj, DATE(data_emissao)
+                ) as acordos_agrupados
+                GROUP BY YEAR(data_emissao), MONTH(data_emissao)
+                ORDER BY YEAR(data_emissao), MONTH(data_emissao)
+            `;
+        }
+        
+        // Executar todas as queries em paralelo
+        // Se houver filtro de data, passar os parâmetros usando prepared statements
+        const dateParams = hasDateFilter ? [startDate, endDate] : [];
+        
+        const [clientesVirgensRows, pagamentosRows, acordosRows] = await Promise.all([
+            hasDateFilter 
+                ? db.execute(clientesVirgensQuery, dateParams)
+                : db.execute(clientesVirgensQuery),
+            hasDateFilter 
+                ? db.execute(pagamentosQuery, dateParams)
+                : db.execute(pagamentosQuery),
+            hasDateFilter 
+                ? db.execute(acordosQuery, dateParams)
+                : db.execute(acordosQuery)
+        ]);
+        
+        // Criar maps de quantidades e valores de pagamentos e acordos
+        const pagamentosMap = new Map();
+        pagamentosRows[0].forEach(row => {
+            // Normalizar a chave: se for Date object, converter para string YYYY-MM-DD
+            let key = row.mes || row.data;
+            if (key instanceof Date) {
+                key = key.toISOString().split('T')[0];
+            } else if (key && typeof key === 'string' && key.includes('T')) {
+                key = key.split('T')[0];
             }
-            
-            // Converter para chave YYYY-MM-01 mas manter o date_formatted (MM/YYYY) igual ao gráfico Acordos x Pagamentos
-            const pagamentosRows = pagamentosFromModel.map(item => {
-                let mes = null;
-                let dateFormatted = item.date || null; // item.date vem como MM/YYYY ou YYYY-MM
-                if (item.date) {
-                    if (item.date.includes('/')) {
-                        const [month, year] = item.date.split('/');
-                        mes = `${year}-${month.padStart(2, '0')}-01`;
-                    } else if (item.date.includes('-')) {
-                        mes = item.date.length === 7 ? `${item.date}-01` : item.date;
-                        if (item.date.length === 7) {
-                            const [year, month] = item.date.split('-');
-                            dateFormatted = `${month}/${year}`;
-                        }
-                    }
-                }
-                return mes ? {
-                    mes: mes,
-                    total_pagamentos: parseInt(item.quantidade_pagamentos || 0),
-                    date_formatted: dateFormatted
-                } : null;
-            }).filter(row => row !== null);
-            
-            // ACORDOS: usar o MESMO método do gráfico "Acordos x Pagamentos"
-            // No BlocoModel, acordos vêm da view v_blocoX_acordos (criada em scripts/createBlocoViews.js),
-            // que aplica filtros de agente e NÃO filtra tipo='NOV'. Para bater 1:1, replicar a mesma query mensal aqui.
-            let acordosRows = [];
-            if (bloco !== null) {
-                const blocoName = bloco === 'wo' ? 'wo' : String(bloco);
-                const acordosViewName = `v_bloco${blocoName}_acordos`;
-                const acordosParams = [];
-                const acordosDateFilter = (startDate && endDate) ? 'AND data >= ? AND data <= ?' : '';
-                if (startDate && endDate) {
-                    acordosParams.push(startDate, endDate);
-                }
-
-                // Verificar se a view existe antes de tentar usá-la
-                let viewExists = false;
-                try {
-                    await db.execute(`SELECT 1 FROM ${acordosViewName} LIMIT 1`);
-                    viewExists = true;
-                    console.log(`✅ View ${acordosViewName} existe`);
-                } catch (checkError) {
-                    console.warn(`⚠️ View ${acordosViewName} não existe ou não está acessível:`, checkError.message);
-                    viewExists = false;
-                }
-
-                if (viewExists) {
-                    const acordosQuery = `
-                        SELECT 
-                            date_month as date,
-                            date_formatted,
-                            SUM(total_acordos) as total_acordos
-                        FROM ${acordosViewName}
-                        WHERE 1=1 ${acordosDateFilter}
-                        GROUP BY ano, mes, date_month, date_formatted
-                        ORDER BY ano ASC, mes ASC
-                    `;
-
-                    try {
-                        const [rows] = acordosParams.length > 0
-                            ? await db.execute(acordosQuery, acordosParams)
-                            : await db.execute(acordosQuery);
-
-                        acordosRows = rows.map(r => ({
-                            mes: `${r.date}-01`, // date_month vem como YYYY-MM
-                            total_acordos: parseInt(r.total_acordos || 0),
-                            date_formatted: r.date_formatted || null
-                        }));
-                        console.log(`✅ Acordos query executada - ${acordosRows.length} registros encontrados`);
-                    } catch (error) {
-                        console.error(`❌ Erro ao executar query de acordos na view ${acordosViewName}:`, error.message);
-                        console.error('Query:', acordosQuery);
-                        console.error('Params:', acordosParams);
-                        console.error('Stack:', error.stack);
-                        acordosRows = [];
-                    }
-                } else {
-                console.warn(`⚠️ View ${acordosViewName} não existe. Usando método alternativo via NovacaoModel.`);
-                // Fallback: usar NovacaoModel se a view não existir
-                try {
-                    const acordosFromModel = await NovacaoModel.getAcordosPorBloco(bloco, startDate, endDate, 'month');
-                    if (Array.isArray(acordosFromModel)) {
-                        acordosRows = acordosFromModel.map(item => {
-                            let mes = null;
-                            let dateFormatted = item.date || null;
-                            if (item.date) {
-                                if (item.date.includes('/')) {
-                                    const [month, year] = item.date.split('/');
-                                    mes = `${year}-${month.padStart(2, '0')}-01`;
-                                } else if (item.date.includes('-')) {
-                                    mes = item.date.length === 7 ? `${item.date}-01` : item.date;
-                                    if (item.date.length === 7) {
-                                        const [year, month] = item.date.split('-');
-                                        dateFormatted = `${month}/${year}`;
-                                    }
-                                }
-                            }
-                            return mes ? {
-                                mes: mes,
-                                total_acordos: parseInt(item.total_acordos || 0),
-                                date_formatted: dateFormatted
-                            } : null;
-                        }).filter(row => row !== null);
-                    }
-                } catch (fallbackError) {
-                    console.error('❌ Erro no fallback de acordos:', fallbackError.message);
-                    acordosRows = [];
-                }
-                }
-            } else {
-                // Caso sem bloco: manter o método antigo (mais "correto" por mês), pois não existe equivalente direto no BlocoModel
-                let acordosFromModel = [];
-                try {
-                    acordosFromModel = await NovacaoModel.getAcordosPorBloco(bloco, startDate, endDate, 'month');
-                    if (!Array.isArray(acordosFromModel)) {
-                        console.warn('NovacaoModel.getAcordosPorBloco returned non-array:', typeof acordosFromModel);
-                        acordosFromModel = [];
-                    }
-                } catch (error) {
-                    console.error('Error fetching acordos from NovacaoModel:', error.message);
-                    console.error('Error stack:', error.stack);
-                    acordosFromModel = [];
-                }
-
-                acordosRows = acordosFromModel.map(item => {
-                    let mes = null;
-                    let dateFormatted = item.date || null;
-                    if (item.date) {
-                        if (item.date.includes('/')) {
-                            const [month, year] = item.date.split('/');
-                            mes = `${year}-${month.padStart(2, '0')}-01`;
-                        } else if (item.date.includes('-')) {
-                            mes = item.date.length === 7 ? `${item.date}-01` : item.date;
-                            if (item.date.length === 7) {
-                                const [year, month] = item.date.split('-');
-                                dateFormatted = `${month}/${year}`;
-                            }
-                        }
-                    }
-                    return mes ? {
-                        mes: mes,
-                        total_acordos: parseInt(item.total_acordos || 0),
-                        date_formatted: dateFormatted
-                    } : null;
-                }).filter(row => row !== null);
+            pagamentosMap.set(key, {
+                total: parseInt(row.total_pagamentos || 0),
+                valor: parseFloat(row.valor_pagamentos || 0)
+            });
+        });
+        
+        const acordosMap = new Map();
+        acordosRows[0].forEach(row => {
+            // Normalizar a chave: se for Date object, converter para string YYYY-MM-DD
+            let key = row.mes || row.data;
+            if (key instanceof Date) {
+                key = key.toISOString().split('T')[0];
+            } else if (key && typeof key === 'string' && key.includes('T')) {
+                key = key.split('T')[0];
             }
-            
-            // Executar query de clientes virgens
-            let clientesVirgensRows = [];
-            try {
-                const result = queryParams.length > 0 
-                    ? await db.execute(clientesVirgensQuery, queryParams)
-                    : await db.execute(clientesVirgensQuery);
-                clientesVirgensRows = result[0] || [];
-                console.log(`✅ Clientes virgens query executada - ${clientesVirgensRows.length} registros encontrados`);
-            } catch (error) {
-                console.error('❌ Erro ao executar query de clientes virgens:', error.message);
-                console.error('Query:', clientesVirgensQuery);
-                console.error('Params:', queryParams);
-                console.error('Bloco:', bloco);
-                console.error('Stack:', error.stack);
-                // Retornar array vazio em vez de quebrar
-                clientesVirgensRows = [];
+            acordosMap.set(key, {
+                total: parseInt(row.total_acordos || 0),
+                valor: parseFloat(row.valor_acordos || 0)
+            });
+        });
+        
+        // Coletar todas as datas/meses únicos
+        const allDates = new Set();
+        clientesVirgensRows[0].forEach(row => {
+            let key = row.mes || row.data;
+            if (key instanceof Date) {
+                key = key.toISOString().split('T')[0];
+            } else if (key && typeof key === 'string' && key.includes('T')) {
+                key = key.split('T')[0];
             }
-            
-            // Criar maps de pagamentos e acordos por mês, guardando também date_formatted
-            const pagamentosMap = new Map();
-            const pagamentosDateMap = new Map();
-            if (Array.isArray(pagamentosRows)) {
-                pagamentosRows.forEach(row => {
-                    if (row && row.mes) {
-                        pagamentosMap.set(row.mes, parseInt(row.total_pagamentos || 0));
-                        if (row.date_formatted) {
-                            pagamentosDateMap.set(row.mes, row.date_formatted);
-                        }
-                    }
-                });
+            allDates.add(key);
+        });
+        pagamentosRows[0].forEach(row => {
+            let key = row.mes || row.data;
+            if (key instanceof Date) {
+                key = key.toISOString().split('T')[0];
+            } else if (key && typeof key === 'string' && key.includes('T')) {
+                key = key.split('T')[0];
             }
-            
-            const acordosMap = new Map();
-            const acordosDateMap = new Map();
-            if (Array.isArray(acordosRows)) {
-                acordosRows.forEach(row => {
-                    if (row && row.mes) {
-                        acordosMap.set(row.mes, parseInt(row.total_acordos || 0));
-                        if (row.date_formatted) {
-                            acordosDateMap.set(row.mes, row.date_formatted);
-                        }
-                    }
-                });
+            allDates.add(key);
+        });
+        acordosRows[0].forEach(row => {
+            let key = row.mes || row.data;
+            if (key instanceof Date) {
+                key = key.toISOString().split('T')[0];
+            } else if (key && typeof key === 'string' && key.includes('T')) {
+                key = key.split('T')[0];
             }
+            allDates.add(key);
+        });
+        
+        // Combinar dados de todas as datas/meses
+        const combinedData = Array.from(allDates).map(dateKey => {
+            const pagamentoData = pagamentosMap.get(dateKey) || { total: 0, valor: 0 };
+            const acordoData = acordosMap.get(dateKey) || { total: 0, valor: 0 };
             
-            // Coletar todos os meses únicos
-            const allMonths = new Set();
-            if (clientesVirgensRows && Array.isArray(clientesVirgensRows)) {
-                clientesVirgensRows.forEach(row => allMonths.add(row.mes));
-            }
-            pagamentosRows.forEach(row => allMonths.add(row.mes));
-            acordosRows.forEach(row => allMonths.add(row.mes));
-            
-            // Helper para formatar mes YYYY-MM-01 em MM/YYYY
-            const formatMonth = (mes) => {
-                if (!mes || mes.length < 7) return null;
-                const year = mes.slice(0, 4);
-                const month = mes.slice(5, 7);
-                return `${month}/${year}`;
+            // Normalizar chave para buscar em clientesVirgensRows
+            const findKey = (row) => {
+                let key = row.mes || row.data;
+                if (key instanceof Date) {
+                    key = key.toISOString().split('T')[0];
+                } else if (key && typeof key === 'string' && key.includes('T')) {
+                    key = key.split('T')[0];
+                }
+                return key === dateKey;
             };
             
-            // Combinar dados de todos os meses
-            const combinedData = Array.from(allMonths).map(mes => {
-                const dateFormatted =
-                    pagamentosDateMap.get(mes) ||
-                    acordosDateMap.get(mes) ||
-                    formatMonth(mes);
-                const clientesVirgensRow = clientesVirgensRows && Array.isArray(clientesVirgensRows) 
-                    ? clientesVirgensRows.find(cv => cv.mes === mes)
-                    : null;
-                return {
-                    mes: mes,
-                    date_formatted: dateFormatted,
-                    qtd_clientes_virgens: clientesVirgensRow?.qtd_clientes_virgens || 0,
-                    total_pagamentos: pagamentosMap.get(mes) || 0,
-                    total_acordos: acordosMap.get(mes) || 0
-                };
-            });
+            const result = {
+                qtd_clientes_virgens: clientesVirgensRows[0].find(findKey)?.qtd_clientes_virgens || 0,
+                total_pagamentos: pagamentoData.total,
+                valor_pagamentos: pagamentoData.valor,
+                total_acordos: acordoData.total,
+                valor_acordos: acordoData.valor
+            };
             
-            // Ordenar por mês
-            combinedData.sort((a, b) => a.mes.localeCompare(b.mes));
+            // Adicionar campo apropriado (mes ou data)
+            if (groupBy === 'day') {
+                result.data = dateKey;
+            } else {
+                result.mes = dateKey;
+            }
             
-            console.log(`✅ getClientesVirgens concluído - ${combinedData.length} períodos retornados`);
-            return combinedData;
-        } catch (error) {
-            console.error('❌ Erro geral em getClientesVirgens:', error.message);
-            console.error('Stack:', error.stack);
-            console.error('Parâmetros:', { bloco, startDate, endDate });
-            // Retornar array vazio em vez de quebrar
-            return [];
-        }
+            return result;
+        });
+        
+        // Ordenar por data/mês
+        combinedData.sort((a, b) => {
+            const aKey = (a.mes || a.data || '').toString();
+            const bKey = (b.mes || b.data || '').toString();
+            if (!aKey || !bKey) {
+                return aKey ? 1 : (bKey ? -1 : 0);
+            }
+            
+            // Se for formato de data (YYYY-MM-DD), ordenar como data
+            // Se for formato de mês (YYYY-MM-01), ordenar como string (já está ordenado)
+            const aIsDate = aKey.match(/^\d{4}-\d{2}-\d{2}$/);
+            const bIsDate = bKey.match(/^\d{4}-\d{2}-\d{2}$/);
+            
+            if (aIsDate && bIsDate) {
+                // Comparar como datas
+                const aDate = new Date(aKey);
+                const bDate = new Date(bKey);
+                return aDate.getTime() - bDate.getTime();
+            }
+            
+            // Caso contrário, ordenar como string
+            return aKey.localeCompare(bKey);
+        });
+        
+        return combinedData;
     }
 }
 
 module.exports = ClientesVirgensModel;
-

@@ -476,6 +476,7 @@ exports.getClientesVirgens = async (req, res) => {
         const blocoParam = req.query.bloco;
         const startDate = req.query.startDate || null;
         const endDate = req.query.endDate || null;
+        const groupBy = req.query.groupBy || 'month'; // Novo parâmetro groupBy
         
         // Converter parâmetro de bloco
         let bloco = null;
@@ -492,19 +493,14 @@ exports.getClientesVirgens = async (req, res) => {
             }
         }
         
-        // IMPORTANTE: Passar startDate e endDate para garantir que os filtros sejam aplicados
-        // da mesma forma que no gráfico "Acordos x Pagamentos"
-        const data = await ClientesVirgensModel.getClientesVirgens(bloco, startDate, endDate);
+        const data = await ClientesVirgensModel.getClientesVirgens(bloco, startDate, endDate, groupBy);
         
         res.json({ data });
     } catch (error) {
         console.error('Clientes virgens error:', error);
-        console.error('Error stack:', error.stack);
-        console.error('Request params:', { bloco: req.query.bloco, startDate: req.query.startDate, endDate: req.query.endDate });
         res.status(500).json({
             message: 'Server error',
-            error: process.env.NODE_ENV === 'development' ? error.message : undefined,
-            stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+            error: process.env.NODE_ENV === 'development' ? error.message : undefined
         });
     }
 };
