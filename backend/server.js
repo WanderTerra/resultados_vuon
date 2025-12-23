@@ -140,8 +140,8 @@ const server = app.listen(PORT, async () => {
     });
     
     // Configurar verificação periódica
-    // Pode ser configurado via variável de ambiente UPDATE_INTERVAL_HOURS (padrão: 4 horas)
-    const UPDATE_INTERVAL_HOURS = parseInt(process.env.UPDATE_INTERVAL_HOURS) || 4;
+    // Pode ser configurado via variável de ambiente UPDATE_INTERVAL_HOURS (padrão: 1 hora)
+    const UPDATE_INTERVAL_HOURS = parseInt(process.env.UPDATE_INTERVAL_HOURS) || 1;
     const UPDATE_INTERVAL_MS = UPDATE_INTERVAL_HOURS * 60 * 60 * 1000;
     
     console.log(`🔄 Verificação automática de meses faltantes configurada: a cada ${UPDATE_INTERVAL_HOURS} hora(s)\n`);

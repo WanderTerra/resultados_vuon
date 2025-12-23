@@ -77,8 +77,6 @@ exports.getBlocoData = async (req, res) => {
         // Formatar resposta
         const response = {
             spins: blocoData.spins,
-            spinsLastDay: blocoData.spinsLastDay,
-            spinsLastDayDate: blocoData.spinsLastDayDate,
             acionadosXCarteira: formatChartData(blocoData.acionadosXCarteira),
             acionadosXAlo: formatChartData(blocoData.acionadosXAlo),
             aloXCpc: formatChartData(blocoData.aloXCpc),
@@ -470,14 +468,13 @@ exports.getDiarioBordo = async (req, res) => {
     }
 };
 
-// Buscar dados de clientes virgens
+// Buscar dados de clientes virgens / clientes únicos
 exports.getClientesVirgens = async (req, res) => {
     try {
         const blocoParam = req.query.bloco;
         const startDate = req.query.startDate || null;
         const endDate = req.query.endDate || null;
-        const groupBy = req.query.groupBy || 'month'; // Novo parâmetro groupBy
-        
+
         // Converter parâmetro de bloco
         let bloco = null;
         if (blocoParam) {
@@ -492,9 +489,8 @@ exports.getClientesVirgens = async (req, res) => {
                 }
             }
         }
-        
-        const data = await ClientesVirgensModel.getClientesVirgens(bloco, startDate, endDate, groupBy);
-        
+
+        const data = await ClientesVirgensModel.getClientesVirgens(bloco, startDate, endDate);
         res.json({ data });
     } catch (error) {
         console.error('Clientes virgens error:', error);
@@ -520,9 +516,8 @@ exports.getSpinsLastDay = async (req, res) => {
 
         const data = await BlocoModel.getLastDaySpinsAll();
         const response = { data };
-
-        // Cache curto: é dado do "último dia" e muda no máximo 1x/dia
         cache.set(cacheKey, response, 5 * 60 * 1000); // 5 minutos
+
         res.json(response);
     } catch (error) {
         console.error('Spins last day error:', error);

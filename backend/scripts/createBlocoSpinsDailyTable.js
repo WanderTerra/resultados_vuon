@@ -71,3 +71,6 @@ const createBlocoSpinsDailyTable = async () => {
 createBlocoSpinsDailyTable();
 
 
+
+
+

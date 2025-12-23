@@ -102,74 +102,18 @@ class PagamentoModel {
                 ? `AND date_key >= '${startDate.substring(0, 7)}' AND date_key <= '${endDate.substring(0, 7)}'`
                 : '';
             
-            // Para modo mensal, buscar pagamentos APENAS de acordos feitos naquele mês
-            // IMPORTANTE: Fazer JOIN com vuon_novacoes para garantir que o pagamento seja de um acordo do mesmo mês
-            // Não usar view porque precisa fazer JOIN dinâmico
-            const NovacaoModel = require('./novacaoModel');
-            const acordosBlocoCondition = NovacaoModel.getBlocoCondition(bloco);
+            const query = `
+                SELECT 
+                    date_key as date,
+                    date_formatted,
+                    quantidade_pagamentos
+                FROM vw_pagamentos_por_bloco_mes
+                WHERE bloco = ?
+                    ${viewDateFilter}
+                ORDER BY date_key ASC
+            `;
             
-            let query, queryParams = [];
-            
-            // Qualificar atraso_real e atraso com alias da tabela para evitar ambiguidade
-            const blocoConditionQualified = blocoCondition.replace(/atraso_real/g, 'p.atraso_real').replace(/\batraso\b/g, 'p.atraso');
-            const acordosBlocoConditionQualified = acordosBlocoCondition.replace(/atraso_real/g, 'n.atraso_real');
-            
-            if (startDate && endDate) {
-                query = `
-                    SELECT 
-                        CONCAT(YEAR(p.data_pagamento), '-', LPAD(MONTH(p.data_pagamento), 2, '0')) as date,
-                        CONCAT(LPAD(MONTH(p.data_pagamento), 2, '0'), '/', YEAR(p.data_pagamento)) as date_formatted,
-                        COUNT(DISTINCT p.cpf_cnpj) as quantidade_pagamentos
-                    FROM vuon_bordero_pagamento p
-                    INNER JOIN vuon_novacoes n 
-                        ON p.cpf_cnpj = n.cpf_cnpj
-                        AND YEAR(p.data_pagamento) = YEAR(n.data_emissao)
-                        AND MONTH(p.data_pagamento) = MONTH(n.data_emissao)
-                    WHERE 
-                        -- Filtros de pagamento
-                        p.data_pagamento IS NOT NULL
-                        AND p.valor_recebido > 0
-                        AND p.parcela = 1
-                        AND (${blocoConditionQualified})
-                        AND DATE(p.data_pagamento) >= ? 
-                        AND DATE(p.data_pagamento) <= ?
-                        -- Filtros de acordo
-                        AND n.tipo = 'NOV'
-                        AND n.atraso_real IS NOT NULL
-                        AND (${acordosBlocoConditionQualified})
-                    GROUP BY YEAR(p.data_pagamento), MONTH(p.data_pagamento)
-                    ORDER BY YEAR(p.data_pagamento) ASC, MONTH(p.data_pagamento) ASC
-                `;
-                queryParams = [startDate, endDate];
-            } else {
-                query = `
-                    SELECT 
-                        CONCAT(YEAR(p.data_pagamento), '-', LPAD(MONTH(p.data_pagamento), 2, '0')) as date,
-                        CONCAT(LPAD(MONTH(p.data_pagamento), 2, '0'), '/', YEAR(p.data_pagamento)) as date_formatted,
-                        COUNT(DISTINCT p.cpf_cnpj) as quantidade_pagamentos
-                    FROM vuon_bordero_pagamento p
-                    INNER JOIN vuon_novacoes n 
-                        ON p.cpf_cnpj = n.cpf_cnpj
-                        AND YEAR(p.data_pagamento) = YEAR(n.data_emissao)
-                        AND MONTH(p.data_pagamento) = MONTH(n.data_emissao)
-                    WHERE 
-                        -- Filtros de pagamento
-                        p.data_pagamento IS NOT NULL
-                        AND p.valor_recebido > 0
-                        AND p.parcela = 1
-                        AND (${blocoConditionQualified})
-                        -- Filtros de acordo
-                        AND n.tipo = 'NOV'
-                        AND n.atraso_real IS NOT NULL
-                        AND (${acordosBlocoConditionQualified})
-                    GROUP BY YEAR(p.data_pagamento), MONTH(p.data_pagamento)
-                    ORDER BY YEAR(p.data_pagamento) ASC, MONTH(p.data_pagamento) ASC
-                `;
-            }
-            
-            const [rows] = queryParams.length > 0
-                ? await db.execute(query, queryParams)
-                : await db.execute(query);
+            const [rows] = await db.execute(query, [blocoStr]);
             
             return rows.map(row => ({
                 date: row.date_formatted || row.date,
@@ -178,38 +122,15 @@ class PagamentoModel {
         }
 
         // Query direta para agrupamento por dia
-        // IMPORTANTE: Contar apenas pagamentos de acordos feitos no mesmo dia
-        // Fazer JOIN com vuon_novacoes para garantir correspondência
-        const NovacaoModelDay = require('./novacaoModel');
-        const acordosBlocoConditionForDay = NovacaoModelDay.getBlocoCondition(bloco);
-        
-        // Qualificar atraso_real e atraso com alias da tabela para evitar ambiguidade
-        const blocoConditionQualified = blocoCondition.replace(/atraso_real/g, 'p.atraso_real').replace(/\batraso\b/g, 'p.atraso');
-        const acordosBlocoConditionQualified = acordosBlocoConditionForDay.replace(/atraso_real/g, 'n.atraso_real');
-        
         const query = `
             SELECT 
                 ${dateSelect},
                 ${dateFormatted},
-                COUNT(DISTINCT p.cpf_cnpj) as quantidade_pagamentos
-            FROM vuon_bordero_pagamento p
-            INNER JOIN vuon_novacoes n 
-                ON p.cpf_cnpj = n.cpf_cnpj
-                ${groupBy === 'day' 
-                    ? 'AND DATE(p.data_pagamento) = DATE(n.data_emissao)' 
-                    : 'AND YEAR(p.data_pagamento) = YEAR(n.data_emissao) AND MONTH(p.data_pagamento) = MONTH(n.data_emissao)'
-                }
-            WHERE 
-                -- Filtros de pagamento
-                p.data_pagamento IS NOT NULL
-                AND p.valor_recebido > 0
-                AND p.parcela = 1
-                AND (${blocoConditionQualified})
+                COUNT(*) as quantidade_pagamentos
+            FROM vuon_bordero_pagamento
+            WHERE ${blocoCondition}
+                AND data_pagamento IS NOT NULL
                 ${dateFilter}
-                -- Filtros de acordo
-                AND n.tipo = 'NOV'
-                AND n.atraso_real IS NOT NULL
-                AND (${acordosBlocoConditionQualified})
             GROUP BY ${groupByClause}
             ORDER BY ${orderByClause}
         `;
