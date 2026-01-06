@@ -100,25 +100,52 @@ const RecebimentoChart = ({ startDate = null, endDate = null }) => {
                         }
                     });
 
-                    // Criar array combinado
-                    const combinedData = Array.from(periodos).sort().map(periodo => {
-                        const bloco1 = recebimentoData.bloco1?.find(d => d && d.date === periodo) || { valor_recebido: 0 };
-                        const bloco2 = recebimentoData.bloco2?.find(d => d && d.date === periodo) || { valor_recebido: 0 };
-                        const bloco3 = recebimentoData.bloco3?.find(d => d && d.date === periodo) || { valor_recebido: 0 };
-                        const wo = recebimentoData.wo?.find(d => d && d.date === periodo) || { valor_recebido: 0 };
-
-                        return {
-                            date: periodo,
-                            bloco1: parseFloat(bloco1.valor_recebido || 0),
-                            bloco2: parseFloat(bloco2.valor_recebido || 0),
-                            bloco3: parseFloat(bloco3.valor_recebido || 0),
-                            wo: parseFloat(wo.valor_recebido || 0),
-                            total: parseFloat(bloco1.valor_recebido || 0) +
-                                parseFloat(bloco2.valor_recebido || 0) +
-                                parseFloat(bloco3.valor_recebido || 0) +
-                                parseFloat(wo.valor_recebido || 0)
+                    // Função para ordenar datas no formato MM/YYYY ou YYYY-MM
+                    const sortDates = (a, b) => {
+                        // Converter MM/YYYY para [ano, mês] para comparação
+                        const parseDate = (dateStr) => {
+                            if (!dateStr) return [0, 0];
+                            // Formato MM/YYYY
+                            if (dateStr.includes('/')) {
+                                const [mes, ano] = dateStr.split('/').map(Number);
+                                return [ano, mes];
+                            }
+                            // Formato YYYY-MM
+                            if (dateStr.includes('-')) {
+                                const [ano, mes] = dateStr.split('-').map(Number);
+                                return [ano, mes];
+                            }
+                            return [0, 0];
                         };
-                    });
+                        
+                        const [anoA, mesA] = parseDate(a);
+                        const [anoB, mesB] = parseDate(b);
+                        
+                        if (anoA !== anoB) return anoA - anoB;
+                        return mesA - mesB;
+                    };
+
+                    // Criar array combinado com ordenação correta
+                    const combinedData = Array.from(periodos)
+                        .sort(sortDates)
+                        .map(periodo => {
+                            const bloco1 = recebimentoData.bloco1?.find(d => d && d.date === periodo) || { valor_recebido: 0 };
+                            const bloco2 = recebimentoData.bloco2?.find(d => d && d.date === periodo) || { valor_recebido: 0 };
+                            const bloco3 = recebimentoData.bloco3?.find(d => d && d.date === periodo) || { valor_recebido: 0 };
+                            const wo = recebimentoData.wo?.find(d => d && d.date === periodo) || { valor_recebido: 0 };
+
+                            return {
+                                date: periodo,
+                                bloco1: parseFloat(bloco1.valor_recebido || 0),
+                                bloco2: parseFloat(bloco2.valor_recebido || 0),
+                                bloco3: parseFloat(bloco3.valor_recebido || 0),
+                                wo: parseFloat(wo.valor_recebido || 0),
+                                total: parseFloat(bloco1.valor_recebido || 0) +
+                                    parseFloat(bloco2.valor_recebido || 0) +
+                                    parseFloat(bloco3.valor_recebido || 0) +
+                                    parseFloat(wo.valor_recebido || 0)
+                            };
+                        });
 
                     setData(combinedData.length > 0 ? combinedData : []);
                 } else {
