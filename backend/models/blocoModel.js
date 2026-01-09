@@ -1,5 +1,4 @@
 const { getDB } = require('../config/db');
-const NovacaoModel = require('./novacaoModel');
 const PagamentoModel = require('./pagamentoModel');
 
 class BlocoModel {
@@ -16,8 +15,8 @@ class BlocoModel {
                 // BLOCO 3: 181 a 360 dias de atraso
                 return "atraso >= 181 AND atraso <= 360";
             case 'wo':
-                // WO: 360 a 9999 dias de atraso
-                return "atraso >= 360 AND atraso <= 9999";
+                // WO: 361 a 9999 dias de atraso (mais de 360)
+                return "atraso >= 361 AND atraso <= 9999";
             default:
                 return "1=1"; // Todos os registros
         }
@@ -835,33 +834,34 @@ class BlocoModel {
             percent: row.cpc > 0 ? parseFloat((row.cpca * 100.0 / row.cpc).toFixed(2)) : 0
         }));
 
-        // OTIMIZAÇÃO: Buscar acordos e pagamentos usando views pré-computadas
-        // IMPORTANTE: Sempre buscar acordos/pagamentos, mesmo quando usamos tabela materializada
-        // A tabela materializada tem apenas contadores de ações DDA, não os dados reais de novacoes/pagamentos
-        let acordosNovacoes = [];
+        // OTIMIZAÇÃO: Buscar pagamentos usando views pré-computadas
+        // IMPORTANTE: Acordos vêm de acordos_resultados (já calculado em rows)
+        // - Modo mensal: acordos_resultados vem da bloco_summary (populada de vuon_resultados)
+        // - Modo diário: acordos_resultados vem da query direta em vuon_resultados
+        // Não buscar acordos de vuon_novacoes, usar acordos_resultados que já está em rows
         let pagamentosBordero = [];
         
-        // Sempre buscar acordos/pagamentos das views ou tabelas
-        const acordosViewName = `v_bloco${blocoName}_acordos`;
+        // Criar mapa de acordos a partir de acordos_resultados já calculado em rows
+        const acordosMap = new Map();
+        rows.forEach(row => {
+            const dateKey = row.date_formatted || row.date;
+            const acordos = row.acordos_resultados || 0;
+            acordosMap.set(dateKey, acordos);
+            // Também adicionar com date como fallback
+            if (row.date && row.date !== dateKey) {
+                acordosMap.set(row.date, acordos);
+            }
+        });
+        
+        // Buscar pagamentos de vuon_bordero_pagamento (não temos na bloco_summary)
         const pagamentosViewName = `v_bloco${blocoName}_pagamentos`;
         
-        // Tentar usar views (mais rápido) - sem query de teste desnecessária
+        // Tentar usar views (mais rápido) - apenas para pagamentos
         try {
-            // Queries otimizadas: as views já estão agrupadas, então não precisamos fazer GROUP BY novamente
-            let acordosQuery, pagamentosQuery;
+            let pagamentosQuery;
             
             if (groupBy === 'day') {
                 // Modo diário: usar DATE_FORMAT para formatar
-                acordosQuery = `
-                    SELECT 
-                        DATE_FORMAT(data, '%d/%m/%Y') as date,
-                        date_formatted,
-                        total_acordos
-                    FROM ${acordosViewName}
-                    WHERE 1=1 ${originalQueryParams.length > 0 ? 'AND data >= ? AND data <= ?' : ''}
-                    ORDER BY data ASC
-                `;
-                
                 pagamentosQuery = `
                     SELECT 
                         DATE_FORMAT(data, '%d/%m/%Y') as date,
@@ -872,35 +872,8 @@ class BlocoModel {
                     ORDER BY data ASC
                 `;
             } else {
-                // Modo mensal: usar campos pré-computados da view (já agrupados)
-                // IMPORTANTE: Filtrar pela coluna 'data' (DATE) mas agrupar por mês
-                // A view tem a coluna 'data' (data_emissao para acordos, data_pagamento para pagamentos)
-                acordosQuery = `
-                    SELECT 
-                        date_month as date,
-                        date_formatted,
-                        SUM(total_acordos) as total_acordos
-                    FROM ${acordosViewName}
-                    WHERE 1=1 ${originalQueryParams.length > 0 ? 'AND data >= ? AND data <= ?' : ''}
-                    GROUP BY ano, mes, date_month, date_formatted
-                    ORDER BY ano ASC, mes ASC
-                `;
-                
-                pagamentosQuery = `
-                    SELECT 
-                        date_month as date,
-                        date_formatted,
-                        SUM(quantidade_pagamentos) as quantidade_pagamentos
-                    FROM ${pagamentosViewName}
-                    WHERE 1=1 ${originalQueryParams.length > 0 ? 'AND data >= ? AND data <= ?' : ''}
-                    GROUP BY ano, mes, date_month, date_formatted
-                    ORDER BY ano ASC, mes ASC
-                `;
-            }
-            
-            // IMPORTANTE: Para modo mensal, usar PagamentoModel diretamente para garantir mesma lógica do ClientesVirgensModel
-            // A view agrupa por DIA, e somar pode contar CPFs múltiplas vezes se pagaram em dias diferentes
-            if (groupBy === 'month') {
+                // Modo mensal: usar PagamentoModel diretamente para garantir mesma lógica
+                // A view agrupa por DIA, e somar pode contar CPFs múltiplas vezes se pagaram em dias diferentes
                 const PagamentoModel = require('./pagamentoModel');
                 const pagamentosFromModel = await PagamentoModel.getPagamentosPorBloco(bloco, startDate, endDate, 'month');
                 // PagamentoModel.getPagamentosPorBloco() retorna: { date: 'MM/YYYY' (prioriza date_formatted), quantidade_pagamentos: number }
@@ -930,57 +903,27 @@ class BlocoModel {
                 });
             }
             
-            const [acordosResult, pagamentosResult] = await Promise.all([
-                originalQueryParams.length > 0 
-                    ? db.execute(acordosQuery, originalQueryParams)
-                    : db.execute(acordosQuery),
-                groupBy === 'day' && originalQueryParams.length > 0 
-                    ? db.execute(pagamentosQuery, originalQueryParams)
-                    : groupBy === 'day' 
-                    ? db.execute(pagamentosQuery)
-                    : Promise.resolve([[]])
-            ]);
-            
-            acordosNovacoes = acordosResult[0] || [];
+            // Executar query de pagamentos apenas no modo diário (modo mensal já foi tratado acima)
             if (groupBy === 'day') {
+                const pagamentosResult = originalQueryParams.length > 0 
+                    ? await db.execute(pagamentosQuery, originalQueryParams)
+                    : await db.execute(pagamentosQuery);
                 pagamentosBordero = pagamentosResult[0] || [];
             }
             
             // Log resumido apenas se não houver dados (para debug)
-            if (acordosNovacoes.length === 0 || pagamentosBordero.length === 0) {
-                console.log(`⚠️  Bloco ${bloco} - Acordos: ${acordosNovacoes.length}, Pagamentos: ${pagamentosBordero.length}`);
+            if (pagamentosBordero.length === 0) {
+                console.log(`⚠️  Bloco ${bloco} - Pagamentos: ${pagamentosBordero.length}`);
             }
         } catch (viewError) {
             // Se a view não existe, usar fallback para buscar diretamente das tabelas
-            console.log(`⚠️  Views não encontradas, usando fallback para buscar acordos/pagamentos diretamente das tabelas: ${viewError.message}`);
-            const NovacaoModel = require('./novacaoModel');
+            console.log(`⚠️  View de pagamentos não encontrada, usando fallback: ${viewError.message}`);
             const PagamentoModel = require('./pagamentoModel');
             
-            [acordosNovacoes, pagamentosBordero] = await Promise.all([
-                NovacaoModel.getAcordosPorBloco(bloco, startDate, endDate, groupBy),
-                PagamentoModel.getPagamentosPorBloco(bloco, startDate, endDate, groupBy)
-            ]);
+            pagamentosBordero = await PagamentoModel.getPagamentosPorBloco(bloco, startDate, endDate, groupBy);
             
-            console.log(`📊 Bloco ${bloco} - Acordos (fallback): ${acordosNovacoes.length}, Pagamentos (fallback): ${pagamentosBordero.length}`);
+            console.log(`📊 Bloco ${bloco} - Pagamentos (fallback): ${pagamentosBordero.length}`);
         }
-        
-        // Criar mapas de datas para facilitar a combinação (otimizado)
-        // IMPORTANTE: Usar date_formatted como chave para garantir correspondência correta
-        // O date_formatted está no formato MM/YYYY (meses) ou DD/MM/YYYY (dias)
-        const acordosMap = new Map();
-        acordosNovacoes.forEach(item => {
-            // Sempre usar date_formatted como chave (formato de exibição)
-            const dateKey = item.date_formatted || item.date;
-            // Converter total_acordos para número se for string
-            const totalAcordos = typeof item.total_acordos === 'string' 
-                ? parseInt(item.total_acordos, 10) 
-                : (item.total_acordos || 0);
-            acordosMap.set(dateKey, totalAcordos);
-            // Também adicionar com date como fallback
-            if (item.date && item.date !== dateKey) {
-                acordosMap.set(item.date, totalAcordos);
-            }
-        });
         
         const pagamentosMap = new Map();
         pagamentosBordero.forEach(item => {
@@ -997,10 +940,10 @@ class BlocoModel {
             }
         });
 
-        // Combinar CPCA (de vuon_resultados) com Acordos (de vuon_novacoes)
+        // Combinar CPCA (de vuon_resultados) com Acordos (de vuon_resultados via acordos_resultados)
         const cpcaXAcordos = rows.map(row => {
             const dateKey = row.date_formatted || row.date;
-            const acordos = acordosMap.get(dateKey) || 0;
+            const acordos = acordosMap.get(dateKey) || row.acordos_resultados || 0;
             return {
                 date: dateKey,
                 cpca: row.cpca,
@@ -1009,25 +952,21 @@ class BlocoModel {
             };
         });
 
-        // Combinar Acordos (de vuon_novacoes) com Pagamentos (de vuon_bordero_pagamento)
+        // Combinar Acordos (de vuon_resultados via acordos_resultados) com Pagamentos (de vuon_bordero_pagamento)
         // IMPORTANTE: Usar date_formatted como chave principal para correspondência correta
         const acordosXPagamentos = rows.map(row => {
             const dateKey = row.date_formatted || row.date;
-            // Tentar buscar com date_formatted primeiro, depois com date
-            let acordos = acordosMap.get(dateKey);
-            let pagamentos = pagamentosMap.get(dateKey);
+            // Buscar acordos do mapa (populado de acordos_resultados) ou usar diretamente de row
+            let acordos = acordosMap.get(dateKey) || row.acordos_resultados || 0;
+            let pagamentos = pagamentosMap.get(dateKey) || 0;
             
             // Se não encontrou com date_formatted, tentar com date
-            if (acordos === undefined && row.date && row.date !== dateKey) {
-                acordos = acordosMap.get(row.date) || 0;
-            } else {
-                acordos = acordos || 0;
+            if (acordos === 0 && row.date && row.date !== dateKey) {
+                acordos = acordosMap.get(row.date) || row.acordos_resultados || 0;
             }
             
-            if (pagamentos === undefined && row.date && row.date !== dateKey) {
+            if (pagamentos === 0 && row.date && row.date !== dateKey) {
                 pagamentos = pagamentosMap.get(row.date) || 0;
-            } else {
-                pagamentos = pagamentos || 0;
             }
             
             return {

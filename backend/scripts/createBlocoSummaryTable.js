@@ -48,7 +48,7 @@ const createBlocoSummaryTable = async () => {
             { name: '1', condition: 'atraso >= 61 AND atraso <= 90' },
             { name: '2', condition: 'atraso >= 91 AND atraso <= 180' },
             { name: '3', condition: 'atraso >= 181 AND atraso <= 360' },
-            { name: 'wo', condition: 'atraso >= 360 AND atraso <= 9999' }
+            { name: 'wo', condition: 'atraso >= 361 AND atraso <= 9999' }
         ];
 
         for (const bloco of blocos) {

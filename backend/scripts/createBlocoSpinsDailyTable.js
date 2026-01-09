@@ -43,7 +43,7 @@ const createBlocoSpinsDailyTable = async () => {
                         WHEN atraso >= 61 AND atraso <= 90 THEN '1'
                         WHEN atraso >= 91 AND atraso <= 180 THEN '2'
                         WHEN atraso >= 181 AND atraso <= 360 THEN '3'
-                        WHEN atraso >= 360 AND atraso <= 9999 THEN 'wo'
+                        WHEN atraso >= 361 AND atraso <= 9999 THEN 'wo'
                         ELSE NULL
                     END as bloco,
                     data

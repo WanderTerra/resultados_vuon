@@ -18,7 +18,7 @@ const createViews = async () => {
                     WHEN atraso_real >= 61 AND atraso_real <= 90 THEN '1'
                     WHEN atraso_real >= 91 AND atraso_real <= 180 THEN '2'
                     WHEN atraso_real >= 181 AND atraso_real <= 360 THEN '3'
-                    WHEN atraso_real >= 360 AND atraso_real <= 9999 THEN 'wo'
+                    WHEN atraso_real >= 361 AND atraso_real <= 9999 THEN 'wo'
                     ELSE NULL
                 END AS CHAR) as bloco,
                 COUNT(DISTINCT cpf_cnpj) as total_acordos,
@@ -33,7 +33,7 @@ const createViews = async () => {
                     WHEN atraso_real >= 61 AND atraso_real <= 90 THEN '1'
                     WHEN atraso_real >= 91 AND atraso_real <= 180 THEN '2'
                     WHEN atraso_real >= 181 AND atraso_real <= 360 THEN '3'
-                    WHEN atraso_real >= 360 AND atraso_real <= 9999 THEN 'wo'
+                    WHEN atraso_real >= 361 AND atraso_real <= 9999 THEN 'wo'
                     ELSE NULL
                 END AS CHAR)
         `);
@@ -51,7 +51,7 @@ const createViews = async () => {
                     WHEN (atraso_real >= 61 AND atraso_real <= 90) OR (atraso_real IS NULL AND atraso >= 61 AND atraso <= 90) THEN '1'
                     WHEN (atraso_real >= 91 AND atraso_real <= 180) OR (atraso_real IS NULL AND atraso >= 91 AND atraso <= 180) THEN '2'
                     WHEN (atraso_real >= 181 AND atraso_real <= 360) OR (atraso_real IS NULL AND atraso >= 181 AND atraso <= 360) THEN '3'
-                    WHEN (atraso_real >= 360 AND atraso_real <= 9999) OR (atraso_real IS NULL AND atraso >= 360 AND atraso <= 9999) THEN 'wo'
+                    WHEN (atraso_real >= 361 AND atraso_real <= 9999) OR (atraso_real IS NULL AND atraso >= 361 AND atraso <= 9999) THEN 'wo'
                     ELSE NULL
                 END AS CHAR) as bloco,
                 -- IMPORTANTE: Contar apenas entradas (parcela = 1) - um acordo parcelado conta como 1 pagamento
@@ -68,7 +68,7 @@ const createViews = async () => {
                     WHEN (atraso_real >= 61 AND atraso_real <= 90) OR (atraso_real IS NULL AND atraso >= 61 AND atraso <= 90) THEN '1'
                     WHEN (atraso_real >= 91 AND atraso_real <= 180) OR (atraso_real IS NULL AND atraso >= 91 AND atraso <= 180) THEN '2'
                     WHEN (atraso_real >= 181 AND atraso_real <= 360) OR (atraso_real IS NULL AND atraso >= 181 AND atraso <= 360) THEN '3'
-                    WHEN (atraso_real >= 360 AND atraso_real <= 9999) OR (atraso_real IS NULL AND atraso >= 360 AND atraso <= 9999) THEN 'wo'
+                    WHEN (atraso_real >= 361 AND atraso_real <= 9999) OR (atraso_real IS NULL AND atraso >= 361 AND atraso <= 9999) THEN 'wo'
                     ELSE NULL
                 END AS CHAR)
         `);
@@ -86,7 +86,7 @@ const createViews = async () => {
                     WHEN atraso >= 61 AND atraso <= 90 THEN '1'
                     WHEN atraso >= 91 AND atraso <= 180 THEN '2'
                     WHEN atraso >= 181 AND atraso <= 360 THEN '3'
-                    WHEN atraso >= 360 AND atraso <= 9999 THEN 'wo'
+                    WHEN atraso >= 361 AND atraso <= 9999 THEN 'wo'
                     ELSE NULL
                 END AS CHAR) as bloco,
                 -- Acionados x Carteira
@@ -120,7 +120,7 @@ const createViews = async () => {
                     WHEN atraso >= 61 AND atraso <= 90 THEN '1'
                     WHEN atraso >= 91 AND atraso <= 180 THEN '2'
                     WHEN atraso >= 181 AND atraso <= 360 THEN '3'
-                    WHEN atraso >= 360 AND atraso <= 9999 THEN 'wo'
+                    WHEN atraso >= 361 AND atraso <= 9999 THEN 'wo'
                     ELSE NULL
                 END AS CHAR)
         `);

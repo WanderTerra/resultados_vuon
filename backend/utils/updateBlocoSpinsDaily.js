@@ -67,7 +67,7 @@ const updateBlocoSpinsDaily = async (silent = false) => {
                         (? = '1' AND atraso >= 61 AND atraso <= 90) OR
                         (? = '2' AND atraso >= 91 AND atraso <= 180) OR
                         (? = '3' AND atraso >= 181 AND atraso <= 360) OR
-                        (? = 'wo' AND atraso >= 360 AND atraso <= 9999)
+                        (? = 'wo' AND atraso >= 361 AND atraso <= 9999)
                       )
                     `,
                     [bloco, bloco, bloco, bloco]
@@ -100,7 +100,7 @@ const updateBlocoSpinsDaily = async (silent = false) => {
                     (? = '1' AND atraso >= 61 AND atraso <= 90) OR
                     (? = '2' AND atraso >= 91 AND atraso <= 180) OR
                     (? = '3' AND atraso >= 181 AND atraso <= 360) OR
-                    (? = 'wo' AND atraso >= 360 AND atraso <= 9999)
+                    (? = 'wo' AND atraso >= 361 AND atraso <= 9999)
                   )
                 GROUP BY data
                 ON DUPLICATE KEY UPDATE spins = VALUES(spins)

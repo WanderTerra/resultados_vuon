@@ -11,7 +11,7 @@ class DiarioBordoModel {
             case 3:
                 return "atraso >= 181 AND atraso <= 360";
             case 'wo':
-                return "atraso >= 360 AND atraso <= 9999";
+                return "atraso >= 361 AND atraso <= 9999";
             default:
                 return "1=1";
         }
@@ -137,7 +137,7 @@ class DiarioBordoModel {
                     WHEN atraso >= 61 AND atraso <= 90 THEN 1
                     WHEN atraso >= 91 AND atraso <= 180 THEN 2
                     WHEN atraso >= 181 AND atraso <= 360 THEN 3
-                    WHEN atraso >= 360 AND atraso <= 9999 THEN 'wo'
+                    WHEN atraso >= 361 AND atraso <= 9999 THEN 'wo'
                     ELSE NULL
                 END as bloco,
                 COUNT(CASE WHEN acao = 'DDA' THEN 1 END) as dda,
@@ -153,7 +153,7 @@ class DiarioBordoModel {
                     (atraso >= 61 AND atraso <= 90) OR
                     (atraso >= 91 AND atraso <= 180) OR
                     (atraso >= 181 AND atraso <= 360) OR
-                    (atraso >= 360 AND atraso <= 9999)
+                    (atraso >= 361 AND atraso <= 9999)
                 )
             GROUP BY ${horaGroupBy}, bloco
             ORDER BY ${horaGroupBy} ASC, bloco ASC

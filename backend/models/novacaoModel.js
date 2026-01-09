@@ -15,8 +15,8 @@ class NovacaoModel {
                 // BLOCO 3: 181 a 360 dias de atraso
                 return "atraso_real >= 181 AND atraso_real <= 360";
             case 'wo':
-                // WO: 360 a 9999 dias de atraso
-                return "atraso_real >= 360 AND atraso_real <= 9999";
+                // WO: 361 a 9999 dias de atraso (mais de 360)
+                return "atraso_real >= 361 AND atraso_real <= 9999";
             default:
                 return "1=1"; // Todos os registros
         }

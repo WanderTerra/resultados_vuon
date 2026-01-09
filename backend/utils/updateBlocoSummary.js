@@ -1,8 +1,11 @@
 const { getDB } = require('../config/db');
 
 /**
- * Atualiza apenas os meses faltantes na tabela materializada bloco_summary
+ * Atualiza meses faltantes e sempre reatualiza mês corrente e anterior na tabela materializada bloco_summary
  * Executa em background sem bloquear o servidor
+ * 
+ * IMPORTANTE: Sempre atualiza mês corrente e anterior, mesmo que já existam,
+ * para garantir que dados novos sejam incorporados
  * 
  * @param {boolean} silent - Se true, reduz a verbosidade dos logs (útil para execuções periódicas)
  */
@@ -35,8 +38,23 @@ const updateMissingMonths = async (silent = false) => {
             { name: '1', condition: 'atraso >= 61 AND atraso <= 90' },
             { name: '2', condition: 'atraso >= 91 AND atraso <= 180' },
             { name: '3', condition: 'atraso >= 181 AND atraso <= 360' },
-            { name: 'wo', condition: 'atraso >= 360 AND atraso <= 9999' }
+            { name: 'wo', condition: 'atraso >= 361 AND atraso <= 9999' }
         ];
+        
+        // Identificar mês corrente e mês anterior (sempre atualizar esses, mesmo que já existam)
+        const today = new Date();
+        const currentMonth = {
+            ano: today.getFullYear(),
+            mes: today.getMonth() + 1
+        };
+        const previousMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+        const previousMonthObj = {
+            ano: previousMonth.getFullYear(),
+            mes: previousMonth.getMonth() + 1
+        };
+        
+        const currentMonthKey = `${currentMonth.ano}-${String(currentMonth.mes).padStart(2, '0')}`;
+        const previousMonthKey = `${previousMonthObj.ano}-${String(previousMonthObj.mes).padStart(2, '0')}`;
         
         let totalUpdated = 0;
         
@@ -53,9 +71,11 @@ const updateMissingMonths = async (silent = false) => {
             );
             
             // Encontrar meses que precisam ser inseridos/atualizados
+            // IMPORTANTE: Sempre atualizar mês corrente e anterior, mesmo que já existam
             const monthsToUpdate = availableMonths.filter(month => {
                 const key = `${month.ano}-${String(month.mes).padStart(2, '0')}`;
-                return !existingSet.has(key);
+                // Atualizar se: não existe OU é mês corrente OU é mês anterior
+                return !existingSet.has(key) || key === currentMonthKey || key === previousMonthKey;
             });
             
             if (monthsToUpdate.length === 0) {
@@ -65,8 +85,22 @@ const updateMissingMonths = async (silent = false) => {
                 continue;
             }
             
+            // Identificar quais são novos e quais são reatualizações
+            const newMonths = monthsToUpdate.filter(m => {
+                const key = `${m.ano}-${String(m.mes).padStart(2, '0')}`;
+                return !existingSet.has(key);
+            });
+            const reupdateMonths = monthsToUpdate.filter(m => {
+                const key = `${m.ano}-${String(m.mes).padStart(2, '0')}`;
+                return existingSet.has(key);
+            });
+            
             if (!silent) {
-                console.log(`   🔨 Bloco ${bloco.name}: Atualizando ${monthsToUpdate.length} mês(es) faltante(s)...`);
+                if (reupdateMonths.length > 0) {
+                    console.log(`   🔨 Bloco ${bloco.name}: Atualizando ${monthsToUpdate.length} mês(es) (${newMonths.length} novo(s), ${reupdateMonths.length} reatualização(ões))...`);
+                } else {
+                    console.log(`   🔨 Bloco ${bloco.name}: Atualizando ${monthsToUpdate.length} mês(es) faltante(s)...`);
+                }
             }
             
             for (const month of monthsToUpdate) {

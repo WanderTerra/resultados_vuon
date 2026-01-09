@@ -13,7 +13,7 @@ const createBlocoViews = async () => {
             { name: '1', condition: 'atraso >= 61 AND atraso <= 90' },
             { name: '2', condition: 'atraso >= 91 AND atraso <= 180' },
             { name: '3', condition: 'atraso >= 181 AND atraso <= 360' },
-            { name: 'wo', condition: 'atraso >= 360 AND atraso <= 9999' }
+            { name: 'wo', condition: 'atraso >= 361 AND atraso <= 9999' }
         ];
         
         // Para vuon_novacoes (usar 'atraso_real')
@@ -21,7 +21,7 @@ const createBlocoViews = async () => {
             { name: '1', condition: 'atraso_real >= 61 AND atraso_real <= 90' },
             { name: '2', condition: 'atraso_real >= 91 AND atraso_real <= 180' },
             { name: '3', condition: 'atraso_real >= 181 AND atraso_real <= 360' },
-            { name: 'wo', condition: 'atraso_real >= 360 AND atraso_real <= 9999' }
+            { name: 'wo', condition: 'atraso_real >= 361 AND atraso_real <= 9999' }
         ];
         
         // Usar blocosResultados para views agregadas (vuon_resultados)
@@ -137,7 +137,7 @@ const createBlocoViews = async () => {
             // Definir condição de bloco baseada em atraso_real ou atraso do pagamento
             let atrasoCondition;
             if (bloco.name === 'wo') {
-                atrasoCondition = `((bp.atraso_real >= 360 AND bp.atraso_real <= 9999) OR (bp.atraso_real IS NULL AND bp.atraso >= 360 AND bp.atraso <= 9999))`;
+                atrasoCondition = `((bp.atraso_real >= 361 AND bp.atraso_real <= 9999) OR (bp.atraso_real IS NULL AND bp.atraso >= 361 AND bp.atraso <= 9999))`;
             } else if (bloco.name === '1') {
                 atrasoCondition = `((bp.atraso_real >= 61 AND bp.atraso_real <= 90) OR (bp.atraso_real IS NULL AND bp.atraso >= 61 AND bp.atraso <= 90))`;
             } else if (bloco.name === '2') {
