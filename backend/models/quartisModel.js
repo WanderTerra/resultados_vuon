@@ -52,6 +52,10 @@ class QuartisModel {
             };
         }
         
+        // IMPORTANTE: Os agentes já estão ordenados por valor_total DESC (maior para menor)
+        // O 1º quartil sempre terá os MELHORES agentes (maior valor total)
+        // O 4º quartil sempre terá os PIORES agentes (menor valor total)
+        
         // Calcular os quartis baseado no VALOR TOTAL (25% do valor cada quartil)
         const totalAgentes = rows.length;
         
@@ -64,6 +68,10 @@ class QuartisModel {
         const valorAlvoPorQuartil = valorTotalGeral / 4;
         
         // Dividir agentes em quartis baseado no valor acumulado
+        // 1º Quartil: Melhores agentes (maior valor) até atingir 25% do total
+        // 2º Quartil: Próximos agentes até atingir 50% do total
+        // 3º Quartil: Próximos agentes até atingir 75% do total
+        // 4º Quartil: Restantes agentes (menor valor)
         let quartil1 = [];
         let quartil2 = [];
         let quartil3 = [];
@@ -80,6 +88,7 @@ class QuartisModel {
             const valorAgente = parseFloat(agente.valor_total) || 0;
             
             if (quartilAtual === 1) {
+                // 1º Quartil: Melhores agentes (maior valor total)
                 quartil1.push(agente);
                 valorAcumuladoQuartil1 += valorAgente;
                 
@@ -88,6 +97,7 @@ class QuartisModel {
                     quartilAtual = 2;
                 }
             } else if (quartilAtual === 2) {
+                // 2º Quartil: Agentes com bom desempenho
                 quartil2.push(agente);
                 valorAcumuladoQuartil2 += valorAgente;
                 
@@ -96,6 +106,7 @@ class QuartisModel {
                     quartilAtual = 3;
                 }
             } else if (quartilAtual === 3) {
+                // 3º Quartil: Agentes que precisam de atenção
                 quartil3.push(agente);
                 valorAcumuladoQuartil3 += valorAgente;
                 
@@ -104,7 +115,7 @@ class QuartisModel {
                     quartilAtual = 4;
                 }
             } else {
-                // Quartil 4 - todos os agentes restantes
+                // 4º Quartil: Piores agentes (menor valor total)
                 quartil4.push(agente);
                 valorAcumuladoQuartil4 += valorAgente;
             }
