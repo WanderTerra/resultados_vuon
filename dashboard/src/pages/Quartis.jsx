@@ -320,6 +320,123 @@ const Quartis = () => {
                                 </ResponsiveContainer>
                             </div>
 
+                            {/* Régua Visual de Quartis - Ranking Horizontal */}
+                            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mb-6">
+                                <h3 className="text-lg font-semibold text-slate-800 mb-4">Régua Visual de Quartis - Ranking de Agentes</h3>
+                                
+                                {/* Legenda da Régua */}
+                                <div className="mb-6">
+                                    <div className="flex items-center justify-between text-xs text-slate-500 mb-2">
+                                        <span className="flex items-center gap-1">
+                                            <div className="w-3 h-3 rounded-full bg-green-500"></div>
+                                            1º Quartil (Melhor)
+                                        </span>
+                                        <span className="flex items-center gap-1">
+                                            <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+                                            2º Quartil
+                                        </span>
+                                        <span className="flex items-center gap-1">
+                                            <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
+                                            3º Quartil
+                                        </span>
+                                        <span className="flex items-center gap-1">
+                                            <div className="w-3 h-3 rounded-full bg-red-500"></div>
+                                            4º Quartil (Pior)
+                                        </span>
+                                    </div>
+                                    <div className="relative h-3 bg-slate-100 rounded-full overflow-hidden border border-slate-300">
+                                        <div className="absolute left-0 top-0 h-full bg-green-500" style={{ width: '25%' }} title="1º Quartil"></div>
+                                        <div className="absolute left-1/4 top-0 h-full bg-blue-500" style={{ width: '25%' }} title="2º Quartil"></div>
+                                        <div className="absolute left-1/2 top-0 h-full bg-yellow-500" style={{ width: '25%' }} title="3º Quartil"></div>
+                                        <div className="absolute left-3/4 top-0 h-full bg-red-500" style={{ width: '25%' }} title="4º Quartil"></div>
+                                    </div>
+                                </div>
+                                
+                                {/* Lista de Agentes em Ranking */}
+                                <div className="space-y-2 max-h-[600px] overflow-y-auto pr-2">
+                                    {(() => {
+                                        // Combinar todos os agentes de todos os quartis em uma lista ordenada
+                                        const todosAgentes = [
+                                            ...dados.quartil1.map(a => ({ ...a, quartil: 1, cor: '#10b981', corBg: 'bg-green-50', corBorda: 'border-green-300', corTexto: 'text-green-700', corBadge: 'bg-green-100 text-green-800' })),
+                                            ...dados.quartil2.map(a => ({ ...a, quartil: 2, cor: '#3b82f6', corBg: 'bg-blue-50', corBorda: 'border-blue-300', corTexto: 'text-blue-700', corBadge: 'bg-blue-100 text-blue-800' })),
+                                            ...dados.quartil3.map(a => ({ ...a, quartil: 3, cor: '#f59e0b', corBg: 'bg-yellow-50', corBorda: 'border-yellow-300', corTexto: 'text-yellow-700', corBadge: 'bg-yellow-100 text-yellow-800' })),
+                                            ...dados.quartil4.map(a => ({ ...a, quartil: 4, cor: '#ef4444', corBg: 'bg-red-50', corBorda: 'border-red-300', corTexto: 'text-red-700', corBadge: 'bg-red-100 text-red-800' }))
+                                        ];
+                                        
+                                        // Ordenar por quantidade de DDA (maior para menor)
+                                        todosAgentes.sort((a, b) => parseInt(b.total_dda || 0) - parseInt(a.total_dda || 0));
+                                        
+                                        const maxDDA = Math.max(...todosAgentes.map(a => parseInt(a.total_dda || 0)));
+                                        
+                                        return todosAgentes.map((agente, index) => {
+                                            const posicao = index + 1;
+                                            const quantidadeDDA = parseInt(agente.total_dda || 0);
+                                            const percentualDDA = maxDDA > 0 ? (quantidadeDDA / maxDDA) * 100 : 0;
+                                            
+                                            return (
+                                                <div 
+                                                    key={`${agente.agente}-${index}`}
+                                                    className={`flex items-center gap-3 p-3 rounded-lg border-2 ${agente.corBorda} ${agente.corBg} hover:shadow-md transition-all hover:scale-[1.01]`}
+                                                >
+                                                    {/* Posição no Ranking */}
+                                                    <div className="flex-shrink-0 w-10 text-center">
+                                                        <span className={`text-sm font-bold ${agente.corTexto}`}>#{posicao}</span>
+                                                    </div>
+                                                    
+                                                    {/* Número do Agente */}
+                                                    <div className="flex-shrink-0 w-16">
+                                                        <span className="font-semibold text-slate-800 text-sm">
+                                                            {extrairNumeroAgente(agente.agente)}
+                                                        </span>
+                                                    </div>
+                                                    
+                                                    {/* Barra de Progresso Horizontal */}
+                                                    <div className="flex-1 relative">
+                                                        <div className="relative h-8 bg-slate-200 rounded-lg overflow-hidden border border-slate-300">
+                                                            <div 
+                                                                className="h-full rounded-lg transition-all duration-300 flex items-center justify-end pr-2"
+                                                                style={{ 
+                                                                    width: `${percentualDDA}%`,
+                                                                    backgroundColor: agente.cor,
+                                                                    opacity: 0.85
+                                                                }}
+                                                            >
+                                                                {percentualDDA > 15 && (
+                                                                    <span className="text-xs font-bold text-white">
+                                                                        {quantidadeDDA.toLocaleString('pt-BR')}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                            {percentualDDA <= 15 && (
+                                                                <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-600">
+                                                                    {quantidadeDDA.toLocaleString('pt-BR')}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                    
+                                                    {/* Badge do Quartil */}
+                                                    <div className="flex-shrink-0">
+                                                        <span className={`px-3 py-1 rounded-full text-xs font-semibold ${agente.corBadge} border ${agente.corBorda}`}>
+                                                            {agente.quartil}º Q
+                                                        </span>
+                                                    </div>
+                                                    
+                                                    {/* Indicador de Cor */}
+                                                    <div className="flex-shrink-0">
+                                                        <div 
+                                                            className="w-5 h-5 rounded-full border-2 border-white shadow-sm"
+                                                            style={{ backgroundColor: agente.cor }}
+                                                            title={`${agente.quartil}º Quartil - ${quantidadeDDA} DDA`}
+                                                        ></div>
+                                                    </div>
+                                                </div>
+                                            );
+                                        });
+                                    })()}
+                                </div>
+                            </div>
+
                             {/* Tabelas Detalhadas por Quartil */}
                             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
                             {/* 1º Quartil */}
