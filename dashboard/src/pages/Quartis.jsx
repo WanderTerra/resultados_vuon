@@ -83,7 +83,7 @@ const Quartis = () => {
                 min: dados.estatisticas.quartil1.min,
                 max: dados.estatisticas.quartil1.max,
                 total: dados.estatisticas.quartil1.total || 0,
-                valorTotal: dados.estatisticas.quartil1.total || 0,
+                quantidadeTotal: dados.estatisticas.quartil1.total || 0,
                 cor: cores.quartil1
             },
             {
@@ -93,7 +93,7 @@ const Quartis = () => {
                 min: dados.estatisticas.quartil2.min,
                 max: dados.estatisticas.quartil2.max,
                 total: dados.estatisticas.quartil2.total || 0,
-                valorTotal: dados.estatisticas.quartil2.total || 0,
+                quantidadeTotal: dados.estatisticas.quartil2.total || 0,
                 cor: cores.quartil2
             },
             {
@@ -103,7 +103,7 @@ const Quartis = () => {
                 min: dados.estatisticas.quartil3.min,
                 max: dados.estatisticas.quartil3.max,
                 total: dados.estatisticas.quartil3.total || 0,
-                valorTotal: dados.estatisticas.quartil3.total || 0,
+                quantidadeTotal: dados.estatisticas.quartil3.total || 0,
                 cor: cores.quartil3
             },
             {
@@ -113,7 +113,7 @@ const Quartis = () => {
                 min: dados.estatisticas.quartil4.min,
                 max: dados.estatisticas.quartil4.max,
                 total: dados.estatisticas.quartil4.total || 0,
-                valorTotal: dados.estatisticas.quartil4.total || 0,
+                quantidadeTotal: dados.estatisticas.quartil4.total || 0,
                 cor: cores.quartil4
             }
         ];
@@ -187,8 +187,8 @@ const Quartis = () => {
                 {loading && <Loading message="Carregando dados de quartis..." />}
 
                 {dados && (() => {
-                    // Calcular valor total geral
-                    const valorTotalGeral = (
+                    // Calcular quantidade total geral de DDA
+                    const quantidadeTotalGeral = (
                         (dados.estatisticas.quartil1.total || 0) +
                         (dados.estatisticas.quartil2.total || 0) +
                         (dados.estatisticas.quartil3.total || 0) +
@@ -196,9 +196,9 @@ const Quartis = () => {
                     );
                     
                     // Calcular porcentagem de cada quartil
-                    const calcularPercentual = (valorQuartil) => {
-                        if (valorTotalGeral === 0) return 0;
-                        return (valorQuartil / valorTotalGeral) * 100;
+                    const calcularPercentual = (quantidadeQuartil) => {
+                        if (quantidadeTotalGeral === 0) return 0;
+                        return (quantidadeQuartil / quantidadeTotalGeral) * 100;
                     };
                     
                     const percentualQuartil1 = calcularPercentual(dados.estatisticas.quartil1.total || 0);
@@ -208,13 +208,13 @@ const Quartis = () => {
                     
                     return (
                         <>
-                            {/* Card de Valor Total Geral */}
+                            {/* Card de Quantidade Total Geral */}
                             <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-xl shadow-lg border border-blue-500 p-6 mb-6">
                                 <div className="flex items-center justify-between">
                                     <div>
-                                        <h3 className="text-sm font-medium text-blue-100 mb-1">Valor Total do Período</h3>
+                                        <h3 className="text-sm font-medium text-blue-100 mb-1">Quantidade Total de DDA</h3>
                                         <p className="text-3xl font-bold text-white">
-                                            R$ {valorTotalGeral.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                            {quantidadeTotalGeral.toLocaleString('pt-BR')}
                                         </p>
                                     </div>
                                     <div className="text-right">
@@ -232,9 +232,9 @@ const Quartis = () => {
                                         <div className="w-4 h-4 rounded-full bg-green-500"></div>
                                     </div>
                                     <p className="text-2xl font-bold text-slate-800">
-                                        R$ {dados.estatisticas.quartil1.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                        {dados.estatisticas.quartil1.total.toLocaleString('pt-BR')}
                                     </p>
-                                    <p className="text-sm text-slate-500">Valor Total</p>
+                                    <p className="text-sm text-slate-500">Quantidade de DDA</p>
                                     <p className="text-lg font-semibold text-green-600 mt-2">
                                         {percentualQuartil1.toFixed(2)}%
                                     </p>
@@ -248,9 +248,9 @@ const Quartis = () => {
                                         <div className="w-4 h-4 rounded-full bg-blue-500"></div>
                                     </div>
                                     <p className="text-2xl font-bold text-slate-800">
-                                        R$ {dados.estatisticas.quartil2.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                        {dados.estatisticas.quartil2.total.toLocaleString('pt-BR')}
                                     </p>
-                                    <p className="text-sm text-slate-500">Valor Total</p>
+                                    <p className="text-sm text-slate-500">Quantidade de DDA</p>
                                     <p className="text-lg font-semibold text-blue-600 mt-2">
                                         {percentualQuartil2.toFixed(2)}%
                                     </p>
@@ -264,9 +264,9 @@ const Quartis = () => {
                                         <div className="w-4 h-4 rounded-full bg-yellow-500"></div>
                                     </div>
                                     <p className="text-2xl font-bold text-slate-800">
-                                        R$ {dados.estatisticas.quartil3.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                        {dados.estatisticas.quartil3.total.toLocaleString('pt-BR')}
                                     </p>
-                                    <p className="text-sm text-slate-500">Valor Total</p>
+                                    <p className="text-sm text-slate-500">Quantidade de DDA</p>
                                     <p className="text-lg font-semibold text-yellow-600 mt-2">
                                         {percentualQuartil3.toFixed(2)}%
                                     </p>
@@ -280,9 +280,9 @@ const Quartis = () => {
                                         <div className="w-4 h-4 rounded-full bg-red-500"></div>
                                     </div>
                                     <p className="text-2xl font-bold text-slate-800">
-                                        R$ {dados.estatisticas.quartil4.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                        {dados.estatisticas.quartil4.total.toLocaleString('pt-BR')}
                                     </p>
-                                    <p className="text-sm text-slate-500">Valor Total</p>
+                                    <p className="text-sm text-slate-500">Quantidade de DDA</p>
                                     <p className="text-lg font-semibold text-red-600 mt-2">
                                         {percentualQuartil4.toFixed(2)}%
                                     </p>
@@ -294,7 +294,7 @@ const Quartis = () => {
 
                             {/* Gráfico de Comparação */}
                             <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mb-6">
-                                <h3 className="text-lg font-semibold text-slate-800 mb-4">Comparação entre Quartis - Valor Total</h3>
+                                <h3 className="text-lg font-semibold text-slate-800 mb-4">Comparação entre Quartis - Quantidade de DDA</h3>
                                 <ResponsiveContainer width="100%" height={400}>
                                     <BarChart data={dadosGrafico} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
                                         <CartesianGrid strokeDasharray="3 3" />
@@ -305,13 +305,13 @@ const Quartis = () => {
                                             height={80}
                                         />
                                         <YAxis 
-                                            tickFormatter={(value) => `R$ ${(value / 1000).toFixed(0)}k`}
+                                            tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
                                         />
                                         <Tooltip 
-                                            formatter={(value) => `R$ ${value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
+                                            formatter={(value) => `${value.toLocaleString('pt-BR')} DDA`}
                                         />
                                         <Legend />
-                                        <Bar dataKey="valorTotal" name="Valor Total (R$)">
+                                        <Bar dataKey="quantidadeTotal" name="Quantidade de DDA">
                                             {dadosGrafico.map((entry, index) => (
                                                 <Cell key={`cell-${index}`} fill={entry.cor} />
                                             ))}
@@ -335,7 +335,7 @@ const Quartis = () => {
                                         <thead>
                                             <tr className="border-b border-slate-200">
                                                 <th className="text-left py-3 px-4 font-semibold text-slate-700">Agente</th>
-                                                <th className="text-right py-3 px-4 font-semibold text-slate-700">Valor Total</th>
+                                                <th className="text-right py-3 px-4 font-semibold text-slate-700">Quantidade de DDA</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -343,7 +343,7 @@ const Quartis = () => {
                                                 <tr key={idx} className="border-b border-slate-100">
                                                     <td className="py-2 px-4 text-slate-700">{extrairNumeroAgente(agente.agente)}</td>
                                                     <td className="py-2 px-4 text-right font-medium text-green-600">
-                                                        R$ {parseFloat(agente.valor_total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                                        {parseInt(agente.total_dda || 0).toLocaleString('pt-BR')}
                                                     </td>
                                                 </tr>
                                             ))}
@@ -365,7 +365,7 @@ const Quartis = () => {
                                         <thead>
                                             <tr className="border-b border-slate-200">
                                                 <th className="text-left py-3 px-4 font-semibold text-slate-700">Agente</th>
-                                                <th className="text-right py-3 px-4 font-semibold text-slate-700">Valor Total</th>
+                                                <th className="text-right py-3 px-4 font-semibold text-slate-700">Quantidade de DDA</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -373,7 +373,7 @@ const Quartis = () => {
                                                 <tr key={idx} className="border-b border-slate-100">
                                                     <td className="py-2 px-4 text-slate-700">{extrairNumeroAgente(agente.agente)}</td>
                                                     <td className="py-2 px-4 text-right font-medium text-blue-600">
-                                                        R$ {parseFloat(agente.valor_total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                                        {parseInt(agente.total_dda || 0).toLocaleString('pt-BR')}
                                                     </td>
                                                 </tr>
                                             ))}
@@ -395,7 +395,7 @@ const Quartis = () => {
                                         <thead>
                                             <tr className="border-b border-slate-200">
                                                 <th className="text-left py-3 px-4 font-semibold text-slate-700">Agente</th>
-                                                <th className="text-right py-3 px-4 font-semibold text-slate-700">Valor Total</th>
+                                                <th className="text-right py-3 px-4 font-semibold text-slate-700">Quantidade de DDA</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -403,7 +403,7 @@ const Quartis = () => {
                                                 <tr key={idx} className="border-b border-slate-100">
                                                     <td className="py-2 px-4 text-slate-700">{extrairNumeroAgente(agente.agente)}</td>
                                                     <td className="py-2 px-4 text-right font-medium text-yellow-600">
-                                                        R$ {parseFloat(agente.valor_total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                                        {parseInt(agente.total_dda || 0).toLocaleString('pt-BR')}
                                                     </td>
                                                 </tr>
                                             ))}
@@ -425,7 +425,7 @@ const Quartis = () => {
                                         <thead>
                                             <tr className="border-b border-slate-200">
                                                 <th className="text-left py-3 px-4 font-semibold text-slate-700">Agente</th>
-                                                <th className="text-right py-3 px-4 font-semibold text-slate-700">Valor Total</th>
+                                                <th className="text-right py-3 px-4 font-semibold text-slate-700">Quantidade de DDA</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -433,7 +433,7 @@ const Quartis = () => {
                                                 <tr key={idx} className="border-b border-slate-100">
                                                     <td className="py-2 px-4 text-slate-700">{extrairNumeroAgente(agente.agente)}</td>
                                                     <td className="py-2 px-4 text-right font-medium text-red-600">
-                                                        R$ {parseFloat(agente.valor_total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                                        {parseInt(agente.total_dda || 0).toLocaleString('pt-BR')}
                                                     </td>
                                                 </tr>
                                             ))}

@@ -18,7 +18,7 @@ class QuartisModel {
             params.push(startDate, endDate);
         }
         
-        // Buscar todos os agentes com a soma dos valores de DDA no período
+        // Buscar todos os agentes com a quantidade de DDA no período
         const query = `
             SELECT 
                 agente,
@@ -31,7 +31,7 @@ class QuartisModel {
                 AND agente != ''
                 ${dateFilter}
             GROUP BY agente
-            ORDER BY valor_total DESC
+            ORDER BY total_dda DESC
         `;
         
         const [rows] = await db.execute(query, params);
@@ -52,90 +52,90 @@ class QuartisModel {
             };
         }
         
-        // IMPORTANTE: Os agentes já estão ordenados por valor_total DESC (maior para menor)
-        // O 1º quartil sempre terá os MELHORES agentes (maior valor total)
-        // O 4º quartil sempre terá os PIORES agentes (menor valor total)
+        // IMPORTANTE: Os agentes já estão ordenados por total_dda DESC (maior para menor)
+        // O 1º quartil sempre terá os MELHORES agentes (maior quantidade de DDA)
+        // O 4º quartil sempre terá os PIORES agentes (menor quantidade de DDA)
         
-        // Calcular os quartis baseado no VALOR TOTAL (25% do valor cada quartil)
+        // Calcular os quartis baseado na QUANTIDADE TOTAL DE DDA (25% da quantidade cada quartil)
         const totalAgentes = rows.length;
         
-        // Calcular o valor total de todos os agentes
-        const valorTotalGeral = rows.reduce((sum, agente) => {
-            return sum + (parseFloat(agente.valor_total) || 0);
+        // Calcular a quantidade total de DDA de todos os agentes
+        const quantidadeTotalGeral = rows.reduce((sum, agente) => {
+            return sum + (parseInt(agente.total_dda) || 0);
         }, 0);
         
-        // Calcular o valor alvo para cada quartil (25% do total)
-        const valorAlvoPorQuartil = valorTotalGeral / 4;
+        // Calcular a quantidade alvo para cada quartil (25% do total)
+        const quantidadeAlvoPorQuartil = quantidadeTotalGeral / 4;
         
-        // Dividir agentes em quartis baseado no valor acumulado
-        // 1º Quartil: Melhores agentes (maior valor) até atingir 25% do total
+        // Dividir agentes em quartis baseado na quantidade acumulada de DDA
+        // 1º Quartil: Melhores agentes (maior quantidade) até atingir 25% do total
         // 2º Quartil: Próximos agentes até atingir 50% do total
         // 3º Quartil: Próximos agentes até atingir 75% do total
-        // 4º Quartil: Restantes agentes (menor valor)
+        // 4º Quartil: Restantes agentes (menor quantidade)
         let quartil1 = [];
         let quartil2 = [];
         let quartil3 = [];
         let quartil4 = [];
         
-        let valorAcumuladoQuartil1 = 0;
-        let valorAcumuladoQuartil2 = 0;
-        let valorAcumuladoQuartil3 = 0;
-        let valorAcumuladoQuartil4 = 0;
+        let quantidadeAcumuladaQuartil1 = 0;
+        let quantidadeAcumuladaQuartil2 = 0;
+        let quantidadeAcumuladaQuartil3 = 0;
+        let quantidadeAcumuladaQuartil4 = 0;
         
         let quartilAtual = 1;
         
         for (const agente of rows) {
-            const valorAgente = parseFloat(agente.valor_total) || 0;
+            const quantidadeAgente = parseInt(agente.total_dda) || 0;
             
             if (quartilAtual === 1) {
-                // 1º Quartil: Melhores agentes (maior valor total)
+                // 1º Quartil: Melhores agentes (maior quantidade de DDA)
                 quartil1.push(agente);
-                valorAcumuladoQuartil1 += valorAgente;
+                quantidadeAcumuladaQuartil1 += quantidadeAgente;
                 
-                // Se atingiu ou ultrapassou 25% do valor total, passar para próximo quartil
-                if (valorAcumuladoQuartil1 >= valorAlvoPorQuartil) {
+                // Se atingiu ou ultrapassou 25% da quantidade total, passar para próximo quartil
+                if (quantidadeAcumuladaQuartil1 >= quantidadeAlvoPorQuartil) {
                     quartilAtual = 2;
                 }
             } else if (quartilAtual === 2) {
                 // 2º Quartil: Agentes com bom desempenho
                 quartil2.push(agente);
-                valorAcumuladoQuartil2 += valorAgente;
+                quantidadeAcumuladaQuartil2 += quantidadeAgente;
                 
-                // Se atingiu ou ultrapassou 50% do valor total, passar para próximo quartil
-                if (valorAcumuladoQuartil2 >= valorAlvoPorQuartil) {
+                // Se atingiu ou ultrapassou 50% da quantidade total, passar para próximo quartil
+                if (quantidadeAcumuladaQuartil2 >= quantidadeAlvoPorQuartil) {
                     quartilAtual = 3;
                 }
             } else if (quartilAtual === 3) {
                 // 3º Quartil: Agentes que precisam de atenção
                 quartil3.push(agente);
-                valorAcumuladoQuartil3 += valorAgente;
+                quantidadeAcumuladaQuartil3 += quantidadeAgente;
                 
-                // Se atingiu ou ultrapassou 75% do valor total, passar para último quartil
-                if (valorAcumuladoQuartil3 >= valorAlvoPorQuartil) {
+                // Se atingiu ou ultrapassou 75% da quantidade total, passar para último quartil
+                if (quantidadeAcumuladaQuartil3 >= quantidadeAlvoPorQuartil) {
                     quartilAtual = 4;
                 }
             } else {
-                // 4º Quartil: Piores agentes (menor valor total)
+                // 4º Quartil: Piores agentes (menor quantidade de DDA)
                 quartil4.push(agente);
-                valorAcumuladoQuartil4 += valorAgente;
+                quantidadeAcumuladaQuartil4 += quantidadeAgente;
             }
         }
         
-        // Calcular estatísticas para cada quartil (baseado no valor total)
+        // Calcular estatísticas para cada quartil (baseado na quantidade de DDA)
         const calcularEstatisticas = (quartil) => {
             if (quartil.length === 0) {
                 return { min: 0, max: 0, media: 0, total: 0 };
             }
-            const valores = quartil.map(a => parseFloat(a.valor_total) || 0);
-            const min = Math.min(...valores);
-            const max = Math.max(...valores);
-            const total = valores.reduce((a, b) => a + b, 0);
-            const media = total / valores.length;
+            const quantidades = quartil.map(a => parseInt(a.total_dda) || 0);
+            const min = Math.min(...quantidades);
+            const max = Math.max(...quantidades);
+            const total = quantidades.reduce((a, b) => a + b, 0);
+            const media = total / quantidades.length;
             return { 
-                min: Math.round(min * 100) / 100, 
-                max: Math.round(max * 100) / 100, 
+                min: Math.round(min), 
+                max: Math.round(max), 
                 media: Math.round(media * 100) / 100,
-                total: Math.round(total * 100) / 100
+                total: Math.round(total)
             };
         };
         
