@@ -19,6 +19,7 @@ const CadastroAgentes = () => {
     });
     const [showForm, setShowForm] = useState(false);
     const [buscaAgente, setBuscaAgente] = useState('');
+    const [buscaNumero, setBuscaNumero] = useState('');
 
     // Buscar agentes ao carregar
     useEffect(() => {
@@ -210,6 +211,13 @@ const CadastroAgentes = () => {
 
     const agentesFixos = agentes.filter(a => a.fixo_carteira === 1 || a.fixo_carteira === true);
     const agentesAtivos = agentes.filter(a => a.status === 'ativo');
+    
+    // Filtrar agentes pela busca por número
+    const agentesFiltrados = buscaNumero.trim() === '' 
+        ? agentes 
+        : agentes.filter(agente => 
+            agente.numero_agente.toLowerCase().includes(buscaNumero.toLowerCase().trim())
+        );
 
     return (
         <div className="space-y-6">
@@ -423,7 +431,42 @@ const CadastroAgentes = () => {
             {/* Tabela de Agentes */}
             <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                 <div className="p-4 border-b border-slate-200">
-                    <h3 className="text-lg font-semibold text-slate-800">Lista de Agentes</h3>
+                    <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-lg font-semibold text-slate-800">Lista de Agentes</h3>
+                        <div className="flex items-center gap-2">
+                            <div className="relative">
+                                <input
+                                    type="text"
+                                    value={buscaNumero}
+                                    onChange={(e) => setBuscaNumero(e.target.value)}
+                                    placeholder="Buscar por número do agente..."
+                                    className="pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-64"
+                                />
+                                <svg 
+                                    className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" 
+                                    fill="none" 
+                                    stroke="currentColor" 
+                                    viewBox="0 0 24 24"
+                                >
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                </svg>
+                            </div>
+                            {buscaNumero.trim() !== '' && (
+                                <button
+                                    onClick={() => setBuscaNumero('')}
+                                    className="px-3 py-2 text-sm text-slate-600 hover:text-slate-800"
+                                    title="Limpar busca"
+                                >
+                                    Limpar
+                                </button>
+                            )}
+                        </div>
+                    </div>
+                    {buscaNumero.trim() !== '' && (
+                        <p className="text-sm text-slate-600">
+                            {agentesFiltrados.length} agente{agentesFiltrados.length !== 1 ? 's' : ''} encontrado{agentesFiltrados.length !== 1 ? 's' : ''}
+                        </p>
+                    )}
                 </div>
                 {loading && agentes.length === 0 ? (
                     <div className="p-8">
@@ -434,6 +477,17 @@ const CadastroAgentes = () => {
                         <Users size={48} className="mx-auto mb-4 text-slate-300" />
                         <p>Nenhum agente cadastrado ainda.</p>
                         <p className="text-sm mt-2">Clique em "Novo Agente" para começar.</p>
+                    </div>
+                ) : agentesFiltrados.length === 0 ? (
+                    <div className="p-8 text-center text-slate-500">
+                        <Users size={48} className="mx-auto mb-4 text-slate-300" />
+                        <p>Nenhum agente encontrado com o número "{buscaNumero}".</p>
+                        <button
+                            onClick={() => setBuscaNumero('')}
+                            className="mt-2 text-sm text-blue-600 hover:text-blue-700 underline"
+                        >
+                            Limpar busca
+                        </button>
                     </div>
                 ) : (
                     <div className="overflow-x-auto">
@@ -448,7 +502,7 @@ const CadastroAgentes = () => {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-200">
-                                {agentes.map((agente) => (
+                                {agentesFiltrados.map((agente) => (
                                     <tr key={agente.id} className="hover:bg-slate-50">
                                         <td className="px-4 py-3 text-sm font-medium text-slate-800">
                                             {agente.numero_agente}

@@ -101,7 +101,7 @@ const Sidebar = () => {
                     className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${isActive('/quartis') ? 'bg-blue-600 text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
                 >
                     <PieChart size={20} />
-                    <span className="font-medium">Quartis</span>
+                    <span className="font-medium">Quartis de DDA</span>
                 </Link>
                 {isAdmin() && (
                     <>

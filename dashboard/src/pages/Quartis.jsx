@@ -247,14 +247,6 @@ const Quartis = () => {
     return (
         <div className="space-y-6 px-4">
             <section>
-                {/* Cabeçalho com Título */}
-                <div className="flex items-center justify-between mb-6">
-                    <div>
-                        <h2 className="text-xl font-bold text-slate-800">Quartis de DDA</h2>
-                        <p className="text-slate-500">Análise de produção de DDA por agente dividida em quartis</p>
-                    </div>
-                </div>
-
                 {/* Filtros */}
                 <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mb-6">
                     {/* Botões de Filtro Rápido */}
@@ -309,11 +301,11 @@ const Quartis = () => {
                                 className="w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500"
                             />
                             <label htmlFor="apenasFixos" className="text-sm font-medium text-slate-700 cursor-pointer">
-                                Mostrar apenas agentes fixos da carteira Vuon
+                                Mostrar agentes fixos da carteira Vuon
                             </label>
                         </div>
                         <p className="text-xs text-slate-500 mt-1 ml-6">
-                            Quando marcado, exibe apenas os agentes marcados como "Fixo da Carteira Vuon" na página de cadastro
+                            Exibe apenas os agentes fixos da Carteira Vuon
                         </p>
                     </div>
 
