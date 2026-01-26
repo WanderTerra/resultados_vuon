@@ -20,10 +20,12 @@ module.exports = {
     },
     {
       name: 'vuon-resultados-frontend',
-      script: './serve-frontend.sh',
-      cwd: '/home/portes/resultados_vuon/resultados_vuon',
+      script: 'npm',
+      args: 'run preview -- --port 4173 --host 0.0.0.0',
+      cwd: '/home/portes/resultados_vuon/resultados_vuon/dashboard',
       env: {
-        NODE_ENV: 'production'
+        NODE_ENV: 'production',
+        FRONTEND_PORT: 4173
       },
       error_file: './logs/frontend-error.log',
       out_file: './logs/frontend-out.log',
