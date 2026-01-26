@@ -9,7 +9,7 @@ class QuartisModel {
      * @param {boolean} apenasFixos - Se true, busca apenas agentes fixos. Se false, busca todos os agentes
      * @returns {Promise<Object>} Dados dos quartis
      */
-    static async getQuartis(startDate = null, endDate = null, apenasFixos = true) {
+    static async getQuartis(startDate = null, endDate = null, apenasFixos = false) {
         const db = await getDB();
         
         let dateFilter = '';

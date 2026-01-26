@@ -9,6 +9,8 @@ const QuartisModel = require('../models/quartisModel');
 exports.getQuartis = async (req, res) => {
     try {
         const { startDate, endDate, apenasFixos } = req.query;
+        // Se o parâmetro não for enviado ou for diferente de 'true', assume false (mostrar todos)
+        // Se for 'true', mostra apenas fixos
         const apenasFixosBool = apenasFixos === 'true';
         
         console.log(`📊 Quartis - Request recebido:`);
