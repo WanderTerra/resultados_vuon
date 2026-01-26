@@ -195,17 +195,6 @@ const Quartis = () => {
                         (dados.estatisticas.quartil4.total || 0)
                     );
                     
-                    // Calcular porcentagem de cada quartil
-                    const calcularPercentual = (quantidadeQuartil) => {
-                        if (quantidadeTotalGeral === 0) return 0;
-                        return (quantidadeQuartil / quantidadeTotalGeral) * 100;
-                    };
-                    
-                    const percentualQuartil1 = calcularPercentual(dados.estatisticas.quartil1.total || 0);
-                    const percentualQuartil2 = calcularPercentual(dados.estatisticas.quartil2.total || 0);
-                    const percentualQuartil3 = calcularPercentual(dados.estatisticas.quartil3.total || 0);
-                    const percentualQuartil4 = calcularPercentual(dados.estatisticas.quartil4.total || 0);
-                    
                     return (
                         <>
                             {/* Card de Quantidade Total Geral */}
@@ -221,74 +210,6 @@ const Quartis = () => {
                                         <p className="text-sm text-blue-100">Total de Agentes</p>
                                         <p className="text-2xl font-bold text-white">{dados.totalAgentes}</p>
                                     </div>
-                                </div>
-                            </div>
-
-                            {/* Cards de Resumo */}
-                            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
-                                <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-                                    <div className="flex items-center justify-between mb-2">
-                                        <h3 className="text-sm font-medium text-slate-600">1º Quartil</h3>
-                                        <div className="w-4 h-4 rounded-full bg-green-500"></div>
-                                    </div>
-                                    <p className="text-2xl font-bold text-slate-800">
-                                        {dados.estatisticas.quartil1.total.toLocaleString('pt-BR')}
-                                    </p>
-                                    <p className="text-sm text-slate-500">Quantidade de DDA</p>
-                                    <p className="text-lg font-semibold text-green-600 mt-2">
-                                        {percentualQuartil1.toFixed(2)}%
-                                    </p>
-                                    <p className="text-xs text-slate-400 mt-1">
-                                        {dados.quartil1.length} agente{dados.quartil1.length !== 1 ? 's' : ''}
-                                    </p>
-                                </div>
-                                <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-                                    <div className="flex items-center justify-between mb-2">
-                                        <h3 className="text-sm font-medium text-slate-600">2º Quartil</h3>
-                                        <div className="w-4 h-4 rounded-full bg-blue-500"></div>
-                                    </div>
-                                    <p className="text-2xl font-bold text-slate-800">
-                                        {dados.estatisticas.quartil2.total.toLocaleString('pt-BR')}
-                                    </p>
-                                    <p className="text-sm text-slate-500">Quantidade de DDA</p>
-                                    <p className="text-lg font-semibold text-blue-600 mt-2">
-                                        {percentualQuartil2.toFixed(2)}%
-                                    </p>
-                                    <p className="text-xs text-slate-400 mt-1">
-                                        {dados.quartil2.length} agente{dados.quartil2.length !== 1 ? 's' : ''}
-                                    </p>
-                                </div>
-                                <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-                                    <div className="flex items-center justify-between mb-2">
-                                        <h3 className="text-sm font-medium text-slate-600">3º Quartil</h3>
-                                        <div className="w-4 h-4 rounded-full bg-yellow-500"></div>
-                                    </div>
-                                    <p className="text-2xl font-bold text-slate-800">
-                                        {dados.estatisticas.quartil3.total.toLocaleString('pt-BR')}
-                                    </p>
-                                    <p className="text-sm text-slate-500">Quantidade de DDA</p>
-                                    <p className="text-lg font-semibold text-yellow-600 mt-2">
-                                        {percentualQuartil3.toFixed(2)}%
-                                    </p>
-                                    <p className="text-xs text-slate-400 mt-1">
-                                        {dados.quartil3.length} agente{dados.quartil3.length !== 1 ? 's' : ''}
-                                    </p>
-                                </div>
-                                <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-                                    <div className="flex items-center justify-between mb-2">
-                                        <h3 className="text-sm font-medium text-slate-600">4º Quartil</h3>
-                                        <div className="w-4 h-4 rounded-full bg-red-500"></div>
-                                    </div>
-                                    <p className="text-2xl font-bold text-slate-800">
-                                        {dados.estatisticas.quartil4.total.toLocaleString('pt-BR')}
-                                    </p>
-                                    <p className="text-sm text-slate-500">Quantidade de DDA</p>
-                                    <p className="text-lg font-semibold text-red-600 mt-2">
-                                        {percentualQuartil4.toFixed(2)}%
-                                    </p>
-                                    <p className="text-xs text-slate-400 mt-1">
-                                        {dados.quartil4.length} agente{dados.quartil4.length !== 1 ? 's' : ''}
-                                    </p>
                                 </div>
                             </div>
 
