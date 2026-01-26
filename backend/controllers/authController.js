@@ -145,7 +145,7 @@ exports.createUser = async (req, res) => {
     try {
         // A verificação de permissão já foi feita pelo middleware requirePermission
 
-        const { username, password, nome, status = 'ativo' } = req.body;
+        const { username, password, nome, status = 'ativo', isAdmin = false } = req.body;
 
         // Validações
         if (!username || !password || !nome) {
@@ -200,13 +200,42 @@ exports.createUser = async (req, res) => {
             [username, hashedPassword, nome, status]
         );
 
+        const novoUsuarioId = result.insertId;
+
+        // Se for admin, atribuir permissões
+        if (isAdmin) {
+            console.log(`🔐 Atribuindo permissões de admin ao usuário ${username}...`);
+            
+            // Buscar IDs das permissões de admin
+            const [permissoesAdmin] = await db.execute(`
+                SELECT id FROM permissoes 
+                WHERE codigo IN ('cadastrar_usuario', 'cadastrar_agentes')
+            `);
+
+            // Atribuir permissões
+            for (const permissao of permissoesAdmin) {
+                try {
+                    await db.execute(
+                        'INSERT INTO usuario_permissao (usuario_id, permissao_id) VALUES (?, ?)',
+                        [novoUsuarioId, permissao.id]
+                    );
+                    console.log(`   ✅ Permissão ID ${permissao.id} atribuída`);
+                } catch (error) {
+                    if (error.code !== 'ER_DUP_ENTRY') {
+                        console.error(`   ⚠️  Erro ao atribuir permissão:`, error.message);
+                    }
+                }
+            }
+        }
+
         res.status(201).json({
             message: 'Usuário criado com sucesso',
             user: {
-                id: result.insertId,
+                id: novoUsuarioId,
                 username: username,
                 nome: nome,
-                status: status
+                status: status,
+                isAdmin: isAdmin
             }
         });
 

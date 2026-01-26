@@ -532,12 +532,12 @@ const Quartis = () => {
 
                             {/* Régua Visual de Quartis - Grid 2x2 */}
                             <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mb-6">
-                                <h3 className="text-lg font-semibold text-slate-800 mb-4">Régua Visual de Quartis - Ranking de Agentes</h3>
+                                <h3 className="text-lg font-semibold text-slate-800 mb-4">Quartis - Ranking de Agentes</h3>
                                 <div className="grid grid-cols-2 gap-4">
                                     {renderizarQuartil(dados.quartil1, 1, '#10b981', 'bg-green-50', 'border-green-300', 'text-green-800', '1º Quartil - Melhor')}
                                     {renderizarQuartil(dados.quartil2, 2, '#3b82f6', 'bg-blue-50', 'border-blue-300', 'text-blue-800', '2º Quartil')}
                                     {renderizarQuartil(dados.quartil3, 3, '#f59e0b', 'bg-yellow-50', 'border-yellow-300', 'text-yellow-800', '3º Quartil - Atenção')}
-                                    {renderizarQuartil(dados.quartil4, 4, '#ef4444', 'bg-red-50', 'border-red-300', 'text-red-800', '4º Quartil - Baixa')}
+                                    {renderizarQuartil(dados.quartil4, 4, '#ef4444', 'bg-red-50', 'border-red-300', 'text-red-800', '4º Quartil - ALERTA!')}
                                 </div>
                             </div>
                         </>

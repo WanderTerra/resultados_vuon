@@ -10,7 +10,8 @@ const CadastroUsuario = () => {
         password: '',
         confirmPassword: '',
         nome: '',
-        status: 'ativo'
+        status: 'ativo',
+        isAdmin: false
     });
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
@@ -19,10 +20,10 @@ const CadastroUsuario = () => {
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
     const handleChange = (e) => {
-        const { name, value } = e.target;
+        const { name, value, type, checked } = e.target;
         setFormData(prev => ({
             ...prev,
-            [name]: value
+            [name]: type === 'checkbox' ? checked : value
         }));
         // Limpar mensagens de erro ao digitar
         if (error) setError('');
@@ -77,7 +78,8 @@ const CadastroUsuario = () => {
                     username: formData.username,
                     password: formData.password,
                     nome: formData.nome,
-                    status: formData.status
+                    status: formData.status,
+                    isAdmin: formData.isAdmin
                 }),
             });
 
@@ -91,7 +93,8 @@ const CadastroUsuario = () => {
                     password: '',
                     confirmPassword: '',
                     nome: '',
-                    status: 'ativo'
+                    status: 'ativo',
+                    isAdmin: false
                 });
                 
                 // Redirecionar após 2 segundos
@@ -259,6 +262,28 @@ const CadastroUsuario = () => {
                             <option value="ativo">Ativo</option>
                             <option value="inativo">Inativo</option>
                         </select>
+                    </div>
+
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                        <div className="flex items-start gap-3">
+                            <input
+                                type="checkbox"
+                                name="isAdmin"
+                                id="isAdmin"
+                                checked={formData.isAdmin}
+                                onChange={handleChange}
+                                className="mt-1 w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500"
+                            />
+                            <div className="flex-1">
+                                <label htmlFor="isAdmin" className="block text-sm font-medium text-slate-700 cursor-pointer">
+                                    Administrador
+                                </label>
+                                <p className="text-xs text-slate-600 mt-1">
+                                    Quando marcado, o usuário terá permissões para cadastrar usuários e agentes. 
+                                    Usuários normais terão apenas acesso de visualização.
+                                </p>
+                            </div>
+                        </div>
                     </div>
 
                     <div className="flex gap-3 pt-2">
