@@ -64,6 +64,96 @@ const Quartis = () => {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
+    // Funções para definir períodos rápidos
+    const aplicarFiltroRapido = async (periodo) => {
+        const hoje = new Date();
+        const formatarData = (data) => {
+            const ano = data.getFullYear();
+            const mes = String(data.getMonth() + 1).padStart(2, '0');
+            const dia = String(data.getDate()).padStart(2, '0');
+            return `${ano}-${mes}-${dia}`;
+        };
+
+        let novaStartDate = '';
+        let novaEndDate = '';
+
+        switch (periodo) {
+            case 'todos':
+                novaStartDate = '';
+                novaEndDate = '';
+                break;
+            case 'esta-semana':
+                const inicioSemana = new Date(hoje);
+                inicioSemana.setDate(hoje.getDate() - hoje.getDay()); // Domingo
+                novaStartDate = formatarData(inicioSemana);
+                novaEndDate = formatarData(hoje);
+                break;
+            case 'mes-passado':
+                const primeiroDiaMesPassado = new Date(hoje.getFullYear(), hoje.getMonth() - 1, 1);
+                const ultimoDiaMesPassado = new Date(hoje.getFullYear(), hoje.getMonth(), 0);
+                novaStartDate = formatarData(primeiroDiaMesPassado);
+                novaEndDate = formatarData(ultimoDiaMesPassado);
+                break;
+            case 'este-mes':
+                const primeiroDiaMes = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+                novaStartDate = formatarData(primeiroDiaMes);
+                novaEndDate = formatarData(hoje);
+                break;
+            default:
+                break;
+        }
+
+        // Atualizar estados
+        setStartDate(novaStartDate);
+        setEndDate(novaEndDate);
+
+        // Buscar dados com os novos períodos
+        setLoading(true);
+        try {
+            const token = localStorage.getItem('token');
+            const params = new URLSearchParams();
+            if (novaStartDate) params.append('startDate', novaStartDate);
+            if (novaEndDate) params.append('endDate', novaEndDate);
+
+            const response = await fetch(`${API_ENDPOINTS.quartis}?${params}`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                },
+            });
+
+            if (response.ok) {
+                const contentType = response.headers.get('content-type');
+                if (contentType && contentType.includes('application/json')) {
+                    const data = await response.json();
+                    setDados(data);
+                } else {
+                    throw new Error('Resposta do servidor não é JSON');
+                }
+            } else {
+                const contentType = response.headers.get('content-type');
+                if (contentType && contentType.includes('application/json')) {
+                    const error = await response.json();
+                    alert(`Erro: ${error.message || 'Erro ao buscar dados'}`);
+                } else {
+                    if (response.status === 404) {
+                        alert('Erro: Rota não encontrada. O servidor precisa ser reiniciado para carregar a nova rota.');
+                    } else {
+                        alert(`Erro: ${response.status} ${response.statusText}`);
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('Erro ao buscar quartis:', error);
+            if (error.message.includes('JSON')) {
+                alert('Erro: O servidor retornou uma resposta inválida. Verifique se o servidor está rodando e se a rota está disponível.');
+            } else {
+                alert('Erro ao buscar dados de quartis: ' + error.message);
+            }
+        } finally {
+            setLoading(false);
+        }
+    };
+
     // Função para extrair apenas o número do agente
     const extrairNumeroAgente = (agente) => {
         if (!agente) return '';
@@ -105,6 +195,43 @@ const Quartis = () => {
 
                 {/* Filtros */}
                 <div className={`bg-white rounded-xl shadow-sm border border-slate-200 ${modoProjetor ? 'p-3 mb-4 max-w-4xl mx-auto' : 'p-6 mb-6'}`}>
+                    {/* Botões de Filtro Rápido */}
+                    <div className="mb-4">
+                        <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-sm font-medium text-slate-700 flex items-center gap-2">
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                </svg>
+                                Filtrar Período:
+                            </span>
+                            <button
+                                onClick={() => aplicarFiltroRapido('todos')}
+                                className="px-3 py-1.5 text-sm rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 transition-colors font-medium"
+                            >
+                                Todos
+                            </button>
+                            <button
+                                onClick={() => aplicarFiltroRapido('esta-semana')}
+                                className="px-3 py-1.5 text-sm rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 transition-colors font-medium"
+                            >
+                                Esta Semana
+                            </button>
+                            <button
+                                onClick={() => aplicarFiltroRapido('este-mes')}
+                                className="px-3 py-1.5 text-sm rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 transition-colors font-medium"
+                            >
+                                Este Mês
+                            </button>
+                            <button
+                                onClick={() => aplicarFiltroRapido('mes-passado')}
+                                className="px-3 py-1.5 text-sm rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 transition-colors font-medium"
+                            >
+                                Mês Passado
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Campos de Data Manual */}
                     <div className={`flex items-center ${modoProjetor ? 'gap-4 justify-center' : 'gap-4'}`}>
                         <div>
                             <label className={`block ${modoProjetor ? 'text-xs' : 'text-sm'} font-medium text-slate-700 mb-2`}>
