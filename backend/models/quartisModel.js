@@ -105,7 +105,7 @@ class QuartisModel {
             console.log(`   Primeiros 5 agentes: ${rows.slice(0, 5).map(r => `${r.agente} (${r.total_dda} DDA)`).join(', ')}`);
         } else {
             console.log('⚠️  Nenhum agente encontrado com DDA no período selecionado.');
-            if (agentesFixos.length === 0) {
+            if (apenasFixos) {
                 console.log('   Dica: Cadastre agentes fixos na página "Cadastrar Agentes"');
             }
         }
@@ -123,8 +123,8 @@ class QuartisModel {
                     quartil3: { min: 0, max: 0, media: 0, total: 0 },
                     quartil4: { min: 0, max: 0, media: 0, total: 0 }
                 },
-                aviso: agentesFixos.length === 0 
-                    ? 'Nenhum agente fixo cadastrado. Mostrando todos os agentes.' 
+                aviso: apenasFixos 
+                    ? 'Nenhum dado de DDA encontrado no período selecionado para agentes fixos.' 
                     : 'Nenhum dado de DDA encontrado no período selecionado.'
             };
         }
@@ -133,70 +133,37 @@ class QuartisModel {
         // O 1º quartil sempre terá os MELHORES agentes (maior quantidade de DDA)
         // O 4º quartil sempre terá os PIORES agentes (menor quantidade de DDA)
         
-        // Calcular os quartis baseado na QUANTIDADE TOTAL DE DDA (25% da quantidade cada quartil)
+        // Distribuição tradicional de quartis: dividir os agentes em 4 grupos iguais (25% cada)
+        // Baseado no número de agentes, não na quantidade acumulada de DDA
         const totalAgentes = rows.length;
         
-        // Calcular a quantidade total de DDA de todos os agentes
-        const quantidadeTotalGeral = rows.reduce((sum, agente) => {
-            return sum + (parseInt(agente.total_dda) || 0);
-        }, 0);
+        // Calcular o tamanho de cada quartil (25% dos agentes)
+        // Se não dividir igualmente, distribuir os restantes do maior para o menor quartil
+        const tamanhoQuartil = Math.floor(totalAgentes / 4);
+        const resto = totalAgentes % 4;
         
-        // Calcular a quantidade alvo para cada quartil (25% do total)
-        const quantidadeAlvoPorQuartil = quantidadeTotalGeral / 4;
+        // Distribuir os restantes: 1º quartil recebe primeiro, depois 2º, 3º, 4º
+        const tamanhoQuartil1 = tamanhoQuartil + (resto >= 1 ? 1 : 0);
+        const tamanhoQuartil2 = tamanhoQuartil + (resto >= 2 ? 1 : 0);
+        const tamanhoQuartil3 = tamanhoQuartil + (resto >= 3 ? 1 : 0);
+        const tamanhoQuartil4 = tamanhoQuartil;
         
-        // Dividir agentes em quartis baseado na quantidade acumulada de DDA
-        // 1º Quartil: Melhores agentes (maior quantidade) até atingir 25% do total
-        // 2º Quartil: Próximos agentes até atingir 50% do total
-        // 3º Quartil: Próximos agentes até atingir 75% do total
-        // 4º Quartil: Restantes agentes (menor quantidade)
-        let quartil1 = [];
-        let quartil2 = [];
-        let quartil3 = [];
-        let quartil4 = [];
+        // Dividir agentes em quartis baseado na posição na lista ordenada
+        // 1º Quartil: Top 25% dos agentes (maior quantidade de DDA)
+        // 2º Quartil: Próximos 25% dos agentes
+        // 3º Quartil: Próximos 25% dos agentes
+        // 4º Quartil: Bottom 25% dos agentes (menor quantidade de DDA)
+        const quartil1 = rows.slice(0, tamanhoQuartil1);
+        const quartil2 = rows.slice(tamanhoQuartil1, tamanhoQuartil1 + tamanhoQuartil2);
+        const quartil3 = rows.slice(tamanhoQuartil1 + tamanhoQuartil2, tamanhoQuartil1 + tamanhoQuartil2 + tamanhoQuartil3);
+        const quartil4 = rows.slice(tamanhoQuartil1 + tamanhoQuartil2 + tamanhoQuartil3);
         
-        let quantidadeAcumuladaQuartil1 = 0;
-        let quantidadeAcumuladaQuartil2 = 0;
-        let quantidadeAcumuladaQuartil3 = 0;
-        let quantidadeAcumuladaQuartil4 = 0;
-        
-        let quartilAtual = 1;
-        
-        for (const agente of rows) {
-            const quantidadeAgente = parseInt(agente.total_dda) || 0;
-            
-            if (quartilAtual === 1) {
-                // 1º Quartil: Melhores agentes (maior quantidade de DDA)
-                quartil1.push(agente);
-                quantidadeAcumuladaQuartil1 += quantidadeAgente;
-                
-                // Se atingiu ou ultrapassou 25% da quantidade total, passar para próximo quartil
-                if (quantidadeAcumuladaQuartil1 >= quantidadeAlvoPorQuartil) {
-                    quartilAtual = 2;
-                }
-            } else if (quartilAtual === 2) {
-                // 2º Quartil: Agentes com bom desempenho
-                quartil2.push(agente);
-                quantidadeAcumuladaQuartil2 += quantidadeAgente;
-                
-                // Se atingiu ou ultrapassou 50% da quantidade total, passar para próximo quartil
-                if (quantidadeAcumuladaQuartil2 >= quantidadeAlvoPorQuartil) {
-                    quartilAtual = 3;
-                }
-            } else if (quartilAtual === 3) {
-                // 3º Quartil: Agentes que precisam de atenção
-                quartil3.push(agente);
-                quantidadeAcumuladaQuartil3 += quantidadeAgente;
-                
-                // Se atingiu ou ultrapassou 75% da quantidade total, passar para último quartil
-                if (quantidadeAcumuladaQuartil3 >= quantidadeAlvoPorQuartil) {
-                    quartilAtual = 4;
-                }
-            } else {
-                // 4º Quartil: Piores agentes (menor quantidade de DDA)
-                quartil4.push(agente);
-                quantidadeAcumuladaQuartil4 += quantidadeAgente;
-            }
-        }
+        console.log(`📊 Quartis - Distribuição tradicional:`);
+        console.log(`   Total de agentes: ${totalAgentes}`);
+        console.log(`   1º Quartil: ${quartil1.length} agentes (${((quartil1.length / totalAgentes) * 100).toFixed(1)}%)`);
+        console.log(`   2º Quartil: ${quartil2.length} agentes (${((quartil2.length / totalAgentes) * 100).toFixed(1)}%)`);
+        console.log(`   3º Quartil: ${quartil3.length} agentes (${((quartil3.length / totalAgentes) * 100).toFixed(1)}%)`);
+        console.log(`   4º Quartil: ${quartil4.length} agentes (${((quartil4.length / totalAgentes) * 100).toFixed(1)}%)`);
         
         // Calcular estatísticas para cada quartil (baseado na quantidade de DDA)
         const calcularEstatisticas = (quartil) => {
