@@ -14,6 +14,7 @@ import CadastroUsuario from './pages/CadastroUsuario';
 import CadastroAgentes from './pages/CadastroAgentes';
 import { API_ENDPOINTS } from './config/api';
 import Loading from './components/Loading';
+import { hasPermission } from './utils/permissions';
 
 const ProtectedRoute = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(null); // null = verificando, true/false = resultado
@@ -111,42 +112,32 @@ const PublicRoute = ({ children }) => {
   return children;
 };
 
-// Componente para proteger rotas apenas para admin (Portes)
-const AdminRoute = ({ children }) => {
-  const [isAdmin, setIsAdmin] = useState(null);
+// Componente para proteger rotas que requerem permissão específica
+const PermissionRoute = ({ children, permission }) => {
+  const [hasAccess, setHasAccess] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const location = useLocation();
 
   useEffect(() => {
-    const checkAdmin = () => {
+    const checkPermission = () => {
       try {
-        const userStr = localStorage.getItem('user');
-        if (!userStr) {
-          setIsAdmin(false);
-          setIsLoading(false);
-          return;
-        }
-        
-        const user = JSON.parse(userStr);
-        const username = user?.username || '';
-        // Apenas o usuário "Portes admin" pode criar novos usuários
-        const isPortes = username === 'Portes admin';
-        setIsAdmin(isPortes);
+        const access = hasPermission(permission);
+        setHasAccess(access);
       } catch {
-        setIsAdmin(false);
+        setHasAccess(false);
       } finally {
         setIsLoading(false);
       }
     };
 
-    checkAdmin();
-  }, [location.pathname]);
+    checkPermission();
+  }, [location.pathname, permission]);
 
   if (isLoading) {
     return <Loading message="Verificando permissões..." fullScreen={true} />;
   }
 
-  if (!isAdmin) {
+  if (!hasAccess) {
     return <Navigate to="/" replace />;
   }
 
@@ -219,11 +210,11 @@ function App() {
           path="/cadastro-usuario"
           element={
             <ProtectedRoute>
-              <AdminRoute>
+              <PermissionRoute permission="cadastrar_usuario">
                 <Layout>
                   <CadastroUsuario />
                 </Layout>
-              </AdminRoute>
+              </PermissionRoute>
             </ProtectedRoute>
           }
         />
@@ -261,11 +252,11 @@ function App() {
           path="/cadastro-agentes"
           element={
             <ProtectedRoute>
-              <AdminRoute>
+              <PermissionRoute permission="cadastrar_agentes">
                 <Layout>
                   <CadastroAgentes />
                 </Layout>
-              </AdminRoute>
+              </PermissionRoute>
             </ProtectedRoute>
           }
         />

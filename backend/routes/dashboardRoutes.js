@@ -6,6 +6,7 @@ const produtividadeController = require('../controllers/produtividadeController'
 const comparativoController = require('../controllers/comparativoController');
 const quartisController = require('../controllers/quartisController');
 const agentesController = require('../controllers/agentesController');
+const { authenticate, requirePermission } = require('../middleware/auth');
 
 // Rota para buscar dados de todos os blocos (dashboard geral)
 router.get('/data', dashboardController.getDashboardData);
@@ -38,12 +39,12 @@ router.get('/comparativo/agentes', comparativoController.getAgentes);
 router.get('/quartis', quartisController.getQuartis);
 
 // Rotas de agentes
-router.get('/agentes', agentesController.getAll);
-router.get('/agentes/from-resultados', agentesController.getAgentesFromResultados);
-router.get('/agentes/:id', agentesController.getById);
-router.post('/agentes', agentesController.create);
-router.put('/agentes/:id', agentesController.update);
-router.delete('/agentes/:id', agentesController.delete);
+router.get('/agentes', authenticate, agentesController.getAll);
+router.get('/agentes/from-resultados', authenticate, agentesController.getAgentesFromResultados);
+router.get('/agentes/:id', authenticate, agentesController.getById);
+router.post('/agentes', authenticate, requirePermission('cadastrar_agentes'), agentesController.create);
+router.put('/agentes/:id', authenticate, requirePermission('cadastrar_agentes'), agentesController.update);
+router.delete('/agentes/:id', authenticate, requirePermission('cadastrar_agentes'), agentesController.delete);
 
 module.exports = router;
 

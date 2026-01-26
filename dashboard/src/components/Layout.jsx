@@ -2,24 +2,16 @@ import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { LayoutDashboard, LogOut, BarChart3, UserPlus, TrendingUp, PieChart, Users } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { hasPermission } from '../utils/permissions';
 
 const Sidebar = () => {
     const location = useLocation();
     const navigate = useNavigate();
     const isActive = (path) => location.pathname === path;
 
-    // Verificar se o usuário é "Portes admin" (único usuário autorizado)
+    // Verificar se o usuário tem permissões de admin
     const isAdmin = () => {
-        try {
-            const userStr = localStorage.getItem('user');
-            if (!userStr) return false;
-            const user = JSON.parse(userStr);
-            const username = user?.username || '';
-            // Apenas o usuário "Portes admin" pode criar novos usuários
-            return username === 'Portes admin';
-        } catch {
-            return false;
-        }
+        return hasPermission('cadastrar_usuario') || hasPermission('cadastrar_agentes');
     };
 
     const handleLogout = () => {

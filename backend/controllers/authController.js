@@ -140,18 +140,10 @@ exports.verifyToken = async (req, res) => {
     }
 };
 
-// Criar novo usuário (requer autenticação e ser usuário Portes)
+// Criar novo usuário (requer permissão cadastrar_usuario)
 exports.createUser = async (req, res) => {
     try {
-        // Verificar se o usuário autenticado é "Portes admin" (único usuário autorizado)
-        const authenticatedUsername = req.user?.username;
-        
-        // Apenas o usuário "Portes admin" pode criar novos usuários
-        if (authenticatedUsername !== 'Portes admin') {
-            return res.status(403).json({ 
-                message: 'Apenas o usuário Portes admin pode criar novos usuários' 
-            });
-        }
+        // A verificação de permissão já foi feita pelo middleware requirePermission
 
         const { username, password, nome, status = 'ativo' } = req.body;
 
