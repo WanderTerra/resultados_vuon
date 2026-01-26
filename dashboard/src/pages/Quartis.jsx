@@ -195,6 +195,17 @@ const Quartis = () => {
                         (dados.estatisticas.quartil4.total || 0)
                     );
                     
+                    // Calcular porcentagem de cada quartil
+                    const calcularPercentual = (quantidadeQuartil) => {
+                        if (quantidadeTotalGeral === 0) return 0;
+                        return (quantidadeQuartil / quantidadeTotalGeral) * 100;
+                    };
+                    
+                    const percentualQuartil1 = calcularPercentual(dados.estatisticas.quartil1.total || 0);
+                    const percentualQuartil2 = calcularPercentual(dados.estatisticas.quartil2.total || 0);
+                    const percentualQuartil3 = calcularPercentual(dados.estatisticas.quartil3.total || 0);
+                    const percentualQuartil4 = calcularPercentual(dados.estatisticas.quartil4.total || 0);
+                    
                     return (
                         <>
                             {/* Card de Quantidade Total Geral */}
@@ -213,32 +224,72 @@ const Quartis = () => {
                                 </div>
                             </div>
 
-                            {/* Gráfico de Comparação */}
-                            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mb-6">
-                                <h3 className="text-lg font-semibold text-slate-800 mb-4">Comparação entre Quartis - Quantidade de DDA</h3>
-                                <ResponsiveContainer width="100%" height={400}>
-                                    <BarChart data={dadosGrafico} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
-                                        <CartesianGrid strokeDasharray="3 3" />
-                                        <XAxis 
-                                            dataKey="quartil" 
-                                            angle={-45}
-                                            textAnchor="end"
-                                            height={80}
-                                        />
-                                        <YAxis 
-                                            tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
-                                        />
-                                        <Tooltip 
-                                            formatter={(value) => `${value.toLocaleString('pt-BR')} DDA`}
-                                        />
-                                        <Legend />
-                                        <Bar dataKey="quantidadeTotal" name="Quantidade de DDA">
-                                            {dadosGrafico.map((entry, index) => (
-                                                <Cell key={`cell-${index}`} fill={entry.cor} />
-                                            ))}
-                                        </Bar>
-                                    </BarChart>
-                                </ResponsiveContainer>
+                            {/* Cards de Resumo */}
+                            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+                                <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <h3 className="text-sm font-medium text-slate-600">1º Quartil</h3>
+                                        <div className="w-4 h-4 rounded-full bg-green-500"></div>
+                                    </div>
+                                    <p className="text-2xl font-bold text-slate-800">
+                                        {dados.estatisticas.quartil1.total.toLocaleString('pt-BR')}
+                                    </p>
+                                    <p className="text-sm text-slate-500">Quantidade de DDA</p>
+                                    <p className="text-lg font-semibold text-green-600 mt-2">
+                                        {percentualQuartil1.toFixed(2)}%
+                                    </p>
+                                    <p className="text-xs text-slate-400 mt-1">
+                                        {dados.quartil1.length} agente{dados.quartil1.length !== 1 ? 's' : ''}
+                                    </p>
+                                </div>
+                                <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <h3 className="text-sm font-medium text-slate-600">2º Quartil</h3>
+                                        <div className="w-4 h-4 rounded-full bg-blue-500"></div>
+                                    </div>
+                                    <p className="text-2xl font-bold text-slate-800">
+                                        {dados.estatisticas.quartil2.total.toLocaleString('pt-BR')}
+                                    </p>
+                                    <p className="text-sm text-slate-500">Quantidade de DDA</p>
+                                    <p className="text-lg font-semibold text-blue-600 mt-2">
+                                        {percentualQuartil2.toFixed(2)}%
+                                    </p>
+                                    <p className="text-xs text-slate-400 mt-1">
+                                        {dados.quartil2.length} agente{dados.quartil2.length !== 1 ? 's' : ''}
+                                    </p>
+                                </div>
+                                <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <h3 className="text-sm font-medium text-slate-600">3º Quartil</h3>
+                                        <div className="w-4 h-4 rounded-full bg-yellow-500"></div>
+                                    </div>
+                                    <p className="text-2xl font-bold text-slate-800">
+                                        {dados.estatisticas.quartil3.total.toLocaleString('pt-BR')}
+                                    </p>
+                                    <p className="text-sm text-slate-500">Quantidade de DDA</p>
+                                    <p className="text-lg font-semibold text-yellow-600 mt-2">
+                                        {percentualQuartil3.toFixed(2)}%
+                                    </p>
+                                    <p className="text-xs text-slate-400 mt-1">
+                                        {dados.quartil3.length} agente{dados.quartil3.length !== 1 ? 's' : ''}
+                                    </p>
+                                </div>
+                                <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <h3 className="text-sm font-medium text-slate-600">4º Quartil</h3>
+                                        <div className="w-4 h-4 rounded-full bg-red-500"></div>
+                                    </div>
+                                    <p className="text-2xl font-bold text-slate-800">
+                                        {dados.estatisticas.quartil4.total.toLocaleString('pt-BR')}
+                                    </p>
+                                    <p className="text-sm text-slate-500">Quantidade de DDA</p>
+                                    <p className="text-lg font-semibold text-red-600 mt-2">
+                                        {percentualQuartil4.toFixed(2)}%
+                                    </p>
+                                    <p className="text-xs text-slate-400 mt-1">
+                                        {dados.quartil4.length} agente{dados.quartil4.length !== 1 ? 's' : ''}
+                                    </p>
+                                </div>
                             </div>
 
                             {/* Régua Visual de Quartis - Grid 2x2 */}
@@ -456,129 +507,6 @@ const Quartis = () => {
                                     </div>
                                 </div>
                             </div>
-
-                            {/* Tabelas Detalhadas por Quartil */}
-                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-                            {/* 1º Quartil */}
-                            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-                                <div className="flex items-center justify-between mb-4">
-                                    <h3 className="text-lg font-semibold text-slate-800">1º Quartil - Maior Produção</h3>
-                                    <div className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
-                                        {dados.quartil1.length} agentes
-                                    </div>
-                                </div>
-                                <div className="overflow-x-auto">
-                                    <table className="w-full text-sm">
-                                        <thead>
-                                            <tr className="border-b border-slate-200">
-                                                <th className="text-left py-3 px-4 font-semibold text-slate-700">Agente</th>
-                                                <th className="text-right py-3 px-4 font-semibold text-slate-700">Quantidade de DDA</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {dados.quartil1.map((agente, idx) => (
-                                                <tr key={idx} className="border-b border-slate-100">
-                                                    <td className="py-2 px-4 text-slate-700">{extrairNumeroAgente(agente.agente)}</td>
-                                                    <td className="py-2 px-4 text-right font-medium text-green-600">
-                                                        {parseInt(agente.total_dda || 0).toLocaleString('pt-BR')}
-                                                    </td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-
-                            {/* 2º Quartil */}
-                            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-                                <div className="flex items-center justify-between mb-4">
-                                    <h3 className="text-lg font-semibold text-slate-800">2º Quartil</h3>
-                                    <div className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
-                                        {dados.quartil2.length} agentes
-                                    </div>
-                                </div>
-                                <div className="overflow-x-auto">
-                                    <table className="w-full text-sm">
-                                        <thead>
-                                            <tr className="border-b border-slate-200">
-                                                <th className="text-left py-3 px-4 font-semibold text-slate-700">Agente</th>
-                                                <th className="text-right py-3 px-4 font-semibold text-slate-700">Quantidade de DDA</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {dados.quartil2.map((agente, idx) => (
-                                                <tr key={idx} className="border-b border-slate-100">
-                                                    <td className="py-2 px-4 text-slate-700">{extrairNumeroAgente(agente.agente)}</td>
-                                                    <td className="py-2 px-4 text-right font-medium text-blue-600">
-                                                        {parseInt(agente.total_dda || 0).toLocaleString('pt-BR')}
-                                                    </td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-
-                            {/* 3º Quartil */}
-                            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-                                <div className="flex items-center justify-between mb-4">
-                                    <h3 className="text-lg font-semibold text-slate-800">3º Quartil - Atenção Necessária</h3>
-                                    <div className="px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-sm font-medium">
-                                        {dados.quartil3.length} agentes
-                                    </div>
-                                </div>
-                                <div className="overflow-x-auto">
-                                    <table className="w-full text-sm">
-                                        <thead>
-                                            <tr className="border-b border-slate-200">
-                                                <th className="text-left py-3 px-4 font-semibold text-slate-700">Agente</th>
-                                                <th className="text-right py-3 px-4 font-semibold text-slate-700">Quantidade de DDA</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {dados.quartil3.map((agente, idx) => (
-                                                <tr key={idx} className="border-b border-slate-100">
-                                                    <td className="py-2 px-4 text-slate-700">{extrairNumeroAgente(agente.agente)}</td>
-                                                    <td className="py-2 px-4 text-right font-medium text-yellow-600">
-                                                        {parseInt(agente.total_dda || 0).toLocaleString('pt-BR')}
-                                                    </td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-
-                            {/* 4º Quartil */}
-                            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-                                <div className="flex items-center justify-between mb-4">
-                                    <h3 className="text-lg font-semibold text-slate-800">4º Quartil - Produção Muito Baixa</h3>
-                                    <div className="px-3 py-1 bg-red-100 text-red-800 rounded-full text-sm font-medium">
-                                        {dados.quartil4.length} agentes
-                                    </div>
-                                </div>
-                                <div className="overflow-x-auto">
-                                    <table className="w-full text-sm">
-                                        <thead>
-                                            <tr className="border-b border-slate-200">
-                                                <th className="text-left py-3 px-4 font-semibold text-slate-700">Agente</th>
-                                                <th className="text-right py-3 px-4 font-semibold text-slate-700">Quantidade de DDA</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {dados.quartil4.map((agente, idx) => (
-                                                <tr key={idx} className="border-b border-slate-100">
-                                                    <td className="py-2 px-4 text-slate-700">{extrairNumeroAgente(agente.agente)}</td>
-                                                    <td className="py-2 px-4 text-right font-medium text-red-600">
-                                                        {parseInt(agente.total_dda || 0).toLocaleString('pt-BR')}
-                                                    </td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-                        </div>
                         </>
                     );
                 })()}
