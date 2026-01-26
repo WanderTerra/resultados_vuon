@@ -6,9 +6,10 @@ class QuartisModel {
      * Busca dados de DDA por agente e separa em quartis
      * @param {string} startDate - Data inicial (opcional)
      * @param {string} endDate - Data final (opcional)
+     * @param {boolean} apenasFixos - Se true, busca apenas agentes fixos. Se false, busca todos os agentes
      * @returns {Promise<Object>} Dados dos quartis
      */
-    static async getQuartis(startDate = null, endDate = null) {
+    static async getQuartis(startDate = null, endDate = null, apenasFixos = true) {
         const db = await getDB();
         
         let dateFilter = '';
@@ -19,36 +20,37 @@ class QuartisModel {
             params.push(startDate, endDate);
         }
         
-        // Buscar números dos agentes fixos da carteira
-        const agentesFixos = await AgentesModel.getNumerosFixos();
-        
-        console.log(`📊 Quartis - Agentes fixos encontrados: ${agentesFixos.length}`);
-        if (agentesFixos.length > 0) {
-            console.log(`   Primeiros 5: ${agentesFixos.slice(0, 5).join(', ')}`);
-        }
-        
         let query = '';
         let queryParams = [];
         
-        if (agentesFixos.length === 0) {
-            // Se não houver agentes fixos cadastrados, buscar TODOS os agentes (comportamento temporário)
-            console.log('⚠️  Nenhum agente fixo cadastrado. Buscando TODOS os agentes.');
-            query = `
-                SELECT 
-                    agente,
-                    COUNT(*) as total_dda,
-                    COALESCE(SUM(valor), 0) as valor_total
-                FROM vuon_resultados
-                WHERE acao = 'DDA'
-                    AND agente != '0'
-                    AND agente IS NOT NULL
-                    AND agente != ''
-                    ${dateFilter}
-                GROUP BY agente
-                ORDER BY total_dda DESC
-            `;
-            queryParams = params;
-        } else {
+        if (apenasFixos) {
+            // Buscar números dos agentes fixos da carteira
+            const agentesFixos = await AgentesModel.getNumerosFixos();
+            
+            console.log(`📊 Quartis - Agentes fixos encontrados: ${agentesFixos.length}`);
+            if (agentesFixos.length > 0) {
+                console.log(`   Primeiros 5: ${agentesFixos.slice(0, 5).join(', ')}`);
+            }
+            
+            if (agentesFixos.length === 0) {
+                // Se não houver agentes fixos cadastrados e o usuário quer apenas fixos, retornar vazio
+                console.log('⚠️  Nenhum agente fixo cadastrado. Retornando quartis vazios.');
+                return {
+                    quartil1: [],
+                    quartil2: [],
+                    quartil3: [],
+                    quartil4: [],
+                    totalAgentes: 0,
+                    estatisticas: {
+                        quartil1: { min: 0, max: 0, media: 0, total: 0 },
+                        quartil2: { min: 0, max: 0, media: 0, total: 0 },
+                        quartil3: { min: 0, max: 0, media: 0, total: 0 },
+                        quartil4: { min: 0, max: 0, media: 0, total: 0 }
+                    },
+                    aviso: 'Nenhum agente fixo cadastrado. Cadastre agentes fixos na página "Cadastrar Agentes".'
+                };
+            }
+            
             // Criar placeholders para o IN clause
             const placeholders = agentesFixos.map(() => '?').join(',');
             
@@ -71,6 +73,24 @@ class QuartisModel {
             
             // Combinar parâmetros: primeiro os números dos agentes, depois as datas (se houver)
             queryParams = [...agentesFixos, ...params];
+        } else {
+            // Buscar TODOS os agentes (não apenas fixos)
+            console.log('📊 Quartis - Buscando TODOS os agentes (não apenas fixos)');
+            query = `
+                SELECT 
+                    agente,
+                    COUNT(*) as total_dda,
+                    COALESCE(SUM(valor), 0) as valor_total
+                FROM vuon_resultados
+                WHERE acao = 'DDA'
+                    AND agente != '0'
+                    AND agente IS NOT NULL
+                    AND agente != ''
+                    ${dateFilter}
+                GROUP BY agente
+                ORDER BY total_dda DESC
+            `;
+            queryParams = params;
         }
         
         console.log(`📊 Quartis - Executando query com ${queryParams.length} parâmetros`);

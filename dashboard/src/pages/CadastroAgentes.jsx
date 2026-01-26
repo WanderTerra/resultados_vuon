@@ -505,20 +505,6 @@ const CadastroAgentes = () => {
                     </div>
                 )}
             </div>
-
-            {/* Aviso sobre quartis */}
-            <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4">
-                <div className="flex items-start gap-3">
-                    <AlertCircle className="text-yellow-600 flex-shrink-0 mt-0.5" size={20} />
-                    <div>
-                        <p className="text-sm font-medium text-yellow-800">Importante sobre Quartis</p>
-                        <p className="text-sm text-yellow-700 mt-1">
-                            A página de Quartis mostrará apenas os agentes marcados como <strong>"Fixo da Carteira Vuon"</strong>. 
-                            Certifique-se de marcar os 22 agentes fixos corretamente.
-                        </p>
-                    </div>
-                </div>
-            </div>
         </div>
     );
 };

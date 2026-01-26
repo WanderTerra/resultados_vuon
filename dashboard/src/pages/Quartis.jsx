@@ -8,6 +8,7 @@ const Quartis = () => {
     const [dados, setDados] = useState(null);
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
+    const [apenasFixos, setApenasFixos] = useState(true); // Por padrão, mostrar apenas fixos
 
     // Buscar dados de quartis
     const buscarDados = async () => {
@@ -17,6 +18,7 @@ const Quartis = () => {
             const params = new URLSearchParams();
             if (startDate) params.append('startDate', startDate);
             if (endDate) params.append('endDate', endDate);
+            if (apenasFixos) params.append('apenasFixos', 'true');
 
             const response = await fetch(`${API_ENDPOINTS.quartis}?${params}`, {
                 headers: {
@@ -88,6 +90,7 @@ const Quartis = () => {
                 const params = new URLSearchParams();
                 params.append('startDate', inicioMes);
                 params.append('endDate', fimMes);
+                if (apenasFixos) params.append('apenasFixos', 'true');
 
                 const response = await fetch(`${API_ENDPOINTS.quartis}?${params}`, {
                     headers: {
@@ -182,6 +185,7 @@ const Quartis = () => {
             const params = new URLSearchParams();
             if (novaStartDate) params.append('startDate', novaStartDate);
             if (novaEndDate) params.append('endDate', novaEndDate);
+            if (apenasFixos) params.append('apenasFixos', 'true');
 
             const response = await fetch(`${API_ENDPOINTS.quartis}?${params}`, {
                 headers: {
@@ -285,6 +289,29 @@ const Quartis = () => {
                                 Mês Passado
                             </button>
                         </div>
+                    </div>
+
+                    {/* Opção de filtrar apenas agentes fixos */}
+                    <div className="mb-4 pb-4 border-b border-slate-200">
+                        <div className="flex items-center gap-2">
+                            <input
+                                type="checkbox"
+                                id="apenasFixos"
+                                checked={apenasFixos}
+                                onChange={(e) => {
+                                    setApenasFixos(e.target.checked);
+                                    // Buscar dados automaticamente ao alterar
+                                    setTimeout(() => buscarDados(), 100);
+                                }}
+                                className="w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500"
+                            />
+                            <label htmlFor="apenasFixos" className="text-sm font-medium text-slate-700 cursor-pointer">
+                                Mostrar apenas agentes fixos da carteira Vuon
+                            </label>
+                        </div>
+                        <p className="text-xs text-slate-500 mt-1 ml-6">
+                            Quando marcado, exibe apenas os agentes marcados como "Fixo da Carteira Vuon" na página de cadastro
+                        </p>
                     </div>
 
                     {/* Campos de Data Manual */}

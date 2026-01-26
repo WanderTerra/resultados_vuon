@@ -8,12 +8,14 @@ const QuartisModel = require('../models/quartisModel');
  */
 exports.getQuartis = async (req, res) => {
     try {
-        const { startDate, endDate } = req.query;
+        const { startDate, endDate, apenasFixos } = req.query;
+        const apenasFixosBool = apenasFixos === 'true';
         
         console.log(`📊 Quartis - Request recebido:`);
         console.log(`   Período: ${startDate || 'todos'} até ${endDate || 'todos'}`);
+        console.log(`   Apenas fixos: ${apenasFixosBool}`);
         
-        const dados = await QuartisModel.getQuartis(startDate, endDate);
+        const dados = await QuartisModel.getQuartis(startDate, endDate, apenasFixosBool);
         
         console.log(`✅ Quartis - Dados retornados:`);
         console.log(`   Total de agentes: ${dados.totalAgentes}`);
