@@ -398,24 +398,17 @@ const Quartis = () => {
                                                 <div className="flex-1 relative">
                                                     <div className="relative h-6 bg-slate-200 rounded-lg overflow-hidden border border-slate-300">
                                                         <div 
-                                                            className="h-full rounded-lg transition-all duration-300 flex items-center justify-end pr-1"
+                                                            className="h-full rounded-lg transition-all duration-300 flex items-center justify-start pl-1 min-w-fit"
                                                             style={{ 
-                                                                width: `${percentualDDA}%`,
+                                                                width: `${Math.max(percentualDDA, 15)}%`,
                                                                 backgroundColor: corHex,
                                                                 opacity: 0.9
                                                             }}
                                                         >
-                                                            {percentualDDA > 20 && (
-                                                                <span className="text-xs font-bold text-white">
-                                                                    {quantidadeDDA}
-                                                                </span>
-                                                            )}
-                                                        </div>
-                                                        {percentualDDA <= 20 && (
-                                                            <span className="absolute right-1 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-600">
+                                                            <span className="text-xs font-bold text-white whitespace-nowrap">
                                                                 {quantidadeDDA}
                                                             </span>
-                                                        )}
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>
