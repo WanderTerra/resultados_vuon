@@ -11,14 +11,16 @@ const Quartis = () => {
     const [apenasFixos, setApenasFixos] = useState(false); // Por padrão, mostrar todos os agentes
 
     // Buscar dados de quartis
-    const buscarDados = async () => {
+    const buscarDados = async (apenasFixosParam = null) => {
         setLoading(true);
         try {
             const token = localStorage.getItem('token');
             const params = new URLSearchParams();
             if (startDate) params.append('startDate', startDate);
             if (endDate) params.append('endDate', endDate);
-            if (apenasFixos) params.append('apenasFixos', 'true');
+            // Usar o parâmetro passado ou o estado atual
+            const apenasFixosValue = apenasFixosParam !== null ? apenasFixosParam : apenasFixos;
+            if (apenasFixosValue) params.append('apenasFixos', 'true');
 
             const response = await fetch(`${API_ENDPOINTS.quartis}?${params}`, {
                 headers: {
@@ -299,9 +301,10 @@ const Quartis = () => {
                                 id="apenasFixos"
                                 checked={apenasFixos}
                                 onChange={(e) => {
-                                    setApenasFixos(e.target.checked);
-                                    // Buscar dados automaticamente ao alterar
-                                    setTimeout(() => buscarDados(), 100);
+                                    const novoValor = e.target.checked;
+                                    setApenasFixos(novoValor);
+                                    // Buscar dados automaticamente ao alterar, passando o novo valor
+                                    buscarDados(novoValor);
                                 }}
                                 className="w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500"
                             />
