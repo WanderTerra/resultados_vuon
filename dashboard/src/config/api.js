@@ -27,4 +27,6 @@ export const API_ENDPOINTS = {
     comparativo: `${API_BASE_URL}/api/dashboard/comparativo`,
     comparativoAgentes: `${API_BASE_URL}/api/dashboard/comparativo/agentes`,
     quartis: `${API_BASE_URL}/api/dashboard/quartis`,
+    agentes: `${API_BASE_URL}/api/dashboard/agentes`,
+    agenteById: (id) => `${API_BASE_URL}/api/dashboard/agentes/${id}`,
 };

@@ -11,6 +11,7 @@ import Produtividade from './pages/Produtividade';
 import Quartis from './pages/Quartis';
 import Login from './pages/Login';
 import CadastroUsuario from './pages/CadastroUsuario';
+import CadastroAgentes from './pages/CadastroAgentes';
 import { API_ENDPOINTS } from './config/api';
 import Loading from './components/Loading';
 
@@ -253,6 +254,18 @@ function App() {
               <Layout>
                 <Quartis />
               </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/cadastro-agentes"
+          element={
+            <ProtectedRoute>
+              <AdminRoute>
+                <Layout>
+                  <CadastroAgentes />
+                </Layout>
+              </AdminRoute>
             </ProtectedRoute>
           }
         />

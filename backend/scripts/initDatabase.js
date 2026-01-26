@@ -43,6 +43,21 @@ const initDatabase = async () => {
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
         `);
 
+        // Create agentes table if it doesn't exist
+        await db.execute(`
+            CREATE TABLE IF NOT EXISTS agentes (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                numero_agente VARCHAR(50) UNIQUE NOT NULL,
+                nome VARCHAR(255),
+                fixo_carteira BOOLEAN DEFAULT FALSE,
+                status ENUM('ativo', 'inativo') DEFAULT 'ativo',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                INDEX idx_fixo_carteira (fixo_carteira),
+                INDEX idx_status (status)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        `);
+
         console.log('Database initialized successfully!');
         process.exit(0);
     } catch (error) {

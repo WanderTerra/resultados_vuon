@@ -7,6 +7,7 @@
     "start": "node server.js",
     "dev": "node --watch server.js",
     "init-db": "node scripts/initDatabase.js",
+    "create-agentes-table": "node scripts/createAgentesTable.js",
     "create-indexes": "node scripts/createIndexes.js",
     "optimize-indexes": "node scripts/optimizeIndexes.js",
     "create-views": "node scripts/createViews.js",

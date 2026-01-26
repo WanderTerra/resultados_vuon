@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, LogOut, BarChart3, UserPlus, TrendingUp, PieChart } from 'lucide-react';
+import { LayoutDashboard, LogOut, BarChart3, UserPlus, TrendingUp, PieChart, Users } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 const Sidebar = () => {
@@ -41,6 +41,8 @@ const Sidebar = () => {
         if (path === '/wo') return 'Bloco WO - Mais de 360 dias';
         if (path === '/comparativo') return 'Comparativo';
         if (path === '/quartis') return 'Quartis';
+        if (path === '/cadastro-usuario') return 'Cadastrar Usuário';
+        if (path === '/cadastro-agentes') return 'Cadastrar Agentes';
         return 'Dashboard';
     };
 
@@ -102,13 +104,22 @@ const Sidebar = () => {
                     <span className="font-medium">Quartis</span>
                 </Link>
                 {isAdmin() && (
-                    <Link
-                        to="/cadastro-usuario"
-                        className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${isActive('/cadastro-usuario') ? 'bg-blue-600 text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
-                    >
-                        <UserPlus size={20} />
-                        <span className="font-medium">Cadastrar Usuário</span>
-                    </Link>
+                    <>
+                        <Link
+                            to="/cadastro-usuario"
+                            className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${isActive('/cadastro-usuario') ? 'bg-blue-600 text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
+                        >
+                            <UserPlus size={20} />
+                            <span className="font-medium">Cadastrar Usuário</span>
+                        </Link>
+                        <Link
+                            to="/cadastro-agentes"
+                            className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${isActive('/cadastro-agentes') ? 'bg-blue-600 text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
+                        >
+                            <Users size={20} />
+                            <span className="font-medium">Cadastrar Agentes</span>
+                        </Link>
+                    </>
                 )}
             </nav>
 
@@ -138,6 +149,7 @@ const Layout = ({ children }) => {
         if (path === '/comparativo') return 'Comparativo';
         if (path === '/quartis') return 'Quartis';
         if (path === '/cadastro-usuario') return 'Cadastrar Usuário';
+        if (path === '/cadastro-agentes') return 'Cadastrar Agentes';
         return 'Dashboard';
     };
 

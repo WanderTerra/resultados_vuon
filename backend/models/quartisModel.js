@@ -1,4 +1,5 @@
 const { getDB } = require('../config/db');
+const AgentesModel = require('./agentesModel');
 
 class QuartisModel {
     /**
@@ -18,7 +19,30 @@ class QuartisModel {
             params.push(startDate, endDate);
         }
         
-        // Buscar todos os agentes com a quantidade de DDA no período
+        // Buscar números dos agentes fixos da carteira
+        const agentesFixos = await AgentesModel.getNumerosFixos();
+        
+        // Se não houver agentes fixos cadastrados, retornar vazio
+        if (agentesFixos.length === 0) {
+            return {
+                quartil1: [],
+                quartil2: [],
+                quartil3: [],
+                quartil4: [],
+                totalAgentes: 0,
+                estatisticas: {
+                    quartil1: { min: 0, max: 0, media: 0, total: 0 },
+                    quartil2: { min: 0, max: 0, media: 0, total: 0 },
+                    quartil3: { min: 0, max: 0, media: 0, total: 0 },
+                    quartil4: { min: 0, max: 0, media: 0, total: 0 }
+                }
+            };
+        }
+
+        // Criar placeholders para o IN clause
+        const placeholders = agentesFixos.map(() => '?').join(',');
+        
+        // Buscar todos os agentes FIXOS com a quantidade de DDA no período
         const query = `
             SELECT 
                 agente,
@@ -29,12 +53,16 @@ class QuartisModel {
                 AND agente != '0'
                 AND agente IS NOT NULL
                 AND agente != ''
+                AND agente IN (${placeholders})
                 ${dateFilter}
             GROUP BY agente
             ORDER BY total_dda DESC
         `;
         
-        const [rows] = await db.execute(query, params);
+        // Combinar parâmetros: primeiro os números dos agentes, depois as datas (se houver)
+        const queryParams = [...agentesFixos, ...params];
+        
+        const [rows] = await db.execute(query, queryParams);
         
         if (rows.length === 0) {
             return {

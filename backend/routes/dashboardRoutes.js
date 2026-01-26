@@ -5,6 +5,7 @@ const pagamentoController = require('../controllers/pagamentoController');
 const produtividadeController = require('../controllers/produtividadeController');
 const comparativoController = require('../controllers/comparativoController');
 const quartisController = require('../controllers/quartisController');
+const agentesController = require('../controllers/agentesController');
 
 // Rota para buscar dados de todos os blocos (dashboard geral)
 router.get('/data', dashboardController.getDashboardData);
@@ -35,6 +36,13 @@ router.get('/comparativo/agentes', comparativoController.getAgentes);
 
 // Rotas de quartis
 router.get('/quartis', quartisController.getQuartis);
+
+// Rotas de agentes
+router.get('/agentes', agentesController.getAll);
+router.get('/agentes/:id', agentesController.getById);
+router.post('/agentes', agentesController.create);
+router.put('/agentes/:id', agentesController.update);
+router.delete('/agentes/:id', agentesController.delete);
 
 module.exports = router;
 

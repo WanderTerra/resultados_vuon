@@ -57,9 +57,77 @@ const Quartis = () => {
         }
     };
 
-    // Buscar dados ao carregar a página
+    // Função para obter o mês atual (primeiro dia até hoje)
+    const obterMesAtual = () => {
+        const hoje = new Date();
+        const formatarData = (data) => {
+            const ano = data.getFullYear();
+            const mes = String(data.getMonth() + 1).padStart(2, '0');
+            const dia = String(data.getDate()).padStart(2, '0');
+            return `${ano}-${mes}-${dia}`;
+        };
+        const primeiroDiaMes = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+        return {
+            startDate: formatarData(primeiroDiaMes),
+            endDate: formatarData(hoje)
+        };
+    };
+
+    // Inicializar com o mês atual
     useEffect(() => {
-        buscarDados();
+        const { startDate: inicioMes, endDate: fimMes } = obterMesAtual();
+        setStartDate(inicioMes);
+        setEndDate(fimMes);
+        
+        // Buscar dados com o mês atual
+        const buscarDadosMesAtual = async () => {
+            setLoading(true);
+            try {
+                const token = localStorage.getItem('token');
+                const params = new URLSearchParams();
+                params.append('startDate', inicioMes);
+                params.append('endDate', fimMes);
+
+                const response = await fetch(`${API_ENDPOINTS.quartis}?${params}`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                    },
+                });
+
+                if (response.ok) {
+                    const contentType = response.headers.get('content-type');
+                    if (contentType && contentType.includes('application/json')) {
+                        const data = await response.json();
+                        setDados(data);
+                    } else {
+                        throw new Error('Resposta do servidor não é JSON');
+                    }
+                } else {
+                    const contentType = response.headers.get('content-type');
+                    if (contentType && contentType.includes('application/json')) {
+                        const error = await response.json();
+                        alert(`Erro: ${error.message || 'Erro ao buscar dados'}`);
+                    } else {
+                        if (response.status === 404) {
+                            alert('Erro: Rota não encontrada. O servidor precisa ser reiniciado para carregar a nova rota.');
+                        } else {
+                            alert(`Erro: ${response.status} ${response.statusText}`);
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('Erro ao buscar quartis:', error);
+                if (error.message.includes('JSON')) {
+                    alert('Erro: O servidor retornou uma resposta inválida. Verifique se o servidor está rodando e se a rota está disponível.');
+                } else {
+                    alert('Erro ao buscar dados de quartis: ' + error.message);
+                }
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        buscarDadosMesAtual();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
