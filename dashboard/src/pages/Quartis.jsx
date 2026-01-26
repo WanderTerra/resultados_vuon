@@ -398,7 +398,7 @@ const Quartis = () => {
                                                 <div className="flex-1 relative">
                                                     <div className="relative h-6 bg-slate-200 rounded-lg overflow-hidden border border-slate-300">
                                                         <div 
-                                                            className="h-full rounded-lg transition-all duration-300 flex items-center justify-start pl-1 min-w-fit"
+                                                            className="h-full rounded-lg transition-all duration-300 flex items-center justify-end pr-1 min-w-fit"
                                                             style={{ 
                                                                 width: `${Math.max(percentualDDA, 15)}%`,
                                                                 backgroundColor: corHex,
