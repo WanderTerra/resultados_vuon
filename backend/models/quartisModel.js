@@ -22,47 +22,73 @@ class QuartisModel {
         // Buscar números dos agentes fixos da carteira
         const agentesFixos = await AgentesModel.getNumerosFixos();
         
-        // Se não houver agentes fixos cadastrados, retornar vazio
-        if (agentesFixos.length === 0) {
-            return {
-                quartil1: [],
-                quartil2: [],
-                quartil3: [],
-                quartil4: [],
-                totalAgentes: 0,
-                estatisticas: {
-                    quartil1: { min: 0, max: 0, media: 0, total: 0 },
-                    quartil2: { min: 0, max: 0, media: 0, total: 0 },
-                    quartil3: { min: 0, max: 0, media: 0, total: 0 },
-                    quartil4: { min: 0, max: 0, media: 0, total: 0 }
-                }
-            };
+        console.log(`📊 Quartis - Agentes fixos encontrados: ${agentesFixos.length}`);
+        if (agentesFixos.length > 0) {
+            console.log(`   Primeiros 5: ${agentesFixos.slice(0, 5).join(', ')}`);
         }
-
-        // Criar placeholders para o IN clause
-        const placeholders = agentesFixos.map(() => '?').join(',');
         
-        // Buscar todos os agentes FIXOS com a quantidade de DDA no período
-        const query = `
-            SELECT 
-                agente,
-                COUNT(*) as total_dda,
-                COALESCE(SUM(valor), 0) as valor_total
-            FROM vuon_resultados
-            WHERE acao = 'DDA'
-                AND agente != '0'
-                AND agente IS NOT NULL
-                AND agente != ''
-                AND agente IN (${placeholders})
-                ${dateFilter}
-            GROUP BY agente
-            ORDER BY total_dda DESC
-        `;
+        let query = '';
+        let queryParams = [];
         
-        // Combinar parâmetros: primeiro os números dos agentes, depois as datas (se houver)
-        const queryParams = [...agentesFixos, ...params];
+        if (agentesFixos.length === 0) {
+            // Se não houver agentes fixos cadastrados, buscar TODOS os agentes (comportamento temporário)
+            console.log('⚠️  Nenhum agente fixo cadastrado. Buscando TODOS os agentes.');
+            query = `
+                SELECT 
+                    agente,
+                    COUNT(*) as total_dda,
+                    COALESCE(SUM(valor), 0) as valor_total
+                FROM vuon_resultados
+                WHERE acao = 'DDA'
+                    AND agente != '0'
+                    AND agente IS NOT NULL
+                    AND agente != ''
+                    ${dateFilter}
+                GROUP BY agente
+                ORDER BY total_dda DESC
+            `;
+            queryParams = params;
+        } else {
+            // Criar placeholders para o IN clause
+            const placeholders = agentesFixos.map(() => '?').join(',');
+            
+            // Buscar todos os agentes FIXOS com a quantidade de DDA no período
+            query = `
+                SELECT 
+                    agente,
+                    COUNT(*) as total_dda,
+                    COALESCE(SUM(valor), 0) as valor_total
+                FROM vuon_resultados
+                WHERE acao = 'DDA'
+                    AND agente != '0'
+                    AND agente IS NOT NULL
+                    AND agente != ''
+                    AND agente IN (${placeholders})
+                    ${dateFilter}
+                GROUP BY agente
+                ORDER BY total_dda DESC
+            `;
+            
+            // Combinar parâmetros: primeiro os números dos agentes, depois as datas (se houver)
+            queryParams = [...agentesFixos, ...params];
+        }
+        
+        console.log(`📊 Quartis - Executando query com ${queryParams.length} parâmetros`);
+        if (dateFilter) {
+            console.log(`   Filtro de data: ${startDate} até ${endDate}`);
+        }
         
         const [rows] = await db.execute(query, queryParams);
+        
+        console.log(`📊 Quartis - Agentes encontrados com DDA: ${rows.length}`);
+        if (rows.length > 0) {
+            console.log(`   Primeiros 5 agentes: ${rows.slice(0, 5).map(r => `${r.agente} (${r.total_dda} DDA)`).join(', ')}`);
+        } else {
+            console.log('⚠️  Nenhum agente encontrado com DDA no período selecionado.');
+            if (agentesFixos.length === 0) {
+                console.log('   Dica: Cadastre agentes fixos na página "Cadastrar Agentes"');
+            }
+        }
         
         if (rows.length === 0) {
             return {
@@ -76,7 +102,10 @@ class QuartisModel {
                     quartil2: { min: 0, max: 0, media: 0, total: 0 },
                     quartil3: { min: 0, max: 0, media: 0, total: 0 },
                     quartil4: { min: 0, max: 0, media: 0, total: 0 }
-                }
+                },
+                aviso: agentesFixos.length === 0 
+                    ? 'Nenhum agente fixo cadastrado. Mostrando todos os agentes.' 
+                    : 'Nenhum dado de DDA encontrado no período selecionado.'
             };
         }
         

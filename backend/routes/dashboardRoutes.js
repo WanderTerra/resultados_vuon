@@ -39,6 +39,7 @@ router.get('/quartis', quartisController.getQuartis);
 
 // Rotas de agentes
 router.get('/agentes', agentesController.getAll);
+router.get('/agentes/from-resultados', agentesController.getAgentesFromResultados);
 router.get('/agentes/:id', agentesController.getById);
 router.post('/agentes', agentesController.create);
 router.put('/agentes/:id', agentesController.update);

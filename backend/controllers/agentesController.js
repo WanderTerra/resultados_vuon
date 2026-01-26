@@ -133,3 +133,19 @@ exports.delete = async (req, res) => {
     }
 };
 
+/**
+ * Busca agentes únicos da tabela vuon_resultados
+ */
+exports.getAgentesFromResultados = async (req, res) => {
+    try {
+        const agentes = await AgentesModel.getAgentesFromResultados();
+        res.json(agentes);
+    } catch (error) {
+        console.error('❌ Erro ao buscar agentes do banco:', error);
+        res.status(500).json({
+            message: 'Erro ao buscar agentes do banco',
+            error: error.message
+        });
+    }
+};
+

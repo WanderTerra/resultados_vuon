@@ -5,7 +5,9 @@ import Loading from '../components/Loading';
 
 const CadastroAgentes = () => {
     const [agentes, setAgentes] = useState([]);
+    const [agentesFromBanco, setAgentesFromBanco] = useState([]);
     const [loading, setLoading] = useState(false);
+    const [loadingAgentesBanco, setLoadingAgentesBanco] = useState(false);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
     const [editingId, setEditingId] = useState(null);
@@ -16,11 +18,19 @@ const CadastroAgentes = () => {
         status: 'ativo'
     });
     const [showForm, setShowForm] = useState(false);
+    const [buscaAgente, setBuscaAgente] = useState('');
 
     // Buscar agentes ao carregar
     useEffect(() => {
         buscarAgentes();
     }, []);
+
+    // Buscar agentes do banco quando abrir o formulário
+    useEffect(() => {
+        if (showForm && !editingId) {
+            buscarAgentesFromBanco();
+        }
+    }, [showForm, editingId]);
 
     const buscarAgentes = async () => {
         setLoading(true);
@@ -48,6 +58,38 @@ const CadastroAgentes = () => {
         }
     };
 
+    const buscarAgentesFromBanco = async () => {
+        setLoadingAgentesBanco(true);
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch(API_ENDPOINTS.agentesFromResultados, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                },
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                setAgentesFromBanco(data);
+            } else {
+                console.error('Erro ao buscar agentes do banco');
+            }
+        } catch (error) {
+            console.error('Erro ao buscar agentes do banco:', error);
+        } finally {
+            setLoadingAgentesBanco(false);
+        }
+    };
+
+    const handleSelectAgente = (agente) => {
+        setFormData(prev => ({
+            ...prev,
+            numero_agente: agente.numero,
+            nome: agente.nome || ''
+        }));
+        setBuscaAgente('');
+    };
+
     const handleChange = (e) => {
         const { name, value, type, checked } = e.target;
         setFormData(prev => ({
@@ -67,6 +109,7 @@ const CadastroAgentes = () => {
         });
         setEditingId(null);
         setShowForm(false);
+        setBuscaAgente('');
     };
 
     const handleEdit = (agente) => {
@@ -240,6 +283,64 @@ const CadastroAgentes = () => {
                         {editingId ? 'Editar Agente' : 'Novo Agente'}
                     </h3>
                     <form onSubmit={handleSubmit} className="space-y-4">
+                        {/* Campo de busca de agente do banco (apenas ao criar novo) */}
+                        {!editingId && (
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-2">
+                                    Buscar Agente do Banco
+                                </label>
+                                <div className="relative">
+                                    <input
+                                        type="text"
+                                        value={buscaAgente}
+                                        onChange={(e) => setBuscaAgente(e.target.value)}
+                                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                        placeholder="Digite o número ou nome do agente..."
+                                    />
+                                    {buscaAgente && (
+                                        <div className="absolute z-10 w-full mt-1 bg-white border border-slate-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                                            {agentesFromBanco
+                                                .filter(agente => 
+                                                    agente.numero.toLowerCase().includes(buscaAgente.toLowerCase()) ||
+                                                    (agente.nome && agente.nome.toLowerCase().includes(buscaAgente.toLowerCase())) ||
+                                                    agente.agente_completo.toLowerCase().includes(buscaAgente.toLowerCase())
+                                                )
+                                                .slice(0, 10)
+                                                .map((agente, idx) => (
+                                                    <button
+                                                        key={idx}
+                                                        type="button"
+                                                        onClick={() => handleSelectAgente(agente)}
+                                                        className="w-full text-left px-4 py-2 hover:bg-blue-50 border-b border-slate-100 last:border-b-0"
+                                                    >
+                                                        <div className="font-medium text-slate-800">
+                                                            {agente.numero}
+                                                            {agente.nome && ` - ${agente.nome}`}
+                                                        </div>
+                                                        {agente.agente_completo !== `${agente.numero}${agente.nome ? ` - ${agente.nome}` : ''}` && (
+                                                            <div className="text-xs text-slate-500 mt-1">
+                                                                {agente.agente_completo}
+                                                            </div>
+                                                        )}
+                                                    </button>
+                                                ))}
+                                            {agentesFromBanco.filter(agente => 
+                                                agente.numero.toLowerCase().includes(buscaAgente.toLowerCase()) ||
+                                                (agente.nome && agente.nome.toLowerCase().includes(buscaAgente.toLowerCase())) ||
+                                                agente.agente_completo.toLowerCase().includes(buscaAgente.toLowerCase())
+                                            ).length === 0 && (
+                                                <div className="px-4 py-2 text-sm text-slate-500">
+                                                    Nenhum agente encontrado
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                                {loadingAgentesBanco && (
+                                    <p className="text-xs text-slate-500 mt-1">Carregando agentes do banco...</p>
+                                )}
+                            </div>
+                        )}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                                 <label className="block text-sm font-medium text-slate-700 mb-2">

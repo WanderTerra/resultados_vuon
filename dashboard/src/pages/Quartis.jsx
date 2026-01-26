@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { AlertCircle } from 'lucide-react';
 import { API_ENDPOINTS } from '../config/api';
 import Loading from '../components/Loading';
 
@@ -331,6 +332,9 @@ const Quartis = () => {
                         (dados.estatisticas.quartil3.total || 0) +
                         (dados.estatisticas.quartil4.total || 0)
                     );
+
+                    // Verificar se há aviso do backend
+                    const temAviso = dados.aviso && dados.totalAgentes === 0;
                     
                     // Calcular porcentagem de cada quartil
                     const calcularPercentual = (quantidadeQuartil) => {
@@ -401,6 +405,25 @@ const Quartis = () => {
 
                     return (
                         <>
+                            {/* Aviso se não houver dados */}
+                            {temAviso && (
+                                <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-6">
+                                    <div className="flex items-start gap-3">
+                                        <AlertCircle className="text-yellow-600 flex-shrink-0 mt-0.5" size={20} />
+                                        <div>
+                                            <p className="text-sm font-medium text-yellow-800">Aviso</p>
+                                            <p className="text-sm text-yellow-700 mt-1">{dados.aviso}</p>
+                                            {dados.aviso && dados.aviso.includes('Nenhum agente fixo') && (
+                                                <p className="text-sm text-yellow-700 mt-2">
+                                                    <strong>Dica:</strong> Acesse a página <strong>"Cadastrar Agentes"</strong> no menu lateral 
+                                                    para cadastrar os agentes fixos da carteira Vuon.
+                                                </p>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
                             {/* Card de Quantidade Total Geral */}
                             <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-xl shadow-lg border border-blue-500 p-6 mb-6">
                                 <div className="flex items-center justify-between">
