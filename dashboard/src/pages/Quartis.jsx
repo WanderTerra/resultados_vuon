@@ -8,7 +8,7 @@ const Quartis = () => {
     const [dados, setDados] = useState(null);
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
-    const [apenasFixos, setApenasFixos] = useState(true); // Por padrão, mostrar apenas fixos
+    const [apenasFixos, setApenasFixos] = useState(false); // Por padrão, mostrar todos os agentes
 
     // Buscar dados de quartis
     const buscarDados = async () => {
