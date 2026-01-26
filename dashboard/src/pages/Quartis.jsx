@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, Trophy, Star, AlertTriangle } from 'lucide-react';
 import { API_ENDPOINTS } from '../config/api';
 import Loading from '../components/Loading';
 
@@ -370,11 +370,12 @@ const Quartis = () => {
                     const percentualQuartil4 = calcularPercentual(dados.estatisticas.quartil4.total || 0);
 
                     // Função para renderizar um quartil (reutilizável)
-                    const renderizarQuartil = (quartil, quartilNum, corHex, corBg, corBorda, corTexto, titulo) => {
+                    const renderizarQuartil = (quartil, quartilNum, corHex, corBg, corBorda, corTexto, titulo, Icone) => {
                         return (
                             <div className={`border-2 ${corBorda} rounded-xl ${corBg} p-4 flex flex-col`}>
                                 <div className="flex items-center justify-between mb-3">
                                     <h4 className={`text-lg font-bold ${corTexto} flex items-center gap-2`}>
+                                        {Icone && <Icone className="w-5 h-5" style={{ color: corHex }} />}
                                         <div className="w-4 h-4 rounded-full" style={{ backgroundColor: corHex }}></div>
                                         {titulo}
                                     </h4>
@@ -464,9 +465,15 @@ const Quartis = () => {
 
                             {/* Cards de Resumo */}
                             <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
-                                <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+                                <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 relative overflow-hidden">
+                                    <div className="absolute top-4 right-4">
+                                        <Trophy className="w-8 h-8 text-green-500 opacity-20" />
+                                    </div>
                                     <div className="flex items-center justify-between mb-2">
-                                        <h3 className="text-sm font-medium text-slate-600">1º Quartil</h3>
+                                        <h3 className="text-sm font-medium text-slate-600 flex items-center gap-2">
+                                            <Trophy className="w-5 h-5 text-green-500" />
+                                            1º Quartil
+                                        </h3>
                                         <div className="w-4 h-4 rounded-full bg-green-500"></div>
                                     </div>
                                     <p className="text-2xl font-bold text-slate-800">
@@ -480,9 +487,15 @@ const Quartis = () => {
                                         {dados.quartil1.length} agente{dados.quartil1.length !== 1 ? 's' : ''}
                                     </p>
                                 </div>
-                                <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+                                <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 relative overflow-hidden">
+                                    <div className="absolute top-4 right-4">
+                                        <Star className="w-8 h-8 text-blue-500 opacity-20" />
+                                    </div>
                                     <div className="flex items-center justify-between mb-2">
-                                        <h3 className="text-sm font-medium text-slate-600">2º Quartil</h3>
+                                        <h3 className="text-sm font-medium text-slate-600 flex items-center gap-2">
+                                            <Star className="w-5 h-5 text-blue-500" />
+                                            2º Quartil
+                                        </h3>
                                         <div className="w-4 h-4 rounded-full bg-blue-500"></div>
                                     </div>
                                     <p className="text-2xl font-bold text-slate-800">
@@ -496,9 +509,15 @@ const Quartis = () => {
                                         {dados.quartil2.length} agente{dados.quartil2.length !== 1 ? 's' : ''}
                                     </p>
                                 </div>
-                                <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+                                <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 relative overflow-hidden">
+                                    <div className="absolute top-4 right-4">
+                                        <AlertTriangle className="w-8 h-8 text-yellow-500 opacity-20" />
+                                    </div>
                                     <div className="flex items-center justify-between mb-2">
-                                        <h3 className="text-sm font-medium text-slate-600">3º Quartil</h3>
+                                        <h3 className="text-sm font-medium text-slate-600 flex items-center gap-2">
+                                            <AlertTriangle className="w-5 h-5 text-yellow-500" />
+                                            3º Quartil
+                                        </h3>
                                         <div className="w-4 h-4 rounded-full bg-yellow-500"></div>
                                     </div>
                                     <p className="text-2xl font-bold text-slate-800">
@@ -512,9 +531,15 @@ const Quartis = () => {
                                         {dados.quartil3.length} agente{dados.quartil3.length !== 1 ? 's' : ''}
                                     </p>
                                 </div>
-                                <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+                                <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 relative overflow-hidden">
+                                    <div className="absolute top-4 right-4">
+                                        <AlertCircle className="w-8 h-8 text-red-500 opacity-20" />
+                                    </div>
                                     <div className="flex items-center justify-between mb-2">
-                                        <h3 className="text-sm font-medium text-slate-600">4º Quartil</h3>
+                                        <h3 className="text-sm font-medium text-slate-600 flex items-center gap-2">
+                                            <AlertCircle className="w-5 h-5 text-red-500" />
+                                            4º Quartil
+                                        </h3>
                                         <div className="w-4 h-4 rounded-full bg-red-500"></div>
                                     </div>
                                     <p className="text-2xl font-bold text-slate-800">
@@ -534,10 +559,10 @@ const Quartis = () => {
                             <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mb-6">
                                 <h3 className="text-lg font-semibold text-slate-800 mb-4">Quartis - Ranking de Agentes</h3>
                                 <div className="grid grid-cols-2 gap-4">
-                                    {renderizarQuartil(dados.quartil1, 1, '#10b981', 'bg-green-50', 'border-green-300', 'text-green-800', '1º Quartil - Melhor')}
-                                    {renderizarQuartil(dados.quartil2, 2, '#3b82f6', 'bg-blue-50', 'border-blue-300', 'text-blue-800', '2º Quartil')}
-                                    {renderizarQuartil(dados.quartil3, 3, '#f59e0b', 'bg-yellow-50', 'border-yellow-300', 'text-yellow-800', '3º Quartil - Atenção')}
-                                    {renderizarQuartil(dados.quartil4, 4, '#ef4444', 'bg-red-50', 'border-red-300', 'text-red-800', '4º Quartil - ALERTA!')}
+                                    {renderizarQuartil(dados.quartil1, 1, '#10b981', 'bg-green-50', 'border-green-300', 'text-green-800', '1º Quartil - Top agentes', Trophy)}
+                                    {renderizarQuartil(dados.quartil2, 2, '#3b82f6', 'bg-blue-50', 'border-blue-300', 'text-blue-800', '2º Quartil - Bom', Star)}
+                                    {renderizarQuartil(dados.quartil3, 3, '#f59e0b', 'bg-yellow-50', 'border-yellow-300', 'text-yellow-800', '3º Quartil - Atenção', AlertTriangle)}
+                                    {renderizarQuartil(dados.quartil4, 4, '#ef4444', 'bg-red-50', 'border-red-300', 'text-red-800', '4º Quartil - ALERTA!', AlertCircle)}
                                 </div>
                             </div>
                         </>
