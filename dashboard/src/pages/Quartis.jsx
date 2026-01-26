@@ -195,10 +195,12 @@ const Quartis = () => {
                                     <h3 className="text-sm font-medium text-slate-600">1º Quartil</h3>
                                     <div className="w-4 h-4 rounded-full bg-green-500"></div>
                                 </div>
-                                <p className="text-2xl font-bold text-slate-800">{dados.quartil1.length}</p>
-                                <p className="text-sm text-slate-500">Agentes</p>
+                                <p className="text-2xl font-bold text-slate-800">
+                                    R$ {dados.estatisticas.quartil1.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                </p>
+                                <p className="text-sm text-slate-500">Valor Total</p>
                                 <p className="text-xs text-slate-400 mt-2">
-                                    Média: R$ {dados.estatisticas.quartil1.media.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                    {dados.quartil1.length} agente{dados.quartil1.length !== 1 ? 's' : ''}
                                 </p>
                             </div>
                             <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
@@ -206,10 +208,12 @@ const Quartis = () => {
                                     <h3 className="text-sm font-medium text-slate-600">2º Quartil</h3>
                                     <div className="w-4 h-4 rounded-full bg-blue-500"></div>
                                 </div>
-                                <p className="text-2xl font-bold text-slate-800">{dados.quartil2.length}</p>
-                                <p className="text-sm text-slate-500">Agentes</p>
+                                <p className="text-2xl font-bold text-slate-800">
+                                    R$ {dados.estatisticas.quartil2.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                </p>
+                                <p className="text-sm text-slate-500">Valor Total</p>
                                 <p className="text-xs text-slate-400 mt-2">
-                                    Média: R$ {dados.estatisticas.quartil2.media.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                    {dados.quartil2.length} agente{dados.quartil2.length !== 1 ? 's' : ''}
                                 </p>
                             </div>
                             <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
@@ -217,10 +221,12 @@ const Quartis = () => {
                                     <h3 className="text-sm font-medium text-slate-600">3º Quartil</h3>
                                     <div className="w-4 h-4 rounded-full bg-yellow-500"></div>
                                 </div>
-                                <p className="text-2xl font-bold text-slate-800">{dados.quartil3.length}</p>
-                                <p className="text-sm text-slate-500">Agentes</p>
+                                <p className="text-2xl font-bold text-slate-800">
+                                    R$ {dados.estatisticas.quartil3.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                </p>
+                                <p className="text-sm text-slate-500">Valor Total</p>
                                 <p className="text-xs text-slate-400 mt-2">
-                                    Média: R$ {dados.estatisticas.quartil3.media.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                    {dados.quartil3.length} agente{dados.quartil3.length !== 1 ? 's' : ''}
                                 </p>
                             </div>
                             <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
@@ -228,10 +234,12 @@ const Quartis = () => {
                                     <h3 className="text-sm font-medium text-slate-600">4º Quartil</h3>
                                     <div className="w-4 h-4 rounded-full bg-red-500"></div>
                                 </div>
-                                <p className="text-2xl font-bold text-slate-800">{dados.quartil4.length}</p>
-                                <p className="text-sm text-slate-500">Agentes</p>
+                                <p className="text-2xl font-bold text-slate-800">
+                                    R$ {dados.estatisticas.quartil4.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                </p>
+                                <p className="text-sm text-slate-500">Valor Total</p>
                                 <p className="text-xs text-slate-400 mt-2">
-                                    Média: R$ {dados.estatisticas.quartil4.media.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                    {dados.quartil4.length} agente{dados.quartil4.length !== 1 ? 's' : ''}
                                 </p>
                             </div>
                         </div>
