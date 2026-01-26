@@ -83,6 +83,7 @@ const Quartis = () => {
                 min: dados.estatisticas.quartil1.min,
                 max: dados.estatisticas.quartil1.max,
                 total: dados.estatisticas.quartil1.total || 0,
+                valorTotal: dados.estatisticas.quartil1.total || 0,
                 cor: cores.quartil1
             },
             {
@@ -92,6 +93,7 @@ const Quartis = () => {
                 min: dados.estatisticas.quartil2.min,
                 max: dados.estatisticas.quartil2.max,
                 total: dados.estatisticas.quartil2.total || 0,
+                valorTotal: dados.estatisticas.quartil2.total || 0,
                 cor: cores.quartil2
             },
             {
@@ -101,6 +103,7 @@ const Quartis = () => {
                 min: dados.estatisticas.quartil3.min,
                 max: dados.estatisticas.quartil3.max,
                 total: dados.estatisticas.quartil3.total || 0,
+                valorTotal: dados.estatisticas.quartil3.total || 0,
                 cor: cores.quartil3
             },
             {
@@ -110,6 +113,7 @@ const Quartis = () => {
                 min: dados.estatisticas.quartil4.min,
                 max: dados.estatisticas.quartil4.max,
                 total: dados.estatisticas.quartil4.total || 0,
+                valorTotal: dados.estatisticas.quartil4.total || 0,
                 cor: cores.quartil4
             }
         ];
@@ -244,12 +248,14 @@ const Quartis = () => {
                                         textAnchor="end"
                                         height={80}
                                     />
-                                    <YAxis />
+                                    <YAxis 
+                                        tickFormatter={(value) => `R$ ${(value / 1000).toFixed(0)}k`}
+                                    />
                                     <Tooltip 
                                         formatter={(value) => `R$ ${value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
                                     />
                                     <Legend />
-                                    <Bar dataKey="media" name="Média de Valor (R$)">
+                                    <Bar dataKey="valorTotal" name="Valor Total (R$)">
                                         {dadosGrafico.map((entry, index) => (
                                             <Cell key={`cell-${index}`} fill={entry.cor} />
                                         ))}
