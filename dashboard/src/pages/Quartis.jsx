@@ -82,6 +82,7 @@ const Quartis = () => {
                 media: dados.estatisticas.quartil1.media,
                 min: dados.estatisticas.quartil1.min,
                 max: dados.estatisticas.quartil1.max,
+                total: dados.estatisticas.quartil1.total || 0,
                 cor: cores.quartil1
             },
             {
@@ -90,6 +91,7 @@ const Quartis = () => {
                 media: dados.estatisticas.quartil2.media,
                 min: dados.estatisticas.quartil2.min,
                 max: dados.estatisticas.quartil2.max,
+                total: dados.estatisticas.quartil2.total || 0,
                 cor: cores.quartil2
             },
             {
@@ -98,6 +100,7 @@ const Quartis = () => {
                 media: dados.estatisticas.quartil3.media,
                 min: dados.estatisticas.quartil3.min,
                 max: dados.estatisticas.quartil3.max,
+                total: dados.estatisticas.quartil3.total || 0,
                 cor: cores.quartil3
             },
             {
@@ -106,6 +109,7 @@ const Quartis = () => {
                 media: dados.estatisticas.quartil4.media,
                 min: dados.estatisticas.quartil4.min,
                 max: dados.estatisticas.quartil4.max,
+                total: dados.estatisticas.quartil4.total || 0,
                 cor: cores.quartil4
             }
         ];
@@ -190,7 +194,7 @@ const Quartis = () => {
                                 <p className="text-2xl font-bold text-slate-800">{dados.quartil1.length}</p>
                                 <p className="text-sm text-slate-500">Agentes</p>
                                 <p className="text-xs text-slate-400 mt-2">
-                                    Média: {dados.estatisticas.quartil1.media.toLocaleString('pt-BR')} DDA
+                                    Média: R$ {dados.estatisticas.quartil1.media.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                                 </p>
                             </div>
                             <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
@@ -201,7 +205,7 @@ const Quartis = () => {
                                 <p className="text-2xl font-bold text-slate-800">{dados.quartil2.length}</p>
                                 <p className="text-sm text-slate-500">Agentes</p>
                                 <p className="text-xs text-slate-400 mt-2">
-                                    Média: {dados.estatisticas.quartil2.media.toLocaleString('pt-BR')} DDA
+                                    Média: R$ {dados.estatisticas.quartil2.media.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                                 </p>
                             </div>
                             <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
@@ -212,7 +216,7 @@ const Quartis = () => {
                                 <p className="text-2xl font-bold text-slate-800">{dados.quartil3.length}</p>
                                 <p className="text-sm text-slate-500">Agentes</p>
                                 <p className="text-xs text-slate-400 mt-2">
-                                    Média: {dados.estatisticas.quartil3.media.toLocaleString('pt-BR')} DDA
+                                    Média: R$ {dados.estatisticas.quartil3.media.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                                 </p>
                             </div>
                             <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
@@ -223,14 +227,14 @@ const Quartis = () => {
                                 <p className="text-2xl font-bold text-slate-800">{dados.quartil4.length}</p>
                                 <p className="text-sm text-slate-500">Agentes</p>
                                 <p className="text-xs text-slate-400 mt-2">
-                                    Média: {dados.estatisticas.quartil4.media.toLocaleString('pt-BR')} DDA
+                                    Média: R$ {dados.estatisticas.quartil4.media.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                                 </p>
                             </div>
                         </div>
 
                         {/* Gráfico de Comparação */}
                         <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mb-6">
-                            <h3 className="text-lg font-semibold text-slate-800 mb-4">Comparação entre Quartis</h3>
+                            <h3 className="text-lg font-semibold text-slate-800 mb-4">Comparação entre Quartis - Valor Total</h3>
                             <ResponsiveContainer width="100%" height={400}>
                                 <BarChart data={dadosGrafico} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
                                     <CartesianGrid strokeDasharray="3 3" />
@@ -242,10 +246,10 @@ const Quartis = () => {
                                     />
                                     <YAxis />
                                     <Tooltip 
-                                        formatter={(value) => value.toLocaleString('pt-BR')}
+                                        formatter={(value) => `R$ ${value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
                                     />
                                     <Legend />
-                                    <Bar dataKey="media" name="Média de DDA">
+                                    <Bar dataKey="media" name="Média de Valor (R$)">
                                         {dadosGrafico.map((entry, index) => (
                                             <Cell key={`cell-${index}`} fill={entry.cor} />
                                         ))}
@@ -269,7 +273,7 @@ const Quartis = () => {
                                         <thead>
                                             <tr className="border-b border-slate-200">
                                                 <th className="text-left py-3 px-4 font-semibold text-slate-700">Agente</th>
-                                                <th className="text-right py-3 px-4 font-semibold text-slate-700">Total DDA</th>
+                                                <th className="text-right py-3 px-4 font-semibold text-slate-700">Valor Total</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -277,7 +281,7 @@ const Quartis = () => {
                                                 <tr key={idx} className="border-b border-slate-100">
                                                     <td className="py-2 px-4 text-slate-700">{extrairNumeroAgente(agente.agente)}</td>
                                                     <td className="py-2 px-4 text-right font-medium text-green-600">
-                                                        {agente.total_dda.toLocaleString('pt-BR')}
+                                                        R$ {parseFloat(agente.valor_total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                                                     </td>
                                                 </tr>
                                             ))}
@@ -299,7 +303,7 @@ const Quartis = () => {
                                         <thead>
                                             <tr className="border-b border-slate-200">
                                                 <th className="text-left py-3 px-4 font-semibold text-slate-700">Agente</th>
-                                                <th className="text-right py-3 px-4 font-semibold text-slate-700">Total DDA</th>
+                                                <th className="text-right py-3 px-4 font-semibold text-slate-700">Valor Total</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -307,7 +311,7 @@ const Quartis = () => {
                                                 <tr key={idx} className="border-b border-slate-100">
                                                     <td className="py-2 px-4 text-slate-700">{extrairNumeroAgente(agente.agente)}</td>
                                                     <td className="py-2 px-4 text-right font-medium text-blue-600">
-                                                        {agente.total_dda.toLocaleString('pt-BR')}
+                                                        R$ {parseFloat(agente.valor_total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                                                     </td>
                                                 </tr>
                                             ))}
@@ -329,7 +333,7 @@ const Quartis = () => {
                                         <thead>
                                             <tr className="border-b border-slate-200">
                                                 <th className="text-left py-3 px-4 font-semibold text-slate-700">Agente</th>
-                                                <th className="text-right py-3 px-4 font-semibold text-slate-700">Total DDA</th>
+                                                <th className="text-right py-3 px-4 font-semibold text-slate-700">Valor Total</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -337,7 +341,7 @@ const Quartis = () => {
                                                 <tr key={idx} className="border-b border-slate-100">
                                                     <td className="py-2 px-4 text-slate-700">{extrairNumeroAgente(agente.agente)}</td>
                                                     <td className="py-2 px-4 text-right font-medium text-yellow-600">
-                                                        {agente.total_dda.toLocaleString('pt-BR')}
+                                                        R$ {parseFloat(agente.valor_total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                                                     </td>
                                                 </tr>
                                             ))}
@@ -359,7 +363,7 @@ const Quartis = () => {
                                         <thead>
                                             <tr className="border-b border-slate-200">
                                                 <th className="text-left py-3 px-4 font-semibold text-slate-700">Agente</th>
-                                                <th className="text-right py-3 px-4 font-semibold text-slate-700">Total DDA</th>
+                                                <th className="text-right py-3 px-4 font-semibold text-slate-700">Valor Total</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -367,7 +371,7 @@ const Quartis = () => {
                                                 <tr key={idx} className="border-b border-slate-100">
                                                     <td className="py-2 px-4 text-slate-700">{extrairNumeroAgente(agente.agente)}</td>
                                                     <td className="py-2 px-4 text-right font-medium text-red-600">
-                                                        {agente.total_dda.toLocaleString('pt-BR')}
+                                                        R$ {parseFloat(agente.valor_total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                                                     </td>
                                                 </tr>
                                             ))}
