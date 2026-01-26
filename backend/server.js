@@ -56,6 +56,7 @@ const dashboardRoutes = require('./routes/dashboardRoutes');
 const aloRoutes = require('./routes/aloRoutes');
 const { updateMissingMonths } = require('./utils/updateBlocoSummary');
 const { updateBlocoSpinsDaily } = require('./utils/updateBlocoSpinsDaily');
+const { syncAgentesFromResultados } = require('./scripts/populateAgentesFromResultados');
 
 const app = express();
 const PORT = process.env.PORT || 3002;
@@ -138,6 +139,11 @@ const server = app.listen(PORT, async () => {
     updateBlocoSpinsDaily(true).catch(err => {
         console.error('⚠️  Erro ao atualizar bloco_spins_diario:', err.message);
     });
+
+    // Sincronizar agentes da tabela vuon_resultados (não bloqueia)
+    syncAgentesFromResultados(true).catch(err => {
+        console.error('⚠️  Erro ao sincronizar agentes:', err.message);
+    });
     
     // Configurar verificação periódica
     // Pode ser configurado via variável de ambiente UPDATE_INTERVAL_HOURS (padrão: 1 hora)
@@ -156,6 +162,11 @@ const server = app.listen(PORT, async () => {
         // Spins diários (até ontem)
         updateBlocoSpinsDaily(true).catch(err => {
             console.error('⚠️  Erro na verificação periódica de bloco_spins_diario:', err.message);
+        });
+
+        // Sincronizar agentes (modo silencioso)
+        syncAgentesFromResultados(true).catch(err => {
+            console.error('⚠️  Erro na sincronização periódica de agentes:', err.message);
         });
     }, UPDATE_INTERVAL_MS);
     
