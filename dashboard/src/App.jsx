@@ -8,6 +8,7 @@ import Bloco3 from './pages/Bloco3';
 import BlocoWO from './pages/BlocoWO';
 import Comparativo from './pages/Comparativo';
 import Produtividade from './pages/Produtividade';
+import Quartis from './pages/Quartis';
 import Login from './pages/Login';
 import CadastroUsuario from './pages/CadastroUsuario';
 import { API_ENDPOINTS } from './config/api';
@@ -241,6 +242,16 @@ function App() {
             <ProtectedRoute>
               <Layout>
                 <Produtividade />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/quartis"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <Quartis />
               </Layout>
             </ProtectedRoute>
           }

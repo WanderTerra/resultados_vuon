@@ -124,3 +124,5 @@ async function testAcordosPagamentos() {
 
 testAcordosPagamentos();
 
+
+

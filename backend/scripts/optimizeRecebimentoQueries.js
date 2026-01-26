@@ -85,3 +85,5 @@ async function optimizeRecebimentoQueries() {
 
 optimizeRecebimentoQueries();
 
+
+

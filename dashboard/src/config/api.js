@@ -26,4 +26,5 @@ export const API_ENDPOINTS = {
     spinsLastDay: `${API_BASE_URL}/api/dashboard/spins-last-day`,
     comparativo: `${API_BASE_URL}/api/dashboard/comparativo`,
     comparativoAgentes: `${API_BASE_URL}/api/dashboard/comparativo/agentes`,
+    quartis: `${API_BASE_URL}/api/dashboard/quartis`,
 };
