@@ -7,6 +7,16 @@ export default defineConfig({
   server: {
     port: 5173,
   },
+  preview: {
+    port: 4173,
+    host: '0.0.0.0',
+    allowedHosts: [
+      'resultados.vuon.portes.com.br',
+      'api-resultados.vuon.portes.com.br',
+      'localhost',
+      '127.0.0.1'
+    ]
+  },
   build: {
     outDir: 'dist',
     assetsDir: 'assets',
