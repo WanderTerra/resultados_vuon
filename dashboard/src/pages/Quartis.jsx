@@ -291,40 +291,37 @@ const Quartis = () => {
                                     </p>
                                 </div>
                             </div>
-                        </>
-                    );
-                })()}
 
-                        {/* Gráfico de Comparação */}
-                        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mb-6">
-                            <h3 className="text-lg font-semibold text-slate-800 mb-4">Comparação entre Quartis - Valor Total</h3>
-                            <ResponsiveContainer width="100%" height={400}>
-                                <BarChart data={dadosGrafico} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
-                                    <CartesianGrid strokeDasharray="3 3" />
-                                    <XAxis 
-                                        dataKey="quartil" 
-                                        angle={-45}
-                                        textAnchor="end"
-                                        height={80}
-                                    />
-                                    <YAxis 
-                                        tickFormatter={(value) => `R$ ${(value / 1000).toFixed(0)}k`}
-                                    />
-                                    <Tooltip 
-                                        formatter={(value) => `R$ ${value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
-                                    />
-                                    <Legend />
-                                    <Bar dataKey="valorTotal" name="Valor Total (R$)">
-                                        {dadosGrafico.map((entry, index) => (
-                                            <Cell key={`cell-${index}`} fill={entry.cor} />
-                                        ))}
-                                    </Bar>
-                                </BarChart>
-                            </ResponsiveContainer>
-                        </div>
+                            {/* Gráfico de Comparação */}
+                            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mb-6">
+                                <h3 className="text-lg font-semibold text-slate-800 mb-4">Comparação entre Quartis - Valor Total</h3>
+                                <ResponsiveContainer width="100%" height={400}>
+                                    <BarChart data={dadosGrafico} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
+                                        <CartesianGrid strokeDasharray="3 3" />
+                                        <XAxis 
+                                            dataKey="quartil" 
+                                            angle={-45}
+                                            textAnchor="end"
+                                            height={80}
+                                        />
+                                        <YAxis 
+                                            tickFormatter={(value) => `R$ ${(value / 1000).toFixed(0)}k`}
+                                        />
+                                        <Tooltip 
+                                            formatter={(value) => `R$ ${value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
+                                        />
+                                        <Legend />
+                                        <Bar dataKey="valorTotal" name="Valor Total (R$)">
+                                            {dadosGrafico.map((entry, index) => (
+                                                <Cell key={`cell-${index}`} fill={entry.cor} />
+                                            ))}
+                                        </Bar>
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            </div>
 
-                        {/* Tabelas Detalhadas por Quartil */}
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                            {/* Tabelas Detalhadas por Quartil */}
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
                             {/* 1º Quartil */}
                             <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
                                 <div className="flex items-center justify-between mb-4">
@@ -445,8 +442,9 @@ const Quartis = () => {
                                 </div>
                             </div>
                         </div>
-                    </>
-                )}
+                        </>
+                    );
+                })()}
             </section>
         </div>
     );
