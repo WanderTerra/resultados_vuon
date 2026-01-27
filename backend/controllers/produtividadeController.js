@@ -1,26 +1,55 @@
+const ProdutividadeModel = require('../models/produtividadeModel');
+
 /**
  * Controller de Produtividade do Agente
  *
- * OBS: este controller estava sendo referenciado nas rotas, mas o arquivo não existia,
- * causando crash do backend no boot.
- *
- * Por enquanto retornamos payloads vazios (para o backend subir e o front compilar).
- * Quando você quiser, implementamos as queries reais.
+ * Agora utiliza `ProdutividadeModel` para retornar dados reais
+ * consumidos pelos componentes `ProdutividadeChart` e
+ * `ProdutividadeBarChart` no frontend.
  */
 
 exports.getProdutividadeData = async (req, res) => {
-    // payload “neutro” para não quebrar o front caso exista consumo
-    return res.json({
-        data: [],
-        message: 'Produtividade ainda não implementada neste build'
-    });
+    try {
+        const { agenteId, startDate, endDate, groupBy } = req.query;
+
+        const agenteIdNum = agenteId ? parseInt(agenteId, 10) : null;
+        const groupByFinal = groupBy === 'day' ? 'day' : 'month';
+
+        const dados = await ProdutividadeModel.getProdutividadeData(
+            agenteIdNum,
+            startDate || null,
+            endDate || null,
+            groupByFinal
+        );
+
+        return res.json(dados);
+    } catch (error) {
+        console.error('❌ Erro em getProdutividadeData:', error);
+        return res.status(500).json({
+            message: 'Erro ao buscar dados de produtividade',
+            error: error.message
+        });
+    }
 };
 
 exports.getTopAgentes = async (req, res) => {
-    return res.json({
-        data: [],
-        message: 'Top agentes ainda não implementado neste build'
-    });
-};
+    try {
+        const { limit, startDate, endDate } = req.query;
+        const limitNum = limit ? parseInt(limit, 10) : 5;
 
+        const dados = await ProdutividadeModel.getTopAgentes(
+            limitNum,
+            startDate || null,
+            endDate || null
+        );
+
+        return res.json(dados);
+    } catch (error) {
+        console.error('❌ Erro em getTopAgentes:', error);
+        return res.status(500).json({
+            message: 'Erro ao buscar top agentes',
+            error: error.message
+        });
+    }
+};
 
