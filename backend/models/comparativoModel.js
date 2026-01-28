@@ -439,10 +439,22 @@ class ComparativoModel {
         let clientesRows, acordosRows, valorCobradoRows, valorRecuperadoRows;
         try {
             [clientesRows, acordosRows, valorCobradoRows, valorRecuperadoRows] = await Promise.all([
-                db.execute(clientesCobradosQuery),
-                db.execute(acordosQuery),
-                db.execute(valorCobradoQuery),
-                db.execute(valorRecuperadoQuery)
+                db.execute(clientesCobradosQuery).catch(err => {
+                    console.error(`❌ Erro na query de clientes:`, err);
+                    throw err;
+                }),
+                db.execute(acordosQuery).catch(err => {
+                    console.error(`❌ Erro na query de acordos:`, err);
+                    throw err;
+                }),
+                db.execute(valorCobradoQuery).catch(err => {
+                    console.error(`❌ Erro na query de valor cobrado:`, err);
+                    throw err;
+                }),
+                db.execute(valorRecuperadoQuery).catch(err => {
+                    console.error(`❌ Erro na query de valor recuperado:`, err);
+                    throw err;
+                })
             ]);
             
             console.log(`✅ Comparativo - Queries executadas:`);

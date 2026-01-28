@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, LogOut, BarChart3, UserPlus, TrendingUp, PieChart, Users, Menu, X } from 'lucide-react';
+import { LayoutDashboard, LogOut, BarChart3, UserPlus, TrendingUp, PieChart, Users, Menu, X, Settings, ChevronDown, ChevronRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { hasPermission } from '../utils/permissions';
 
@@ -29,6 +29,12 @@ const Sidebar = ({ isOpen, onClose }) => {
         // Limpar também o modo de visualização salvo (opcional)
         localStorage.removeItem('dateFilter_viewMode');
         navigate('/login');
+    };
+
+    // Dropdown de configuração
+    const [configOpen, setConfigOpen] = useState(true);
+    const toggleConfig = () => {
+        setConfigOpen((prev) => !prev);
     };
 
     const getPageTitle = () => {
@@ -128,24 +134,58 @@ const Sidebar = ({ isOpen, onClose }) => {
                     <span className="font-medium">Quartis de DDA</span>
                 </Link>
                 {isAdmin() && (
-                    <>
-                        <Link
-                            to="/cadastro-usuario"
-                            onClick={handleLinkClick}
-                            className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${isActive('/cadastro-usuario') ? 'bg-blue-600 text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
+                    <div className="mt-2">
+                        {/* Cabeçalho de Configuração (dropdown) com exatamente o mesmo layout dos demais itens */}
+                        <button
+                            type="button"
+                            onClick={toggleConfig}
+                            className={`w-full flex items-center justify-between px-4 py-3 rounded-lg transition-colors ${
+                                configOpen
+                                    ? 'bg-blue-600 text-white'
+                                    : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+                            }`}
                         >
-                            <UserPlus size={20} />
-                            <span className="font-medium">Cadastrar Usuário</span>
-                        </Link>
-                        <Link
-                            to="/cadastro-agentes"
-                            onClick={handleLinkClick}
-                            className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${isActive('/cadastro-agentes') ? 'bg-blue-600 text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
-                        >
-                            <Users size={20} />
-                            <span className="font-medium">Cadastrar Agentes</span>
-                        </Link>
-                    </>
+                            <span className="flex items-center gap-3">
+                                <Settings size={20} className={configOpen ? 'text-white' : 'text-slate-400'} />
+                                <span className="text-sm font-medium">Configuração</span>
+                            </span>
+                            {configOpen ? (
+                                <ChevronDown size={16} className="text-slate-400" />
+                            ) : (
+                                <ChevronRight size={16} className="text-slate-400" />
+                            )}
+                        </button>
+
+                        {configOpen && (
+                            <div className="mt-1 space-y-1">
+                                {/* Opções dentro de Configuração */}
+                                <Link
+                                    to="/cadastro-usuario"
+                                    onClick={handleLinkClick}
+                                    className={`ml-4 flex items-center gap-3 px-4 py-2 rounded-lg transition-colors ${
+                                        isActive('/cadastro-usuario')
+                                            ? 'bg-blue-600 text-white'
+                                            : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+                                    }`}
+                                >
+                                    <UserPlus size={18} />
+                                    <span className="text-sm font-medium">Cadastrar Usuário</span>
+                                </Link>
+                                <Link
+                                    to="/cadastro-agentes"
+                                    onClick={handleLinkClick}
+                                    className={`ml-4 flex items-center gap-3 px-4 py-2 rounded-lg transition-colors ${
+                                        isActive('/cadastro-agentes')
+                                            ? 'bg-blue-600 text-white'
+                                            : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+                                    }`}
+                                >
+                                    <Users size={18} />
+                                    <span className="text-sm font-medium">Cadastrar Agentes</span>
+                                </Link>
+                            </div>
+                        )}
+                    </div>
                 )}
             </nav>
 

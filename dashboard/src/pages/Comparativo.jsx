@@ -219,6 +219,14 @@ const Comparativo = () => {
             }
 
             console.log('📤 Enviando requisição com', periodosValidos.length, 'períodos para o backend');
+            console.log('📤 URL completa:', `${API_ENDPOINTS.comparativo}?${params}`);
+            console.log('📤 Parâmetros:', {
+                periodos: periodosValidos,
+                bloco,
+                clientesVirgens,
+                groupBy,
+                agenteId
+            });
 
             const response = await fetch(`${API_ENDPOINTS.comparativo}?${params}`, {
                 headers: {
@@ -226,10 +234,13 @@ const Comparativo = () => {
                 },
             });
 
+            console.log('📥 Status da resposta:', response.status, response.statusText);
+
             if (response.ok) {
                 const data = await response.json();
                 console.log('📥 Dados recebidos do backend');
                 console.log('   Total de períodos retornados:', data.periodos?.length || 0);
+                console.log('   Estrutura completa dos dados:', data);
                 if (data.periodos) {
                     // Ordenar períodos por data antes de salvar
                     data.periodos.sort((a, b) => {
@@ -246,13 +257,21 @@ const Comparativo = () => {
                 }
                 setDados(data);
             } else {
-                const error = await response.json();
+                let error;
+                try {
+                    error = await response.json();
+                } catch (e) {
+                    error = { message: `Erro HTTP ${response.status}: ${response.statusText}` };
+                }
                 console.error('❌ Erro na resposta:', error);
+                console.error('❌ Status:', response.status);
+                console.error('❌ Status Text:', response.statusText);
                 alert(`Erro: ${error.message || 'Erro ao buscar dados'}`);
             }
         } catch (error) {
-            console.error('Erro ao buscar comparativo:', error);
-            alert('Erro ao buscar dados comparativos');
+            console.error('❌ Erro ao buscar comparativo:', error);
+            console.error('❌ Stack trace:', error.stack);
+            alert(`Erro ao buscar dados comparativos: ${error.message || 'Erro desconhecido'}`);
         } finally {
             setLoading(false);
         }

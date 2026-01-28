@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Users, UserPlus, Edit2, Trash2, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
+import { Users, UserPlus, Edit2, Trash2, CheckCircle, XCircle, AlertCircle, X } from 'lucide-react';
 import { API_ENDPOINTS } from '../config/api';
 import Loading from '../components/Loading';
 
@@ -18,6 +18,7 @@ const CadastroAgentes = () => {
         status: 'ativo'
     });
     const [showForm, setShowForm] = useState(false);
+    const [showEditModal, setShowEditModal] = useState(false);
     const [buscaAgente, setBuscaAgente] = useState('');
     const [buscaNumero, setBuscaNumero] = useState('');
 
@@ -121,9 +122,21 @@ const CadastroAgentes = () => {
             status: agente.status
         });
         setEditingId(agente.id);
-        setShowForm(true);
+        setShowEditModal(true);
         setError('');
         setSuccess('');
+    };
+
+    const closeEditModal = () => {
+        setShowEditModal(false);
+        setEditingId(null);
+        setFormData({
+            numero_agente: '',
+            nome: '',
+            fixo_carteira: false,
+            status: 'ativo'
+        });
+        setError('');
     };
 
     const handleDelete = async (id) => {
@@ -195,7 +208,11 @@ const CadastroAgentes = () => {
 
             if (response.ok) {
                 setSuccess(editingId ? 'Agente atualizado com sucesso!' : 'Agente cadastrado com sucesso!');
-                resetForm();
+                if (editingId) {
+                    closeEditModal();
+                } else {
+                    resetForm();
+                }
                 buscarAgentes();
                 setTimeout(() => setSuccess(''), 3000);
             } else {
@@ -559,6 +576,122 @@ const CadastroAgentes = () => {
                     </div>
                 )}
             </div>
+
+            {/* Modal de Edição */}
+            {showEditModal && (
+                <div 
+                    className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+                    onClick={closeEditModal}
+                >
+                    <div 
+                        className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="sticky top-0 bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between">
+                            <h3 className="text-xl font-semibold text-slate-800">Editar Agente</h3>
+                            <button
+                                onClick={closeEditModal}
+                                className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+                                title="Fechar"
+                            >
+                                <X size={20} />
+                            </button>
+                        </div>
+                        <div className="p-6">
+                            {error && (
+                                <div className="mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg flex items-center gap-2">
+                                    <AlertCircle size={20} />
+                                    <span>{error}</span>
+                                </div>
+                            )}
+                            {success && (
+                                <div className="mb-4 bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg flex items-center gap-2">
+                                    <CheckCircle size={20} />
+                                    <span>{success}</span>
+                                </div>
+                            )}
+                            <form onSubmit={handleSubmit} className="space-y-4">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-700 mb-2">
+                                            Número do Agente <span className="text-red-500">*</span>
+                                        </label>
+                                        <input
+                                            type="text"
+                                            name="numero_agente"
+                                            value={formData.numero_agente}
+                                            onChange={handleChange}
+                                            className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                            placeholder="Ex: 123"
+                                            required
+                                            disabled={true}
+                                        />
+                                        <p className="text-xs text-slate-500 mt-1">O número do agente não pode ser alterado</p>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-700 mb-2">
+                                            Nome (opcional)
+                                        </label>
+                                        <input
+                                            type="text"
+                                            name="nome"
+                                            value={formData.nome}
+                                            onChange={handleChange}
+                                            className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                            placeholder="Nome do agente"
+                                        />
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className="flex items-center gap-2">
+                                        <input
+                                            type="checkbox"
+                                            name="fixo_carteira"
+                                            id="fixo_carteira_modal"
+                                            checked={formData.fixo_carteira}
+                                            onChange={handleChange}
+                                            className="w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500"
+                                        />
+                                        <label htmlFor="fixo_carteira_modal" className="text-sm font-medium text-slate-700">
+                                            Fixo da Carteira Vuon
+                                        </label>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-700 mb-2">
+                                            Status
+                                        </label>
+                                        <select
+                                            name="status"
+                                            value={formData.status}
+                                            onChange={handleChange}
+                                            className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                        >
+                                            <option value="ativo">Ativo</option>
+                                            <option value="inativo">Inativo</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div className="flex gap-2 pt-4 border-t border-slate-200">
+                                    <button
+                                        type="submit"
+                                        disabled={loading}
+                                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        {loading ? 'Salvando...' : 'Atualizar'}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={closeEditModal}
+                                        className="px-4 py-2 bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300 transition-colors"
+                                    >
+                                        Cancelar
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

@@ -2,18 +2,24 @@ const { getDB } = require('../config/db');
 
 class DiarioBordoModel {
     // Função auxiliar para definir o bloco baseado em dias de atraso
+    // Usa atraso_real se disponível, senão usa atraso (fallback)
     static getBlocoCondition(bloco) {
+        // Verificar ambas as colunas: atraso_real primeiro, depois atraso
         switch(bloco) {
             case 1:
-                return "atraso >= 61 AND atraso <= 90";
+                // BLOCO 1: 61 a 90 dias de atraso
+                return "((atraso_real >= 61 AND atraso_real <= 90) OR (atraso_real IS NULL AND atraso >= 61 AND atraso <= 90))";
             case 2:
-                return "atraso >= 91 AND atraso <= 180";
+                // BLOCO 2: 91 a 180 dias de atraso
+                return "((atraso_real >= 91 AND atraso_real <= 180) OR (atraso_real IS NULL AND atraso >= 91 AND atraso <= 180))";
             case 3:
-                return "atraso >= 181 AND atraso <= 360";
+                // BLOCO 3: 181 a 360 dias de atraso
+                return "((atraso_real >= 181 AND atraso_real <= 360) OR (atraso_real IS NULL AND atraso >= 181 AND atraso <= 360))";
             case 'wo':
-                return "atraso >= 361 AND atraso <= 9999";
+                // WO: 361 a 9999 dias de atraso (mais de 360)
+                return "((atraso_real >= 361 AND atraso_real <= 9999) OR (atraso_real IS NULL AND atraso >= 361 AND atraso <= 9999))";
             default:
-                return "1=1";
+                return "1=1"; // Todos os registros
         }
     }
 
@@ -134,10 +140,10 @@ class DiarioBordoModel {
                 ${horaSelect},
                 DATE(data) as data,
                 CASE 
-                    WHEN atraso >= 61 AND atraso <= 90 THEN 1
-                    WHEN atraso >= 91 AND atraso <= 180 THEN 2
-                    WHEN atraso >= 181 AND atraso <= 360 THEN 3
-                    WHEN atraso >= 361 AND atraso <= 9999 THEN 'wo'
+                    WHEN (atraso_real >= 61 AND atraso_real <= 90) OR (atraso_real IS NULL AND atraso >= 61 AND atraso <= 90) THEN 1
+                    WHEN (atraso_real >= 91 AND atraso_real <= 180) OR (atraso_real IS NULL AND atraso >= 91 AND atraso <= 180) THEN 2
+                    WHEN (atraso_real >= 181 AND atraso_real <= 360) OR (atraso_real IS NULL AND atraso >= 181 AND atraso <= 360) THEN 3
+                    WHEN (atraso_real >= 361 AND atraso_real <= 9999) OR (atraso_real IS NULL AND atraso >= 361 AND atraso <= 9999) THEN 'wo'
                     ELSE NULL
                 END as bloco,
                 COUNT(CASE WHEN acao = 'DDA' THEN 1 END) as dda,
@@ -150,10 +156,10 @@ class DiarioBordoModel {
                 AND agente != ''
                 AND DATE(data) = ?
                 AND (
-                    (atraso >= 61 AND atraso <= 90) OR
-                    (atraso >= 91 AND atraso <= 180) OR
-                    (atraso >= 181 AND atraso <= 360) OR
-                    (atraso >= 361 AND atraso <= 9999)
+                    ((atraso_real >= 61 AND atraso_real <= 90) OR (atraso_real IS NULL AND atraso >= 61 AND atraso <= 90)) OR
+                    ((atraso_real >= 91 AND atraso_real <= 180) OR (atraso_real IS NULL AND atraso >= 91 AND atraso <= 180)) OR
+                    ((atraso_real >= 181 AND atraso_real <= 360) OR (atraso_real IS NULL AND atraso >= 181 AND atraso <= 360)) OR
+                    ((atraso_real >= 361 AND atraso_real <= 9999) OR (atraso_real IS NULL AND atraso >= 361 AND atraso <= 9999))
                 )
             GROUP BY ${horaGroupBy}, bloco
             ORDER BY ${horaGroupBy} ASC, bloco ASC

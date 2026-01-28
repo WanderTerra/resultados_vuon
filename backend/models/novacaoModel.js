@@ -2,21 +2,22 @@ const { getDB } = require('../config/db');
 
 class NovacaoModel {
     // Função auxiliar para definir o bloco baseado em dias de atraso
-    // Usa atraso_real (coluna correta na tabela vuon_novacoes)
+    // Usa atraso_real se disponível, senão usa atraso (fallback)
     static getBlocoCondition(bloco) {
+        // Verificar ambas as colunas: atraso_real primeiro, depois atraso
         switch(bloco) {
             case 1:
                 // BLOCO 1: 61 a 90 dias de atraso
-                return "atraso_real >= 61 AND atraso_real <= 90";
+                return "((atraso_real >= 61 AND atraso_real <= 90) OR (atraso_real IS NULL AND atraso >= 61 AND atraso <= 90))";
             case 2:
                 // BLOCO 2: 91 a 180 dias de atraso
-                return "atraso_real >= 91 AND atraso_real <= 180";
+                return "((atraso_real >= 91 AND atraso_real <= 180) OR (atraso_real IS NULL AND atraso >= 91 AND atraso <= 180))";
             case 3:
                 // BLOCO 3: 181 a 360 dias de atraso
-                return "atraso_real >= 181 AND atraso_real <= 360";
+                return "((atraso_real >= 181 AND atraso_real <= 360) OR (atraso_real IS NULL AND atraso >= 181 AND atraso <= 360))";
             case 'wo':
                 // WO: 361 a 9999 dias de atraso (mais de 360)
-                return "atraso_real >= 361 AND atraso_real <= 9999";
+                return "((atraso_real >= 361 AND atraso_real <= 9999) OR (atraso_real IS NULL AND atraso >= 361 AND atraso <= 9999))";
             default:
                 return "1=1"; // Todos os registros
         }
