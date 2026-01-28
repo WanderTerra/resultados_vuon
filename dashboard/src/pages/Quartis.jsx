@@ -8,7 +8,7 @@ const Quartis = () => {
     const [dados, setDados] = useState(null);
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
-    const [apenasFixos, setApenasFixos] = useState(false); // Por padrão, mostrar todos os agentes
+    const [apenasFixos, setApenasFixos] = useState(true); // Por padrão, mostrar apenas agentes fixos
 
     // Buscar dados de quartis
     const buscarDados = async (apenasFixosParam = null) => {
@@ -62,6 +62,19 @@ const Quartis = () => {
         }
     };
 
+    // Auto‑reload a cada 40 minutos, sempre priorizando agentes fixos
+    useEffect(() => {
+        const intervalId = setInterval(() => {
+            // Garantir que o filtro fique marcado como "apenas fixos"
+            setApenasFixos(true);
+            // Recarregar dados já forçando apenasFixos = true
+            buscarDados(true);
+        }, 40 * 60 * 1000); // 40 minutos em milissegundos
+
+        return () => clearInterval(intervalId);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
     // Função para obter o mês atual (primeiro dia até hoje)
     const obterMesAtual = () => {
         const hoje = new Date();
@@ -92,7 +105,8 @@ const Quartis = () => {
                 const params = new URLSearchParams();
                 params.append('startDate', inicioMes);
                 params.append('endDate', fimMes);
-                if (apenasFixos) params.append('apenasFixos', 'true');
+                // Na carga inicial, sempre trazer apenas agentes fixos
+                params.append('apenasFixos', 'true');
 
                 const response = await fetch(`${API_ENDPOINTS.quartis}?${params}`, {
                     headers: {
@@ -171,6 +185,12 @@ const Quartis = () => {
                 const primeiroDiaMes = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
                 novaStartDate = formatarData(primeiroDiaMes);
                 novaEndDate = formatarData(hoje);
+                break;
+            case 'dia-atual':
+                // Quartil apenas do dia corrente
+                const hojeFormatado = formatarData(hoje);
+                novaStartDate = hojeFormatado;
+                novaEndDate = hojeFormatado;
                 break;
             default:
                 break;
@@ -282,6 +302,12 @@ const Quartis = () => {
                             >
                                 Mês Passado
                             </button>
+                            <button
+                                onClick={() => aplicarFiltroRapido('dia-atual')}
+                                className="px-3 py-1.5 text-sm rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 transition-colors font-medium"
+                            >
+                                Dia Atual
+                            </button>
                         </div>
                     </div>
 
@@ -390,27 +416,31 @@ const Quartis = () => {
                                         const percentualDDA = maxDDA > 0 ? (quantidadeDDA / maxDDA) * 100 : 0;
                                         
                                         return (
-                                            <div key={idx} className={`flex items-center gap-2 p-2 rounded-lg bg-white border ${corBorda} hover:shadow-sm transition-shadow`}>
+                                            <div
+                                                key={idx}
+                                                className={`flex items-center gap-2 p-2 rounded-lg bg-white border ${corBorda} hover:shadow-sm transition-shadow`}
+                                            >
                                                 <span className={`text-xs w-8 font-bold ${corTexto} text-center`}>#{idx + 1}</span>
                                                 <span className="text-sm w-12 font-semibold text-slate-800">
                                                     {extrairNumeroAgente(agente.agente)}
                                                 </span>
-                                                <div className="flex-1 relative">
-                                                    <div className="relative h-6 bg-slate-200 rounded-lg overflow-hidden border border-slate-300">
-                                                        <div 
-                                                            className="h-full rounded-lg transition-all duration-300 flex items-center justify-end pr-1 min-w-fit"
-                                                            style={{ 
-                                                                width: `${Math.max(percentualDDA, 15)}%`,
+                                                {/* Barra de progressão visual */}
+                                                <div className="flex-1">
+                                                    <div className="h-4 bg-slate-200 rounded-full overflow-hidden border border-slate-300">
+                                                        <div
+                                                            className="h-full rounded-full transition-all duration-300"
+                                                            style={{
+                                                                width: `${Math.max(percentualDDA, 8)}%`,
                                                                 backgroundColor: corHex,
-                                                                opacity: 0.9
+                                                                opacity: 0.9,
                                                             }}
-                                                        >
-                                                            <span className="text-xs font-bold text-white whitespace-nowrap">
-                                                                {quantidadeDDA}
-                                                            </span>
-                                                        </div>
+                                                        />
                                                     </div>
                                                 </div>
+                                                {/* Valor numérico de DDA ao lado da barra */}
+                                                <span className="text-lg font-semibold text-slate-800 w-16 text-right">
+                                                    {quantidadeDDA.toLocaleString('pt-BR')}
+                                                </span>
                                             </div>
                                         );
                                     })}
@@ -476,7 +506,7 @@ const Quartis = () => {
                                     <p className="text-lg font-semibold text-green-600 mt-2">
                                         {percentualQuartil1.toFixed(2)}%
                                     </p>
-                                    <p className="text-xs text-slate-400 mt-1">
+                                    <p className="text-base font-semibold text-slate-800 mt-1">
                                         {dados.quartil1.length} agente{dados.quartil1.length !== 1 ? 's' : ''}
                                     </p>
                                 </div>
@@ -498,7 +528,7 @@ const Quartis = () => {
                                     <p className="text-lg font-semibold text-blue-600 mt-2">
                                         {percentualQuartil2.toFixed(2)}%
                                     </p>
-                                    <p className="text-xs text-slate-400 mt-1">
+                                    <p className="text-base font-semibold text-slate-600 mt-1">
                                         {dados.quartil2.length} agente{dados.quartil2.length !== 1 ? 's' : ''}
                                     </p>
                                 </div>
@@ -520,7 +550,7 @@ const Quartis = () => {
                                     <p className="text-lg font-semibold text-yellow-600 mt-2">
                                         {percentualQuartil3.toFixed(2)}%
                                     </p>
-                                    <p className="text-xs text-slate-400 mt-1">
+                                    <p className="text-base font-semibold text-slate-600 mt-1">
                                         {dados.quartil3.length} agente{dados.quartil3.length !== 1 ? 's' : ''}
                                     </p>
                                 </div>
@@ -542,7 +572,7 @@ const Quartis = () => {
                                     <p className="text-lg font-semibold text-red-600 mt-2">
                                         {percentualQuartil4.toFixed(2)}%
                                     </p>
-                                    <p className="text-xs text-slate-400 mt-1">
+                                    <p className="text-base font-semibold text-slate-600 mt-1">
                                         {dados.quartil4.length} agente{dados.quartil4.length !== 1 ? 's' : ''}
                                     </p>
                                 </div>

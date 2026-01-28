@@ -55,19 +55,30 @@ class QuartisModel {
             const placeholders = agentesFixos.map(() => '?').join(',');
             
             // Buscar todos os agentes FIXOS com a quantidade de DDA no período
+            // Métrica: CPF ÚNICO POR DIA (por agente)
             query = `
                 SELECT 
-                    agente,
-                    COUNT(*) as total_dda,
-                    COALESCE(SUM(valor), 0) as valor_total
-                FROM vuon_resultados
-                WHERE acao = 'DDA'
-                    AND agente != '0'
-                    AND agente IS NOT NULL
-                    AND agente != ''
-                    AND agente IN (${placeholders})
-                    ${dateFilter}
-                GROUP BY agente
+                    t.agente,
+                    COUNT(*) as total_dda,                 -- cada linha de t é (agente, cpf, dia) único
+                    COALESCE(SUM(t.valor_total), 0) as valor_total
+                FROM (
+                    SELECT
+                        agente,
+                        cpf_cnpj,
+                        DATE(data) as dia,
+                        SUM(valor) as valor_total
+                    FROM vuon_resultados
+                    WHERE acao = 'DDA'
+                        AND agente != '0'
+                        AND agente IS NOT NULL
+                        AND agente != ''
+                        AND cpf_cnpj IS NOT NULL
+                        AND cpf_cnpj <> ''
+                        AND agente IN (${placeholders})
+                        ${dateFilter}
+                    GROUP BY agente, cpf_cnpj, DATE(data)
+                ) as t
+                GROUP BY t.agente
                 ORDER BY total_dda DESC
             `;
             
@@ -76,18 +87,29 @@ class QuartisModel {
         } else {
             // Buscar TODOS os agentes (não apenas fixos)
             console.log('📊 Quartis - Buscando TODOS os agentes (não apenas fixos)');
+            // Métrica: CPF ÚNICO POR DIA (por agente)
             query = `
                 SELECT 
-                    agente,
+                    t.agente,
                     COUNT(*) as total_dda,
-                    COALESCE(SUM(valor), 0) as valor_total
-                FROM vuon_resultados
-                WHERE acao = 'DDA'
-                    AND agente != '0'
-                    AND agente IS NOT NULL
-                    AND agente != ''
-                    ${dateFilter}
-                GROUP BY agente
+                    COALESCE(SUM(t.valor_total), 0) as valor_total
+                FROM (
+                    SELECT
+                        agente,
+                        cpf_cnpj,
+                        DATE(data) as dia,
+                        SUM(valor) as valor_total
+                    FROM vuon_resultados
+                    WHERE acao = 'DDA'
+                        AND agente != '0'
+                        AND agente IS NOT NULL
+                        AND agente != ''
+                        AND cpf_cnpj IS NOT NULL
+                        AND cpf_cnpj <> ''
+                        ${dateFilter}
+                    GROUP BY agente, cpf_cnpj, DATE(data)
+                ) as t
+                GROUP BY t.agente
                 ORDER BY total_dda DESC
             `;
             queryParams = params;
