@@ -84,7 +84,7 @@ const Quartis = () => {
                 const contentType = response.headers.get('content-type');
                 if (contentType && contentType.includes('application/json')) {
                     const data = await response.json();
-                    setDados(data);
+                    processarNovosDados(data);
                 } else {
                     throw new Error('Resposta do servidor não é JSON');
                 }
@@ -269,29 +269,29 @@ const Quartis = () => {
                 },
             });
 
-            if (response.ok) {
-                const contentType = response.headers.get('content-type');
-                if (contentType && contentType.includes('application/json')) {
-                    const data = await response.json();
-                    setDados(data);
-                } else {
-                    throw new Error('Resposta do servidor não é JSON');
-                }
-            } else {
-                const contentType = response.headers.get('content-type');
-                if (contentType && contentType.includes('application/json')) {
-                    const error = await response.json();
-                    alert(`Erro: ${error.message || 'Erro ao buscar dados'}`);
-                } else {
-                    if (response.status === 404) {
-                        alert('Erro: Rota não encontrada. O servidor precisa ser reiniciado para carregar a nova rota.');
+                if (response.ok) {
+                    const contentType = response.headers.get('content-type');
+                    if (contentType && contentType.includes('application/json')) {
+                        const data = await response.json();
+                        processarNovosDados(data);
                     } else {
-                        alert(`Erro: ${response.status} ${response.statusText}`);
+                        throw new Error('Resposta do servidor não é JSON');
+                    }
+                } else {
+                    const contentType = response.headers.get('content-type');
+                    if (contentType && contentType.includes('application/json')) {
+                        const error = await response.json();
+                        alert(`Erro: ${error.message || 'Erro ao buscar dados'}`);
+                    } else {
+                        if (response.status === 404) {
+                            alert('Erro: Rota não encontrada. O servidor precisa ser reiniciado para carregar a nova rota.');
+                        } else {
+                            alert(`Erro: ${response.status} ${response.statusText}`);
+                        }
                     }
                 }
-            }
-        } catch (error) {
-            console.error('Erro ao buscar quartis:', error);
+            } catch (error) {
+                console.error('Erro ao buscar quartis:', error);
             if (error.message.includes('JSON')) {
                 alert('Erro: O servidor retornou uma resposta inválida. Verifique se o servidor está rodando e se a rota está disponível.');
             } else {
@@ -468,13 +468,24 @@ const Quartis = () => {
                                         const quantidadeDDA = parseInt(agente.total_dda || 0);
                                         const maxDDA = Math.max(...quartil.map(a => parseInt(a.total_dda || 0)));
                                         const percentualDDA = maxDDA > 0 ? (quantidadeDDA / maxDDA) * 100 : 0;
+                                        const movimento = agentesMovidos[agente.agente];
+                                        const animacaoClasse = movimento?.subiu ? 'animate-quartil-subiu' : movimento ? 'animate-quartil-desceu' : '';
                                         
                                         return (
                                             <div
-                                                key={idx}
-                                                className={`flex items-center gap-2 p-2 rounded-lg bg-white border ${corBorda} hover:shadow-sm transition-shadow`}
+                                                key={`${agente.agente}-${idx}`}
+                                                className={`flex items-center gap-2 p-2 rounded-lg bg-white border ${corBorda} hover:shadow-sm transition-shadow ${animacaoClasse}`}
                                             >
-                                                <span className={`text-xs w-8 font-bold ${corTexto} text-center`}>#{idx + 1}</span>
+                                                <span className={`text-xs min-w-[2rem] font-bold ${corTexto} text-center flex items-center gap-0.5`}>
+                                                    #{idx + 1}
+                                                    {movimento && (
+                                                        movimento.subiu ? (
+                                                            <TrendingUp className="w-3.5 h-3.5 text-green-600" title="Subiu de quartil" />
+                                                        ) : (
+                                                            <TrendingDown className="w-3.5 h-3.5 text-red-600" title="Desceu de quartil" />
+                                                        )
+                                                    )}
+                                                </span>
                                                 <span className="text-sm w-12 font-semibold text-slate-800">
                                                     {extrairNumeroAgente(agente.agente)}
                                                 </span>

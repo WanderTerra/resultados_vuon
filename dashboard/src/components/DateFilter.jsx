@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { getLast3Months } from '../utils/dateUtils';
+import { getLast3Months, getCurrentMonth } from '../utils/dateUtils';
 
 // DateFilter component for filtering dashboard data by date range
 const DateFilter = ({ onFilterChange, initialStartDate = null, initialEndDate = null, initialViewMode = 'month' }) => {
@@ -257,14 +257,19 @@ const DateFilter = ({ onFilterChange, initialStartDate = null, initialEndDate = 
             lastFilterRef.current = JSON.stringify(filterData);
             onFilterChange(filterData);
         } else if (mode === 'day') {
+            // Ao mudar para modo diário, sempre buscar do mês atual automaticamente
+            const mesAtual = getCurrentMonth();
+            setSelectedMonth(mesAtual);
             setStartDate('');
             setEndDate('');
-            // Se mudar para modo diário, limpar o filtro para não mostrar dados antigos
-            // O usuário precisa selecionar um mês primeiro
-            console.log('📅 DateFilter - Mudando para modo diário, limpando filtro');
+            
+            const [year, monthNum] = mesAtual.split('-').map(Number);
+            const firstDay = new Date(year, monthNum - 1, 1);
+            const lastDay = new Date(year, monthNum, 0);
+            
             const filterData = {
-                startDate: null,
-                endDate: null,
+                startDate: firstDay.toISOString().split('T')[0],
+                endDate: lastDay.toISOString().split('T')[0],
                 compareMode: false,
                 compareStartDate: null,
                 compareEndDate: null,
@@ -272,8 +277,6 @@ const DateFilter = ({ onFilterChange, initialStartDate = null, initialEndDate = 
             };
             lastFilterRef.current = JSON.stringify(filterData);
             onFilterChange(filterData);
-            // Não limpar selectedMonth aqui - deixar o usuário escolher
-            console.log('📅 DateFilter - Filtro limpo, selectedMonth:', selectedMonth);
         }
     };
     

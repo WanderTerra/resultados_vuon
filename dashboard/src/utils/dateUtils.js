@@ -25,7 +25,13 @@ export const getLast3Months = () => {
     };
 };
 
-
-
-
+/**
+ * Retorna o mês atual no formato YYYY-MM
+ */
+export const getCurrentMonth = () => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    return `${year}-${month}`;
+};
 
