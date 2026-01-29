@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { AlertCircle, Trophy, Star, AlertTriangle } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { AlertCircle, Trophy, Star, AlertTriangle, TrendingUp, TrendingDown } from 'lucide-react';
 import { API_ENDPOINTS } from '../config/api';
 import Loading from '../components/Loading';
 
@@ -9,15 +9,67 @@ const Quartis = () => {
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
     const [apenasFixos, setApenasFixos] = useState(true); // Por padrão, mostrar apenas agentes fixos
+    const [agentesMovidos, setAgentesMovidos] = useState({}); // { agentId: { deQuartil, paraQuartil, subiu } }
+    const dadosRef = useRef(null);
+
+    // Manter ref atualizada para comparação em próximas cargas
+    useEffect(() => {
+        dadosRef.current = dados;
+    }, [dados]);
+
+    // Calcular quais agentes mudaram de quartil entre cargas
+    const calcularMovimentos = (prevDados, newDados) => {
+        if (!prevDados || !newDados) return {};
+        const movimentos = {};
+        const quartisAntes = [
+            (prevDados.quartil1 || []).map(a => a.agente),
+            (prevDados.quartil2 || []).map(a => a.agente),
+            (prevDados.quartil3 || []).map(a => a.agente),
+            (prevDados.quartil4 || []).map(a => a.agente),
+        ];
+        const quartisDepois = [
+            (newDados.quartil1 || []).map(a => a.agente),
+            (newDados.quartil2 || []).map(a => a.agente),
+            (newDados.quartil3 || []).map(a => a.agente),
+            (newDados.quartil4 || []).map(a => a.agente),
+        ];
+        const mapaAntes = {};
+        quartisAntes.forEach((lista, idx) => {
+            lista.forEach(ag => { mapaAntes[ag] = idx + 1; });
+        });
+        quartisDepois.forEach((lista, idx) => {
+            const quartilAtual = idx + 1;
+            lista.forEach(ag => {
+                const quartilAnterior = mapaAntes[ag];
+                if (quartilAnterior !== undefined && quartilAnterior !== quartilAtual) {
+                    movimentos[ag] = {
+                        deQuartil: quartilAnterior,
+                        paraQuartil: quartilAtual,
+                        subiu: quartilAtual < quartilAnterior, // subiu = melhorou (Q4→Q1)
+                    };
+                }
+            });
+        });
+        return movimentos;
+    };
+
+    const processarNovosDados = (newData) => {
+        const prevDados = dadosRef.current;
+        const movimentos = calcularMovimentos(prevDados, newData);
+        setAgentesMovidos(movimentos);
+        setDados(newData);
+    };
 
     // Buscar dados de quartis
-    const buscarDados = async (apenasFixosParam = null) => {
+    const buscarDados = async (apenasFixosParam = null, startDateOverride = null, endDateOverride = null) => {
         setLoading(true);
         try {
             const token = localStorage.getItem('token');
             const params = new URLSearchParams();
-            if (startDate) params.append('startDate', startDate);
-            if (endDate) params.append('endDate', endDate);
+            const dataInicio = startDateOverride ?? startDate;
+            const dataFim = endDateOverride ?? endDate;
+            if (dataInicio) params.append('startDate', dataInicio);
+            if (dataFim) params.append('endDate', dataFim);
             // Usar o parâmetro passado ou o estado atual
             const apenasFixosValue = apenasFixosParam !== null ? apenasFixosParam : apenasFixos;
             if (apenasFixosValue) params.append('apenasFixos', 'true');
@@ -62,21 +114,23 @@ const Quartis = () => {
         }
     };
 
-    // Auto‑reload a cada 40 minutos, sempre priorizando agentes fixos
+    // Auto‑reload a cada 40 minutos, sempre com dia atual e agentes fixos
     useEffect(() => {
         const intervalId = setInterval(() => {
-            // Garantir que o filtro fique marcado como "apenas fixos"
+            const { startDate: inicioDia, endDate: fimDia } = obterDiaAtual();
             setApenasFixos(true);
-            // Recarregar dados já forçando apenasFixos = true
-            buscarDados(true);
+            setStartDate(inicioDia);
+            setEndDate(fimDia);
+            // Recarregar dados com dia atual e agentes fixos
+            buscarDados(true, inicioDia, fimDia);
         }, 40 * 60 * 1000); // 40 minutos em milissegundos
 
         return () => clearInterval(intervalId);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    // Função para obter o mês atual (primeiro dia até hoje)
-    const obterMesAtual = () => {
+    // Função para obter o dia atual (para carga inicial e reload)
+    const obterDiaAtual = () => {
         const hoje = new Date();
         const formatarData = (data) => {
             const ano = data.getFullYear();
@@ -84,27 +138,27 @@ const Quartis = () => {
             const dia = String(data.getDate()).padStart(2, '0');
             return `${ano}-${mes}-${dia}`;
         };
-        const primeiroDiaMes = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+        const hojeFormatado = formatarData(hoje);
         return {
-            startDate: formatarData(primeiroDiaMes),
-            endDate: formatarData(hoje)
+            startDate: hojeFormatado,
+            endDate: hojeFormatado
         };
     };
 
-    // Inicializar com o mês atual
+    // Inicializar com dia atual e agentes fixos
     useEffect(() => {
-        const { startDate: inicioMes, endDate: fimMes } = obterMesAtual();
-        setStartDate(inicioMes);
-        setEndDate(fimMes);
+        const { startDate: inicioDia, endDate: fimDia } = obterDiaAtual();
+        setStartDate(inicioDia);
+        setEndDate(fimDia);
         
-        // Buscar dados com o mês atual
-        const buscarDadosMesAtual = async () => {
+        // Buscar dados do dia atual com agentes fixos
+        const buscarDadosInicial = async () => {
             setLoading(true);
             try {
                 const token = localStorage.getItem('token');
                 const params = new URLSearchParams();
-                params.append('startDate', inicioMes);
-                params.append('endDate', fimMes);
+                params.append('startDate', inicioDia);
+                params.append('endDate', fimDia);
                 // Na carga inicial, sempre trazer apenas agentes fixos
                 params.append('apenasFixos', 'true');
 
@@ -118,7 +172,7 @@ const Quartis = () => {
                     const contentType = response.headers.get('content-type');
                     if (contentType && contentType.includes('application/json')) {
                         const data = await response.json();
-                        setDados(data);
+                        processarNovosDados(data);
                     } else {
                         throw new Error('Resposta do servidor não é JSON');
                     }
@@ -147,7 +201,7 @@ const Quartis = () => {
             }
         };
 
-        buscarDadosMesAtual();
+        buscarDadosInicial();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
