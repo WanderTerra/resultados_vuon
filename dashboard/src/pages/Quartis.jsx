@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { AlertCircle, Trophy, Star, AlertTriangle, TrendingUp, TrendingDown } from 'lucide-react';
+import { AlertCircle, Trophy, Star, AlertTriangle, Info, X } from 'lucide-react';
 import { API_ENDPOINTS } from '../config/api';
 import Loading from '../components/Loading';
 
@@ -9,7 +9,10 @@ const Quartis = () => {
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
     const [apenasFixos, setApenasFixos] = useState(true); // Por padrão, mostrar apenas agentes fixos
-    const [agentesMovidos, setAgentesMovidos] = useState({}); // { agentId: { deQuartil, paraQuartil, subiu } }
+    const [ultimaAtualizacao, setUltimaAtualizacao] = useState(null);
+    const [modalAtualizacaoAberto, setModalAtualizacaoAberto] = useState(false);
+    const [agentesMovidos, setAgentesMovidos] = useState({}); // { agentId: { fezMaisAcordos, ddaAnterior, ddaAtual } }
+    const [animacaoKey, setAnimacaoKey] = useState(0); // Força remount para animação rodar
     const dadosRef = useRef(null);
 
     // Manter ref atualizada para comparação em próximas cargas
@@ -17,35 +20,61 @@ const Quartis = () => {
         dadosRef.current = dados;
     }, [dados]);
 
-    // Calcular quais agentes mudaram de quartil entre cargas
+    // Normalizar chave do agente para comparação (backend pode retornar "682" ou "682 - Nome")
+    const normalizarAgente = (ag) => {
+        if (!ag) return '';
+        const str = String(ag).trim();
+        const match = str.match(/^(\d+)/);
+        return match ? match[1] : str;
+    };
+
+    // Calcular quais agentes mudaram de quartil e/ou fizeram mais acordos entre cargas
     const calcularMovimentos = (prevDados, newDados) => {
-        if (!prevDados || !newDados) return {};
+        if (!newDados) return {};
         const movimentos = {};
-        const quartisAntes = [
-            (prevDados.quartil1 || []).map(a => a.agente),
-            (prevDados.quartil2 || []).map(a => a.agente),
-            (prevDados.quartil3 || []).map(a => a.agente),
-            (prevDados.quartil4 || []).map(a => a.agente),
-        ];
         const quartisDepois = [
-            (newDados.quartil1 || []).map(a => a.agente),
-            (newDados.quartil2 || []).map(a => a.agente),
-            (newDados.quartil3 || []).map(a => a.agente),
-            (newDados.quartil4 || []).map(a => a.agente),
+            (newDados.quartil1 || []),
+            (newDados.quartil2 || []),
+            (newDados.quartil3 || []),
+            (newDados.quartil4 || []),
         ];
-        const mapaAntes = {};
-        quartisAntes.forEach((lista, idx) => {
-            lista.forEach(ag => { mapaAntes[ag] = idx + 1; });
-        });
+        const mapaAntes = {}; // agent normalizado -> quartil
+        const ddaAntes = {};  // agent normalizado -> total_dda
+        if (prevDados) {
+            [
+                (prevDados.quartil1 || []),
+                (prevDados.quartil2 || []),
+                (prevDados.quartil3 || []),
+                (prevDados.quartil4 || []),
+            ].forEach((lista, idx) => {
+                lista.forEach(a => {
+                    const key = normalizarAgente(a.agente);
+                    mapaAntes[key] = idx + 1;
+                    ddaAntes[key] = parseInt(a.total_dda || 0);
+                });
+            });
+        }
         quartisDepois.forEach((lista, idx) => {
             const quartilAtual = idx + 1;
             lista.forEach(ag => {
-                const quartilAnterior = mapaAntes[ag];
-                if (quartilAnterior !== undefined && quartilAnterior !== quartilAtual) {
-                    movimentos[ag] = {
+                const key = normalizarAgente(ag.agente);
+                const quartilAnterior = mapaAntes[key];
+                const ddaAtual = parseInt(ag.total_dda || 0);
+                const ddaAnterior = ddaAntes[key] ?? 0;
+                const fezMaisAcordos = ddaAtual > ddaAnterior;
+                const mudouQuartil = quartilAnterior !== undefined && quartilAnterior !== quartilAtual;
+                const subiu = mudouQuartil && quartilAtual < quartilAnterior;
+                const desceu = mudouQuartil && quartilAtual > quartilAnterior;
+                if (mudouQuartil || fezMaisAcordos) {
+                    movimentos[key] = {
+                        agenteDisplay: ag.agente,
                         deQuartil: quartilAnterior,
                         paraQuartil: quartilAtual,
-                        subiu: quartilAtual < quartilAnterior, // subiu = melhorou (Q4→Q1)
+                        subiu,
+                        desceu,
+                        fezMaisAcordos,
+                        ddaAnterior,
+                        ddaAtual,
                     };
                 }
             });
@@ -53,16 +82,27 @@ const Quartis = () => {
         return movimentos;
     };
 
+    // Gera "fingerprint" dos dados para detectar alterações reais
+    const fingerprintDados = (d) => {
+        if (!d) return '';
+        const q = (arr) => (arr || []).map(a => `${a.agente}:${a.total_dda}`).join('|');
+        return [q(d.quartil1), q(d.quartil2), q(d.quartil3), q(d.quartil4)].join('||');
+    };
+
     const processarNovosDados = (newData) => {
         const prevDados = dadosRef.current;
         const movimentos = calcularMovimentos(prevDados, newData);
+        const temMelhorias = Object.values(movimentos).some(m => m.fezMaisAcordos);
+        const houveAlteracao = fingerprintDados(newData) !== fingerprintDados(prevDados);
+        if (temMelhorias) setAnimacaoKey(k => k + 1);
         setAgentesMovidos(movimentos);
         setDados(newData);
+        if (houveAlteracao) setUltimaAtualizacao(new Date());
     };
 
-    // Buscar dados de quartis
-    const buscarDados = async (apenasFixosParam = null, startDateOverride = null, endDateOverride = null) => {
-        setLoading(true);
+    // Buscar dados de quartis (silent = true para polling sem mostrar loading)
+    const buscarDados = async (apenasFixosParam = null, startDateOverride = null, endDateOverride = null, silent = false) => {
+        if (!silent) setLoading(true);
         try {
             const token = localStorage.getItem('token');
             const params = new URLSearchParams();
@@ -73,6 +113,7 @@ const Quartis = () => {
             // Usar o parâmetro passado ou o estado atual
             const apenasFixosValue = apenasFixosParam !== null ? apenasFixosParam : apenasFixos;
             if (apenasFixosValue) params.append('apenasFixos', 'true');
+            params.append('_t', Date.now()); // Evitar cache para sempre comparar dados frescos
 
             const response = await fetch(`${API_ENDPOINTS.quartis}?${params}`, {
                 headers: {
@@ -104,15 +145,30 @@ const Quartis = () => {
             }
         } catch (error) {
             console.error('Erro ao buscar quartis:', error);
-            if (error.message.includes('JSON')) {
-                alert('Erro: O servidor retornou uma resposta inválida. Verifique se o servidor está rodando e se a rota está disponível.');
-            } else {
-                alert('Erro ao buscar dados de quartis: ' + error.message);
+            if (!silent) {
+                if (error.message.includes('JSON')) {
+                    alert('Erro: O servidor retornou uma resposta inválida. Verifique se o servidor está rodando e se a rota está disponível.');
+                } else {
+                    alert('Erro ao buscar dados de quartis: ' + error.message);
+                }
             }
         } finally {
-            setLoading(false);
+            if (!silent) setLoading(false);
         }
     };
+
+    // Polling: "escuta" alterações no banco a cada 2 min - quando dados mudam, animação dispara
+    const POLLING_INTERVAL_MS = 2 * 60 * 1000; // 2 minutos
+    useEffect(() => {
+        if (!dados) return; // Só começar após primeira carga
+        const intervalId = setInterval(() => {
+            const dataInicio = startDate || obterDiaAtual().startDate;
+            const dataFim = endDate || obterDiaAtual().endDate;
+            buscarDados(apenasFixos, dataInicio, dataFim, true); // silent = true
+        }, POLLING_INTERVAL_MS);
+        return () => clearInterval(intervalId);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [dados, startDate, endDate, apenasFixos]);
 
     // Auto‑reload a cada 40 minutos, sempre com dia atual e agentes fixos
     useEffect(() => {
@@ -159,8 +215,8 @@ const Quartis = () => {
                 const params = new URLSearchParams();
                 params.append('startDate', inicioDia);
                 params.append('endDate', fimDia);
-                // Na carga inicial, sempre trazer apenas agentes fixos
                 params.append('apenasFixos', 'true');
+                params.append('_t', Date.now());
 
                 const response = await fetch(`${API_ENDPOINTS.quartis}?${params}`, {
                     headers: {
@@ -262,6 +318,7 @@ const Quartis = () => {
             if (novaStartDate) params.append('startDate', novaStartDate);
             if (novaEndDate) params.append('endDate', novaEndDate);
             if (apenasFixos) params.append('apenasFixos', 'true');
+            params.append('_t', Date.now());
 
             const response = await fetch(`${API_ENDPOINTS.quartis}?${params}`, {
                 headers: {
@@ -468,32 +525,24 @@ const Quartis = () => {
                                         const quantidadeDDA = parseInt(agente.total_dda || 0);
                                         const maxDDA = Math.max(...quartil.map(a => parseInt(a.total_dda || 0)));
                                         const percentualDDA = maxDDA > 0 ? (quantidadeDDA / maxDDA) * 100 : 0;
-                                        const movimento = agentesMovidos[agente.agente];
-                                        const animacaoClasse = movimento?.subiu ? 'animate-quartil-subiu' : movimento ? 'animate-quartil-desceu' : '';
+                                        const agenteKey = normalizarAgente(agente.agente);
+                                        const movimento = agentesMovidos[agenteKey];
+                                        const fezMaisAcordos = movimento?.fezMaisAcordos;
+                                        const rowKey = fezMaisAcordos ? `${agenteKey}-${idx}-anim-${animacaoKey}` : `${agenteKey}-${idx}`;
                                         
                                         return (
                                             <div
-                                                key={`${agente.agente}-${idx}`}
-                                                className={`flex items-center gap-2 p-2 rounded-lg bg-white border ${corBorda} hover:shadow-sm transition-shadow ${animacaoClasse}`}
+                                                key={rowKey}
+                                                className={`flex items-center gap-2 p-2 rounded-lg bg-white border ${corBorda} hover:shadow-sm transition-shadow`}
                                             >
-                                                <span className={`text-xs min-w-[2rem] font-bold ${corTexto} text-center flex items-center gap-0.5`}>
-                                                    #{idx + 1}
-                                                    {movimento && (
-                                                        movimento.subiu ? (
-                                                            <TrendingUp className="w-3.5 h-3.5 text-green-600" title="Subiu de quartil" />
-                                                        ) : (
-                                                            <TrendingDown className="w-3.5 h-3.5 text-red-600" title="Desceu de quartil" />
-                                                        )
-                                                    )}
-                                                </span>
+                                                <span className={`text-xs w-8 font-bold ${corTexto} text-center`}>#{idx + 1}</span>
                                                 <span className="text-sm w-12 font-semibold text-slate-800">
                                                     {extrairNumeroAgente(agente.agente)}
                                                 </span>
-                                                {/* Barra de progressão visual */}
                                                 <div className="flex-1">
                                                     <div className="h-4 bg-slate-200 rounded-full overflow-hidden border border-slate-300">
                                                         <div
-                                                            className="h-full rounded-full transition-all duration-300"
+                                                            className="h-full rounded-full"
                                                             style={{
                                                                 width: `${Math.max(percentualDDA, 8)}%`,
                                                                 backgroundColor: corHex,
@@ -502,8 +551,7 @@ const Quartis = () => {
                                                         />
                                                     </div>
                                                 </div>
-                                                {/* Valor numérico de DDA ao lado da barra */}
-                                                <span className="text-lg font-semibold text-slate-800 w-16 text-right">
+                                                <span className={`text-lg font-semibold text-slate-800 w-16 text-right ${fezMaisAcordos ? 'quartis-animate-text' : ''}`}>
                                                     {quantidadeDDA.toLocaleString('pt-BR')}
                                                 </span>
                                             </div>
@@ -535,7 +583,7 @@ const Quartis = () => {
                                 </div>
                             )}
 
-                            {/* Card de Quantidade Total Geral */}
+                            {/* Card de Quantidade Total Geral + Última Atualização */}
                             <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-xl shadow-lg border border-blue-500 p-6 mb-6">
                                 <div className="flex items-center justify-between">
                                     <div>
@@ -645,7 +693,24 @@ const Quartis = () => {
 
                             {/* Régua Visual de Quartis - Grid 2x2 */}
                             <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mb-6">
-                                <h3 className="text-lg font-semibold text-slate-800 mb-4">Quartis - Ranking de Agentes</h3>
+                                <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+                                    <h3 className="text-lg font-semibold text-slate-800">Quartis - Ranking de Agentes</h3>
+                                    <div className="flex items-center gap-2">
+                                        <button
+                                            onClick={() => setModalAtualizacaoAberto(true)}
+                                            className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-medium transition-colors"
+                                            title="Ver detalhes da atualização"
+                                        >
+                                            <Info className="w-4 h-4 text-slate-500" />
+                                            <span>Última atualização:</span>
+                                            <span className="font-semibold">
+                                                {ultimaAtualizacao
+                                                    ? ultimaAtualizacao.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })
+                                                    : '-'}
+                                            </span>
+                                        </button>
+                                    </div>
+                                </div>
                                 <div className="grid grid-cols-2 gap-4">
                                     {renderizarQuartil(dados.quartil1, 1, '#10b981', 'bg-green-50', 'border-green-300', 'text-green-800', '1º Quartil - Top agentes', Trophy)}
                                     {renderizarQuartil(dados.quartil2, 2, '#3b82f6', 'bg-blue-50', 'border-blue-300', 'text-blue-800', '2º Quartil - Bom', Star)}
@@ -653,6 +718,37 @@ const Quartis = () => {
                                     {renderizarQuartil(dados.quartil4, 4, '#ef4444', 'bg-red-50', 'border-red-300', 'text-red-800', '4º Quartil - ALERTA!', AlertCircle)}
                                 </div>
                             </div>
+
+                            {/* Modal Última Atualização */}
+                            {modalAtualizacaoAberto && (
+                                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={() => setModalAtualizacaoAberto(false)}>
+                                    <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6" onClick={e => e.stopPropagation()}>
+                                        <div className="flex items-center justify-between mb-4">
+                                            <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                                                <Info className="w-5 h-5 text-blue-600" />
+                                                Informações da Atualização
+                                            </h3>
+                                            <button
+                                                onClick={() => setModalAtualizacaoAberto(false)}
+                                                className="p-2 rounded-lg hover:bg-slate-100 transition-colors"
+                                            >
+                                                <X className="w-5 h-5 text-slate-500" />
+                                            </button>
+                                        </div>
+                                        <div className="space-y-3 text-slate-600">
+                                            <p>
+                                                <span className="font-semibold text-slate-800">Última atualização:</span>{' '}
+                                                {ultimaAtualizacao
+                                                    ? ultimaAtualizacao.toLocaleString('pt-BR', { dateStyle: 'long', timeStyle: 'medium' })
+                                                    : 'Nenhuma carga realizada ainda'}
+                                            </p>
+                                            <p className="text-sm text-slate-500">
+                                                Os dados são atualizados automaticamente a cada 40 minutos ou ao clicar em Buscar.
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
                         </>
                     );
                 })()}

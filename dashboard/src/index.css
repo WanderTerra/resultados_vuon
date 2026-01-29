@@ -7,3 +7,14 @@
     @apply bg-slate-50 text-slate-900;
   }
 }
+
+/* Animação Quartis - apenas no número do agente */
+@keyframes quartis-text-pop {
+  0%, 100% { transform: scale(1); }
+  25% { transform: scale(1.2); }
+  50% { transform: scale(1.1); }
+  75% { transform: scale(1.15); }
+}
+.quartis-animate-text {
+  animation: quartis-text-pop 0.8s ease-out;
+}
