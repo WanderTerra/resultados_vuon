@@ -315,6 +315,227 @@ class QuartisModel {
             }
         };
     }
+
+    /**
+     * Busca DDA por dia para gráfico de linha.
+     * Mesma métrica dos quartis: CPF único por dia.
+     * @param {string} startDate - Data inicial (opcional)
+     * @param {string} endDate - Data final (opcional)
+     * @param {boolean} apenasFixos - Se true, considera apenas agentes fixos
+     * @param {string[]|null} agentes - Se informado, retorna por agente [{ data, agente, total }]; senão retorna total por dia [{ data, total }]
+     * @returns {Promise<Array<{data: string, total?: number, agente?: string}>>}
+     */
+    static async getDdaPorDia(startDate = null, endDate = null, apenasFixos = false, agentes = null) {
+        const db = await getDB();
+
+        let dateFilter = '';
+        const params = [];
+
+        if (startDate && endDate) {
+            dateFilter = 'AND DATE(data) >= ? AND DATE(data) <= ?';
+            params.push(startDate, endDate);
+        }
+
+        const filtrarPorAgentes = Array.isArray(agentes) && agentes.length > 0;
+        const listaAgentes = filtrarPorAgentes ? agentes.map(String).filter(Boolean) : null;
+        const placeholdersAgentes = listaAgentes ? listaAgentes.map(() => '?').join(',') : '';
+
+        let query = '';
+        let queryParams = [];
+
+        if (apenasFixos) {
+            const agentesFixos = await AgentesModel.getNumerosFixos();
+            if (agentesFixos.length === 0) return [];
+            const placeholders = agentesFixos.map(() => '?').join(',');
+            const agentFilter = filtrarPorAgentes ? `AND t.agente IN (${placeholdersAgentes})` : '';
+            query = `
+                SELECT t.dia as data, ${filtrarPorAgentes ? 't.agente,' : ''} COUNT(*) as total
+                FROM (
+                    SELECT agente, cpf_cnpj, DATE(data) as dia
+                    FROM vuon_resultados
+                    WHERE acao = 'DDA'
+                        AND agente != '0' AND agente IS NOT NULL AND agente != ''
+                        AND cpf_cnpj IS NOT NULL AND cpf_cnpj <> ''
+                        AND agente IN (${placeholders})
+                        ${dateFilter}
+                    GROUP BY agente, cpf_cnpj, DATE(data)
+                ) as t
+                ${filtrarPorAgentes ? `WHERE 1=1 ${agentFilter}` : ''}
+                GROUP BY t.dia ${filtrarPorAgentes ? ', t.agente' : ''}
+                ORDER BY t.dia ${filtrarPorAgentes ? ', t.agente' : ''}
+            `;
+            queryParams = filtrarPorAgentes ? [...agentesFixos, ...params, ...listaAgentes] : [...agentesFixos, ...params];
+        } else {
+            const agentFilter = filtrarPorAgentes ? `AND agente IN (${placeholdersAgentes})` : '';
+            query = `
+                SELECT t.dia as data, ${filtrarPorAgentes ? 't.agente,' : ''} COUNT(*) as total
+                FROM (
+                    SELECT agente, cpf_cnpj, DATE(data) as dia
+                    FROM vuon_resultados
+                    WHERE acao = 'DDA'
+                        AND agente != '0' AND agente IS NOT NULL AND agente != ''
+                        AND cpf_cnpj IS NOT NULL AND cpf_cnpj <> ''
+                        ${agentFilter}
+                        ${dateFilter}
+                    GROUP BY agente, cpf_cnpj, DATE(data)
+                ) as t
+                GROUP BY t.dia ${filtrarPorAgentes ? ', t.agente' : ''}
+                ORDER BY t.dia ${filtrarPorAgentes ? ', t.agente' : ''}
+            `;
+            queryParams = filtrarPorAgentes ? [...listaAgentes, ...params] : params;
+        }
+
+        const [rows] = await db.execute(query, queryParams);
+        return rows.map(r => {
+            const dataStr = r.data ? (typeof r.data === 'string' ? r.data : r.data.toISOString().split('T')[0]) : '';
+            const out = { data: dataStr, total: parseInt(r.total, 10) || 0 };
+            if (filtrarPorAgentes && r.agente != null) out.agente = String(r.agente).trim();
+            return out;
+        });
+    }
+
+    /**
+     * Posição (quartil 1-4) de cada agente por dia no período.
+     * Permite ver se o agente se manteve no 1º quartil ou não.
+     * @param {string} startDate - Data inicial (obrigatório)
+     * @param {string} endDate - Data final (obrigatório)
+     * @param {boolean} apenasFixos - Se true, considera apenas agentes fixos
+     * @param {string[]|null} agentes - Se informado, retorna apenas esses agentes
+     * @returns {Promise<Array<{data: string, agente: string, quartil: number}>>}
+     */
+    static async getPosicaoQuartilPorDia(startDate, endDate, apenasFixos = false, agentes = null) {
+        const db = await getDB();
+        if (!startDate || !endDate) return [];
+
+        const dateFilter = 'AND DATE(data) >= ? AND DATE(data) <= ?';
+        const params = [startDate, endDate];
+
+        let query = '';
+        let queryParams = [];
+
+        if (apenasFixos) {
+            const agentesFixos = await AgentesModel.getNumerosFixos();
+            if (agentesFixos.length === 0) return [];
+            const placeholders = agentesFixos.map(() => '?').join(',');
+            query = `
+                SELECT t.dia as data, t.agente, COUNT(*) as total_dda
+                FROM (
+                    SELECT agente, cpf_cnpj, DATE(data) as dia
+                    FROM vuon_resultados
+                    WHERE acao = 'DDA'
+                        AND agente != '0' AND agente IS NOT NULL AND agente != ''
+                        AND cpf_cnpj IS NOT NULL AND cpf_cnpj <> ''
+                        AND agente IN (${placeholders})
+                        ${dateFilter}
+                    GROUP BY agente, cpf_cnpj, DATE(data)
+                ) as t
+                GROUP BY t.dia, t.agente
+                ORDER BY t.dia, total_dda DESC
+            `;
+            queryParams = [...agentesFixos, ...params];
+        } else {
+            query = `
+                SELECT t.dia as data, t.agente, COUNT(*) as total_dda
+                FROM (
+                    SELECT agente, cpf_cnpj, DATE(data) as dia
+                    FROM vuon_resultados
+                    WHERE acao = 'DDA'
+                        AND agente != '0' AND agente IS NOT NULL AND agente != ''
+                        AND cpf_cnpj IS NOT NULL AND cpf_cnpj <> ''
+                        ${dateFilter}
+                    GROUP BY agente, cpf_cnpj, DATE(data)
+                ) as t
+                GROUP BY t.dia, t.agente
+                ORDER BY t.dia, total_dda DESC
+            `;
+            queryParams = params;
+        }
+
+        const [rows] = await db.execute(query, queryParams);
+        const listaAgentesFiltro = agentes && Array.isArray(agentes) && agentes.length > 0
+            ? agentes.map(String).filter(Boolean)
+            : null;
+
+        const porDia = {};
+        for (const r of rows) {
+            const dataStr = r.data ? (typeof r.data === 'string' ? r.data : r.data.toISOString().split('T')[0]) : '';
+            const agente = r.agente != null ? String(r.agente).trim() : '';
+            const total_dda = parseInt(r.total_dda, 10) || 0;
+            if (!porDia[dataStr]) porDia[dataStr] = [];
+            porDia[dataStr].push({ agente, total_dda });
+        }
+
+        const resultado = [];
+        const datasOrdenadas = Object.keys(porDia).sort();
+
+        for (const data of datasOrdenadas) {
+            const fila = porDia[data];
+            const totalGeral = fila.reduce((s, a) => s + a.total_dda, 0);
+            let quartil1, quartil2, quartil3, quartil4;
+
+            if (fila.length <= 4 || totalGeral === 0) {
+                const n = fila.length;
+                const t = Math.floor(n / 4);
+                const r = n % 4;
+                const q1 = t + (r >= 1 ? 1 : 0);
+                const q2 = t + (r >= 2 ? 1 : 0);
+                const q3 = t + (r >= 3 ? 1 : 0);
+                quartil1 = fila.slice(0, q1);
+                quartil2 = fila.slice(q1, q1 + q2);
+                quartil3 = fila.slice(q1 + q2, q1 + q2 + q3);
+                quartil4 = fila.slice(q1 + q2 + q3);
+            } else {
+                const targets = [totalGeral * 0.25, totalGeral * 0.50, totalGeral * 0.75];
+                const limites = [];
+                let acumulado = 0;
+                for (let ti = 0; ti < 3; ti++) {
+                    const alvo = targets[ti];
+                    let melhorIndice = -1;
+                    let melhorDiff = Infinity;
+                    const startIdx = limites.length > 0 ? limites[limites.length - 1] + 1 : 0;
+                    let acum = acumulado;
+                    for (let i = startIdx; i < fila.length; i++) {
+                        acum += fila[i].total_dda;
+                        const diff = Math.abs(acum - alvo);
+                        if (diff < melhorDiff) {
+                            melhorDiff = diff;
+                            melhorIndice = i;
+                        }
+                    }
+                    if (melhorIndice >= 0) {
+                        limites.push(melhorIndice);
+                        for (let i = startIdx; i <= melhorIndice; i++) acumulado += fila[i].total_dda;
+                    } else {
+                        limites.push(fila.length - 1);
+                    }
+                }
+                const idxQ1 = Math.min(limites[0], fila.length - 1);
+                const idxQ2 = Math.min(Math.max(limites[1], idxQ1 + 1), fila.length - 1);
+                const idxQ3 = Math.min(Math.max(limites[2], idxQ2 + 1), fila.length - 1);
+                quartil1 = fila.slice(0, idxQ1 + 1);
+                quartil2 = fila.slice(idxQ1 + 1, idxQ2 + 1);
+                quartil3 = fila.slice(idxQ2 + 1, idxQ3 + 1);
+                quartil4 = fila.slice(idxQ3 + 1);
+            }
+
+            const mapQuartil = {};
+            quartil1.forEach(a => { mapQuartil[a.agente] = 1; });
+            quartil2.forEach(a => { mapQuartil[a.agente] = 2; });
+            quartil3.forEach(a => { mapQuartil[a.agente] = 3; });
+            quartil4.forEach(a => { mapQuartil[a.agente] = 4; });
+
+            for (const ag of fila) {
+                if (listaAgentesFiltro && !listaAgentesFiltro.includes(ag.agente)) continue;
+                resultado.push({
+                    data,
+                    agente: ag.agente,
+                    quartil: mapQuartil[ag.agente] || 4
+                });
+            }
+        }
+
+        return resultado;
+    }
 }
 
 module.exports = QuartisModel;

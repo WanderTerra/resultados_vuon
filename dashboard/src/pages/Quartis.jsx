@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { AlertCircle, Trophy, Star, AlertTriangle, Info, X } from 'lucide-react';
+import { AlertCircle, Trophy, Star, AlertTriangle, Info, X, TrendingUp, Compass } from 'lucide-react';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, ReferenceLine, ReferenceArea } from 'recharts';
 import { API_ENDPOINTS } from '../config/api';
 import Loading from '../components/Loading';
 
@@ -13,7 +14,14 @@ const Quartis = () => {
     const [modalAtualizacaoAberto, setModalAtualizacaoAberto] = useState(false);
     const [agentesMovidos, setAgentesMovidos] = useState({}); // { agentId: { fezMaisAcordos, ddaAnterior, ddaAtual } }
     const [animacaoKey, setAnimacaoKey] = useState(0); // Força remount para animação rodar
+    const [ddaPorDia, setDdaPorDia] = useState([]); // Série temporal para gráfico de linha
+    const [agentesEvolucao, setAgentesEvolucao] = useState([]); // Números dos agentes selecionados para evolução (ex: ['509','602'])
+    const [posicaoQuartilPorDia, setPosicaoQuartilPorDia] = useState([]); // Navegação: quartil (1-4) por dia por agente
+    const [estatisticasQuartis, setEstatisticasQuartis] = useState({}); // { agente: { q1: %, q2: %, q3: %, q4: % } }
     const dadosRef = useRef(null);
+
+    // Cores distintas para cada linha do gráfico de evolução
+    const CORES_EVOLUCAO = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16'];
 
     // Manter ref atualizada para comparação em próximas cargas
     useEffect(() => {
@@ -100,6 +108,156 @@ const Quartis = () => {
         if (houveAlteracao) setUltimaAtualizacao(new Date());
     };
 
+    // Busca DDA por dia (total ou por agente) para o gráfico de linha
+    const fetchDdaPorDia = async (dataInicio, dataFim, apenasFixosVal, agentesList) => {
+        const token = localStorage.getItem('token');
+        const paramsLinha = new URLSearchParams();
+        if (dataInicio) paramsLinha.append('startDate', dataInicio);
+        if (dataFim) paramsLinha.append('endDate', dataFim);
+        if (apenasFixosVal) paramsLinha.append('apenasFixos', 'true');
+        if (Array.isArray(agentesList) && agentesList.length > 0) {
+            paramsLinha.append('agentes', agentesList.join(','));
+        }
+        try {
+            const resLinha = await fetch(`${API_ENDPOINTS.quartisDdaPorDia}?${paramsLinha}`, {
+                headers: { 'Authorization': `Bearer ${token}` },
+            });
+            if (!resLinha.ok) {
+                setDdaPorDia([]);
+                return;
+            }
+            const arr = await resLinha.json();
+            if (!Array.isArray(arr) || arr.length === 0) {
+                setDdaPorDia([]);
+                return;
+            }
+            const primeiro = arr[0];
+            if (primeiro && 'agente' in primeiro) {
+                const datas = [...new Set(arr.map(r => r.data))].sort();
+                const agentesUnicos = [...new Set(arr.map(r => String(r.agente)))].sort();
+                const pivoted = datas.map(data => {
+                    const row = { data };
+                    agentesUnicos.forEach(ag => {
+                        const o = arr.find(r => r.data === data && String(r.agente) === ag);
+                        row[ag] = o ? (o.total || 0) : 0;
+                    });
+                    return row;
+                });
+                setDdaPorDia(pivoted);
+            } else {
+                setDdaPorDia(arr);
+            }
+        } catch {
+            setDdaPorDia([]);
+        }
+    };
+
+    // Busca posição (quartil 1-4) por dia para gráfico de navegação do agente
+    // Também busca DDA por dia por agente para mostrar no ponto
+    const fetchPosicaoQuartilPorDia = async (dataInicio, dataFim, apenasFixosVal, agentesList) => {
+        if (!dataInicio || !dataFim || !Array.isArray(agentesList) || agentesList.length === 0) {
+            setPosicaoQuartilPorDia([]);
+            return;
+        }
+        const token = localStorage.getItem('token');
+        const params = new URLSearchParams();
+        params.append('startDate', dataInicio);
+        params.append('endDate', dataFim);
+        if (apenasFixosVal) params.append('apenasFixos', 'true');
+        params.append('agentes', agentesList.join(','));
+        try {
+            // Buscar posição quartil
+            const res = await fetch(`${API_ENDPOINTS.quartisPosicaoQuartilPorDia}?${params}`, {
+                headers: { 'Authorization': `Bearer ${token}` },
+            });
+            if (!res.ok) {
+                setPosicaoQuartilPorDia([]);
+                return;
+            }
+            const arr = await res.json();
+            if (!Array.isArray(arr) || arr.length === 0) {
+                setPosicaoQuartilPorDia([]);
+                return;
+            }
+            
+            // Buscar DDA por dia por agente (resposta não pivotada: [{ data, agente, total }])
+            const paramsDda = new URLSearchParams();
+            paramsDda.append('startDate', dataInicio);
+            paramsDda.append('endDate', dataFim);
+            if (apenasFixosVal) paramsDda.append('apenasFixos', 'true');
+            paramsDda.append('agentes', agentesList.join(','));
+            const resDda = await fetch(`${API_ENDPOINTS.quartisDdaPorDia}?${paramsDda}`, {
+                headers: { 'Authorization': `Bearer ${token}` },
+            });
+            const ddaArr = resDda.ok ? await resDda.json() : [];
+            
+            // Criar mapa de DDA: { 'data_agente': total }
+            const ddaMap = {};
+            if (Array.isArray(ddaArr)) {
+                ddaArr.forEach(item => {
+                    if (item.data && item.agente != null && item.total != null) {
+                        const key = `${item.data}_${String(item.agente).trim()}`;
+                        ddaMap[key] = item.total;
+                    }
+                });
+            }
+            
+            const datas = [...new Set(arr.map(r => r.data))].sort();
+            const pivoted = datas.map(data => {
+                const row = { data };
+                agentesList.forEach(ag => {
+                    const o = arr.find(r => r.data === data && String(r.agente) === ag);
+                    const key = `${data}_${ag}`;
+                    const dda = ddaMap[key] || 0;
+                    row[ag] = o ? o.quartil : 4; // sem dado = 4º quartil
+                    row[`${ag}_dda`] = dda; // armazenar DDA para tooltip/label
+                });
+                return row;
+            });
+            setPosicaoQuartilPorDia(pivoted);
+            
+            // Calcular estatísticas de porcentagem de dias em cada quartil
+            calcularEstatisticasQuartis(pivoted, agentesList);
+        } catch (err) {
+            console.error('Erro ao buscar posição quartil:', err);
+            setPosicaoQuartilPorDia([]);
+            setEstatisticasQuartis({});
+        }
+    };
+
+    // Calcular porcentagem de dias que cada agente ficou em cada quartil
+    const calcularEstatisticasQuartis = (dadosPivotados, agentes) => {
+        const stats = {};
+        
+        agentes.forEach(ag => {
+            const contadores = { q1: 0, q2: 0, q3: 0, q4: 0 };
+            let totalDias = 0;
+            
+            dadosPivotados.forEach(row => {
+                const quartil = row[ag];
+                if (quartil !== null && quartil !== undefined) {
+                    totalDias++;
+                    if (quartil === 1) contadores.q1++;
+                    else if (quartil === 2) contadores.q2++;
+                    else if (quartil === 3) contadores.q3++;
+                    else if (quartil === 4) contadores.q4++;
+                }
+            });
+            
+            if (totalDias > 0) {
+                stats[ag] = {
+                    q1: Math.round((contadores.q1 / totalDias) * 100),
+                    q2: Math.round((contadores.q2 / totalDias) * 100),
+                    q3: Math.round((contadores.q3 / totalDias) * 100),
+                    q4: Math.round((contadores.q4 / totalDias) * 100),
+                    totalDias
+                };
+            }
+        });
+        
+        setEstatisticasQuartis(stats);
+    };
+
     // Buscar dados de quartis (silent = true para polling sem mostrar loading)
     const buscarDados = async (apenasFixosParam = null, startDateOverride = null, endDateOverride = null, silent = false) => {
         if (!silent) setLoading(true);
@@ -126,6 +284,14 @@ const Quartis = () => {
                 if (contentType && contentType.includes('application/json')) {
                     const data = await response.json();
                     processarNovosDados(data);
+                    // Buscar DDA por dia (gráfico de linha) com os mesmos filtros e agentes selecionados
+                    fetchDdaPorDia(dataInicio, dataFim, apenasFixosValue, agentesEvolucao);
+                    // Buscar posição quartil por dia (navegação) quando há agentes selecionados e período definido
+                    if (agentesEvolucao.length > 0 && dataInicio && dataFim) {
+                        fetchPosicaoQuartilPorDia(dataInicio, dataFim, apenasFixosValue, agentesEvolucao);
+                    } else {
+                        setPosicaoQuartilPorDia([]);
+                    }
                 } else {
                     throw new Error('Resposta do servidor não é JSON');
                 }
@@ -156,6 +322,20 @@ const Quartis = () => {
             if (!silent) setLoading(false);
         }
     };
+
+    // Refetch gráficos de linha e navegação quando mudar seleção de agentes
+    useEffect(() => {
+        if (!dados) return;
+        const dataInicio = startDate || obterDiaAtual().startDate;
+        const dataFim = endDate || obterDiaAtual().endDate;
+        fetchDdaPorDia(dataInicio, dataFim, apenasFixos, agentesEvolucao);
+        if (agentesEvolucao.length > 0 && dataInicio && dataFim) {
+            fetchPosicaoQuartilPorDia(dataInicio, dataFim, apenasFixos, agentesEvolucao);
+        } else {
+            setPosicaoQuartilPorDia([]);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [agentesEvolucao]);
 
     // Polling: "escuta" alterações no banco a cada 2 min - quando dados mudam, animação dispara
     const POLLING_INTERVAL_MS = 2 * 60 * 1000; // 2 minutos
@@ -718,6 +898,339 @@ const Quartis = () => {
                                     {renderizarQuartil(dados.quartil4, 4, '#ef4444', 'bg-red-50', 'border-red-300', 'text-red-800', '4º Quartil - ALERTA!', AlertCircle)}
                                 </div>
                             </div>
+
+                            {/* Gráfico de linha: DDA por dia / Evolução por agente */}
+                            {(() => {
+                                const todosAgentes = [
+                                    ...(dados.quartil1 || []),
+                                    ...(dados.quartil2 || []),
+                                    ...(dados.quartil3 || []),
+                                    ...(dados.quartil4 || []),
+                                ];
+                                const listaAgentesUnicos = todosAgentes.reduce((acc, a) => {
+                                    const num = normalizarAgente(a.agente);
+                                    if (num && !acc.some(x => x.numero === num)) acc.push({ numero: num, display: a.agente });
+                                    return acc;
+                                }, []);
+                                const modoEvolucao = agentesEvolucao.length > 0;
+                                return (
+                                    <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mb-6">
+                                        <h3 className="text-lg font-semibold text-slate-800 mb-2 flex items-center gap-2">
+                                            <TrendingUp className="w-5 h-5 text-blue-600" />
+                                            {modoEvolucao ? 'Evolução dos agentes (DDA por dia)' : 'DDA por dia'}
+                                        </h3>
+                                        <div className="mb-4">
+                                            <p className="text-sm text-slate-600 mb-2">Filtrar evolução por agente (opcional):</p>
+                                            <div className="flex flex-wrap gap-2 items-center">
+                                                {listaAgentesUnicos.map(({ numero, display }) => {
+                                                    const selecionado = agentesEvolucao.includes(numero);
+                                                    return (
+                                                        <label
+                                                            key={numero}
+                                                            className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border text-sm font-medium cursor-pointer transition-colors ${
+                                                                selecionado
+                                                                    ? 'border-blue-500 bg-blue-50 text-blue-800'
+                                                                    : 'border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100'
+                                                            }`}
+                                                        >
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={selecionado}
+                                                                onChange={() => {
+                                                                    setAgentesEvolucao(prev =>
+                                                                        prev.includes(numero)
+                                                                            ? prev.filter(a => a !== numero)
+                                                                            : [...prev, numero]
+                                                                    );
+                                                                }}
+                                                                className="sr-only"
+                                                            />
+                                                            <span>Agente {numero}</span>
+                                                        </label>
+                                                    );
+                                                })}
+                                                {agentesEvolucao.length > 0 && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setAgentesEvolucao([])}
+                                                        className="text-sm text-slate-500 hover:text-slate-700 underline"
+                                                    >
+                                                        Limpar
+                                                    </button>
+                                                )}
+                                            </div>
+                                            {modoEvolucao && (
+                                                <p className="text-xs text-slate-500 mt-1">
+                                                    Mostrando evolução de {agentesEvolucao.length} agente(s). Desmarque todos para ver o total geral.
+                                                </p>
+                                            )}
+                                        </div>
+                                        {ddaPorDia.length > 0 ? (
+                                            <ResponsiveContainer width="100%" height={320}>
+                                                <LineChart data={ddaPorDia} margin={{ top: 8, right: 16, left: 8, bottom: 8 }}>
+                                                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                                                    <XAxis
+                                                        dataKey="data"
+                                                        tickFormatter={(val) => val ? val.split('-').reverse().join('/') : ''}
+                                                        stroke="#64748b"
+                                                        style={{ fontSize: 12 }}
+                                                    />
+                                                    <YAxis stroke="#64748b" style={{ fontSize: 12 }} allowDecimals={false} />
+                                                    <Tooltip
+                                                        formatter={(value) => [value, 'DDA']}
+                                                        labelFormatter={(label) => label ? `Data: ${label.split('-').reverse().join('/')}` : ''}
+                                                        contentStyle={{ borderRadius: 8, border: '1px solid #e2e8f0' }}
+                                                    />
+                                                    {modoEvolucao ? (
+                                                        <>
+                                                            <Legend />
+                                                            {agentesEvolucao.map((ag, idx) => (
+                                                                <Line
+                                                                    key={ag}
+                                                                    type="monotone"
+                                                                    dataKey={ag}
+                                                                    name={`Agente ${ag}`}
+                                                                    stroke={CORES_EVOLUCAO[idx % CORES_EVOLUCAO.length]}
+                                                                    strokeWidth={2}
+                                                                    dot={{ r: 4 }}
+                                                                    activeDot={{ r: 6 }}
+                                                                />
+                                                            ))}
+                                                        </>
+                                                    ) : (
+                                                        <Line
+                                                            type="monotone"
+                                                            dataKey="total"
+                                                            name="DDA"
+                                                            stroke="#3b82f6"
+                                                            strokeWidth={2}
+                                                            dot={{ fill: '#3b82f6', r: 4 }}
+                                                            activeDot={{ r: 6, fill: '#2563eb' }}
+                                                        />
+                                                    )}
+                                                </LineChart>
+                                            </ResponsiveContainer>
+                                        ) : (
+                                            <p className="text-slate-500 text-sm py-8 text-center">
+                                                Nenhum dado por dia no período. Defina um intervalo de datas e clique em Buscar.
+                                            </p>
+                                        )}
+                                    </div>
+                                );
+                            })()}
+
+                            {/* Gráfico Navegação do agente (quartil 1-4 por dia) */}
+                            {agentesEvolucao.length > 0 && (
+                                <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mb-6">
+                                    <h3 className="text-lg font-semibold text-slate-800 mb-2 flex items-center gap-2">
+                                        <Compass className="w-5 h-5 text-emerald-600" />
+                                        Navegação do agente no período
+                                    </h3>
+                                    <p className="text-sm text-slate-600 mb-4">
+                                        Posição no quartil (1º = melhor) dia a dia. Verifique se o agente se manteve no 1º quartil.
+                                    </p>
+                                    {!(startDate && endDate) ? (
+                                        <p className="text-slate-500 text-sm py-8 text-center">
+                                            Defina data inicial e final e clique em Buscar para ver a navegação.
+                                        </p>
+                                    ) : posicaoQuartilPorDia.length > 0 ? (
+                                        <ResponsiveContainer width="100%" height={320}>
+                                            <LineChart data={posicaoQuartilPorDia} margin={{ top: 8, right: 16, left: 8, bottom: 8 }}>
+                                                {/* Faixas coloridas de fundo para cada quartil (mesmas cores dos cards) */}
+                                                <ReferenceArea y1={0.5} y2={1.5} fill="#10b981" fillOpacity={0.1} />
+                                                <ReferenceArea y1={1.5} y2={2.5} fill="#3b82f6" fillOpacity={0.1} />
+                                                <ReferenceArea y1={2.5} y2={3.5} fill="#f59e0b" fillOpacity={0.1} />
+                                                <ReferenceArea y1={3.5} y2={4.5} fill="#ef4444" fillOpacity={0.1} />
+                                                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                                                <XAxis
+                                                    dataKey="data"
+                                                    tickFormatter={(val) => val ? val.split('-').reverse().join('/') : ''}
+                                                    stroke="#64748b"
+                                                    style={{ fontSize: 12 }}
+                                                />
+                                                <YAxis
+                                                    domain={[0.5, 4.5]}
+                                                    ticks={[1, 2, 3, 4]}
+                                                    tickFormatter={(v) => `${v}º Q`}
+                                                    stroke="#64748b"
+                                                    style={{ fontSize: 12 }}
+                                                    allowDecimals={false}
+                                                    reversed={true}
+                                                />
+                                                <Tooltip
+                                                    content={({ active, payload, label }) => {
+                                                        if (!active || !payload || payload.length === 0) return null;
+                                                        return (
+                                                            <div className="bg-white p-3 rounded-lg shadow-lg border border-slate-200">
+                                                                <p className="text-sm font-semibold text-slate-800 mb-1">
+                                                                    Data: {label ? label.split('-').reverse().join('/') : ''}
+                                                                </p>
+                                                                {payload.map((entry, idx) => {
+                                                                    const ag = entry.dataKey;
+                                                                    const quartil = entry.value;
+                                                                    const dda = entry.payload[`${ag}_dda`] || 0;
+                                                                    return (
+                                                                        <p key={idx} className="text-sm text-slate-700">
+                                                                            <span style={{ color: entry.color }} className="font-semibold">
+                                                                                Agente {ag}:
+                                                                            </span>
+                                                                            {` ${quartil}º quartil (${dda} DDA)`}
+                                                                        </p>
+                                                                    );
+                                                                })}
+                                                            </div>
+                                                        );
+                                                    }}
+                                                />
+                                                <Legend />
+                                                {agentesEvolucao.map((ag, idx) => {
+                                                    const cor = CORES_EVOLUCAO[idx % CORES_EVOLUCAO.length];
+                                                    return (
+                                                        <Line
+                                                            key={ag}
+                                                            type="monotone"
+                                                            dataKey={ag}
+                                                            name={`Agente ${ag}`}
+                                                            stroke="transparent"
+                                                            strokeWidth={0}
+                                                            dot={(props) => {
+                                                                const { cx, cy, payload } = props;
+                                                                const dda = payload[`${ag}_dda`] || 0;
+                                                                return (
+                                                                    <g>
+                                                                        <circle cx={cx} cy={cy} r={8} fill={cor} stroke="#fff" strokeWidth={2} />
+                                                                        <text
+                                                                            x={cx}
+                                                                            y={cy}
+                                                                            textAnchor="middle"
+                                                                            dominantBaseline="central"
+                                                                            fill="#fff"
+                                                                            fontSize={10}
+                                                                            fontWeight="bold"
+                                                                        >
+                                                                            {dda}
+                                                                        </text>
+                                                                    </g>
+                                                                );
+                                                            }}
+                                                            activeDot={{ r: 10 }}
+                                                            connectNulls={false}
+                                                        />
+                                                    );
+                                                })}
+                                            </LineChart>
+                                        </ResponsiveContainer>
+                                    ) : (
+                                        <p className="text-slate-500 text-sm py-8 text-center">
+                                            Nenhum dado de posição no período. Verifique se há DDA nos dias selecionados.
+                                        </p>
+                                    )}
+                                </div>
+                            )}
+
+                            {/* Estatísticas de porcentagem de dias em cada quartil */}
+                            {agentesEvolucao.length > 0 && Object.keys(estatisticasQuartis).length > 0 && (
+                                <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+                                    <h3 className="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
+                                        <TrendingUp className="w-5 h-5 text-blue-600" />
+                                        Distribuição de dias por quartil
+                                    </h3>
+                                    <p className="text-sm text-slate-600 mb-4">
+                                        Porcentagem de dias que cada agente permaneceu em cada quartil durante o período selecionado.
+                                    </p>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                        {agentesEvolucao.map((ag, idx) => {
+                                            const stats = estatisticasQuartis[ag];
+                                            if (!stats) return null;
+                                            const cor = CORES_EVOLUCAO[idx % CORES_EVOLUCAO.length];
+                                            
+                                            return (
+                                                <div key={ag} className="border border-slate-200 rounded-lg p-4">
+                                                    <h4 className="font-semibold text-slate-800 mb-3 flex items-center gap-2">
+                                                        <span 
+                                                            className="w-3 h-3 rounded-full" 
+                                                            style={{ backgroundColor: cor }}
+                                                        ></span>
+                                                        Agente {ag}
+                                                        <span className="text-xs text-slate-500 font-normal ml-auto">
+                                                            ({stats.totalDias} dias)
+                                                        </span>
+                                                    </h4>
+                                                    <div className="space-y-2">
+                                                        <div className="flex items-center justify-between">
+                                                            <span className="text-sm text-slate-700 flex items-center gap-2">
+                                                                <span className="w-3 h-3 rounded-sm bg-green-500"></span>
+                                                                1º Quartil
+                                                            </span>
+                                                            <span className="text-sm font-semibold text-green-700">
+                                                                {stats.q1}%
+                                                            </span>
+                                                        </div>
+                                                        <div className="flex items-center justify-between">
+                                                            <span className="text-sm text-slate-700 flex items-center gap-2">
+                                                                <span className="w-3 h-3 rounded-sm bg-blue-500"></span>
+                                                                2º Quartil
+                                                            </span>
+                                                            <span className="text-sm font-semibold text-blue-700">
+                                                                {stats.q2}%
+                                                            </span>
+                                                        </div>
+                                                        <div className="flex items-center justify-between">
+                                                            <span className="text-sm text-slate-700 flex items-center gap-2">
+                                                                <span className="w-3 h-3 rounded-sm bg-yellow-500"></span>
+                                                                3º Quartil
+                                                            </span>
+                                                            <span className="text-sm font-semibold text-yellow-700">
+                                                                {stats.q3}%
+                                                            </span>
+                                                        </div>
+                                                        <div className="flex items-center justify-between">
+                                                            <span className="text-sm text-slate-700 flex items-center gap-2">
+                                                                <span className="w-3 h-3 rounded-sm bg-red-500"></span>
+                                                                4º Quartil
+                                                            </span>
+                                                            <span className="text-sm font-semibold text-red-700">
+                                                                {stats.q4}%
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                    {/* Barra de progresso visual */}
+                                                    <div className="mt-3 h-2 rounded-full overflow-hidden flex">
+                                                        {stats.q1 > 0 && (
+                                                            <div 
+                                                                className="bg-green-500" 
+                                                                style={{ width: `${stats.q1}%` }}
+                                                                title={`1º Q: ${stats.q1}%`}
+                                                            ></div>
+                                                        )}
+                                                        {stats.q2 > 0 && (
+                                                            <div 
+                                                                className="bg-blue-500" 
+                                                                style={{ width: `${stats.q2}%` }}
+                                                                title={`2º Q: ${stats.q2}%`}
+                                                            ></div>
+                                                        )}
+                                                        {stats.q3 > 0 && (
+                                                            <div 
+                                                                className="bg-yellow-500" 
+                                                                style={{ width: `${stats.q3}%` }}
+                                                                title={`3º Q: ${stats.q3}%`}
+                                                            ></div>
+                                                        )}
+                                                        {stats.q4 > 0 && (
+                                                            <div 
+                                                                className="bg-red-500" 
+                                                                style={{ width: `${stats.q4}%` }}
+                                                                title={`4º Q: ${stats.q4}%`}
+                                                            ></div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
 
                             {/* Modal Última Atualização */}
                             {modalAtualizacaoAberto && (

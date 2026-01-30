@@ -36,3 +36,47 @@ exports.getQuartis = async (req, res) => {
     }
 };
 
+/**
+ * Busca DDA por dia (série temporal) para gráfico de linha.
+ * Query params: startDate, endDate, apenasFixos, agentes (opcional, ex: "509,602" para evolução por agente).
+ */
+exports.getDdaPorDia = async (req, res) => {
+    try {
+        const { startDate, endDate, apenasFixos, agentes } = req.query;
+        const apenasFixosBool = apenasFixos === 'true';
+        const agentesList = agentes && typeof agentes === 'string'
+            ? agentes.split(',').map(s => s.trim()).filter(Boolean)
+            : null;
+        const dados = await QuartisModel.getDdaPorDia(startDate, endDate, apenasFixosBool, agentesList);
+        res.json(dados);
+    } catch (error) {
+        console.error('❌ Erro ao buscar DDA por dia:', error);
+        res.status(500).json({
+            message: 'Erro ao buscar DDA por dia',
+            error: error.message
+        });
+    }
+};
+
+/**
+ * Posição (quartil 1-4) por dia para gráfico de navegação do agente.
+ * Query params: startDate, endDate (obrigatórios), apenasFixos, agentes (opcional, ex: "509,602").
+ */
+exports.getPosicaoQuartilPorDia = async (req, res) => {
+    try {
+        const { startDate, endDate, apenasFixos, agentes } = req.query;
+        const apenasFixosBool = apenasFixos === 'true';
+        const agentesList = agentes && typeof agentes === 'string'
+            ? agentes.split(',').map(s => s.trim()).filter(Boolean)
+            : null;
+        const dados = await QuartisModel.getPosicaoQuartilPorDia(startDate, endDate, apenasFixosBool, agentesList);
+        res.json(dados);
+    } catch (error) {
+        console.error('❌ Erro ao buscar posição quartil por dia:', error);
+        res.status(500).json({
+            message: 'Erro ao buscar posição quartil por dia',
+            error: error.message
+        });
+    }
+};
+

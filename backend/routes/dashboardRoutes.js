@@ -37,6 +37,8 @@ router.get('/comparativo/agentes', comparativoController.getAgentes);
 
 // Rotas de quartis
 router.get('/quartis', quartisController.getQuartis);
+router.get('/quartis/dda-por-dia', quartisController.getDdaPorDia);
+router.get('/quartis/posicao-quartil-por-dia', quartisController.getPosicaoQuartilPorDia);
 
 // Rotas de agentes
 router.get('/agentes', authenticate, agentesController.getAll);
