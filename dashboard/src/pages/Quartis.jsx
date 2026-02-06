@@ -337,8 +337,8 @@ const Quartis = () => {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [agentesEvolucao]);
 
-    // Polling: "escuta" alterações no banco a cada 2 min - quando dados mudam, animação dispara
-    const POLLING_INTERVAL_MS = 2 * 60 * 1000; // 2 minutos
+    // Polling: "escuta" alterações no banco a cada 6 min - quando dados mudam, animação dispara
+    const POLLING_INTERVAL_MS = 6 * 60 * 1000; // 6 minutos
     useEffect(() => {
         if (!dados) return; // Só começar após primeira carga
         const intervalId = setInterval(() => {
@@ -482,6 +482,13 @@ const Quartis = () => {
                 novaStartDate = hojeFormatado;
                 novaEndDate = hojeFormatado;
                 break;
+            case 'ontem':
+                const ontem = new Date(hoje);
+                ontem.setDate(hoje.getDate() - 1);
+                const ontemFormatado = formatarData(ontem);
+                novaStartDate = ontemFormatado;
+                novaEndDate = ontemFormatado;
+                break;
             default:
                 break;
         }
@@ -598,6 +605,12 @@ const Quartis = () => {
                                 className="px-3 py-1.5 text-sm rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 transition-colors font-medium"
                             >
                                 Dia Atual
+                            </button>
+                            <button
+                                onClick={() => aplicarFiltroRapido('ontem')}
+                                className="px-3 py-1.5 text-sm rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 transition-colors font-medium"
+                            >
+                                Ontem
                             </button>
                         </div>
                     </div>
