@@ -1,6 +1,16 @@
 const { getDB } = require('../config/db');
 const AgentesModel = require('./agentesModel');
 
+const TABELA_ORIGINAL = 'vuon_resultados';
+const TABELA_HOJE = 'vuon_resultados_hoje_dda';
+
+/** Retorna true se startDate e endDate são ambos o dia atual (YYYY-MM-DD) */
+const isDiaAtual = (startDate, endDate) => {
+    if (!startDate || !endDate) return false;
+    const hoje = new Date().toISOString().split('T')[0];
+    return startDate === hoje && endDate === hoje;
+};
+
 class QuartisModel {
     /**
      * Busca dados de DDA por agente e separa em quartis
@@ -11,15 +21,20 @@ class QuartisModel {
      */
     static async getQuartis(startDate = null, endDate = null, apenasFixos = false) {
         const db = await getDB();
-        
+        const usarTabelaHoje = isDiaAtual(startDate, endDate);
+        const tabela = usarTabelaHoje ? TABELA_HOJE : TABELA_ORIGINAL;
+        if (usarTabelaHoje) {
+            console.log('📊 Quartis - Usando tabela vuon_resultados_hoje_dda (dia atual)');
+        }
+
         let dateFilter = '';
         const params = [];
-        
+
         if (startDate && endDate) {
             dateFilter = 'AND DATE(data) >= ? AND DATE(data) <= ?';
             params.push(startDate, endDate);
         }
-        
+
         let query = '';
         let queryParams = [];
         
@@ -67,7 +82,7 @@ class QuartisModel {
                         cpf_cnpj,
                         DATE(data) as dia,
                         SUM(valor) as valor_total
-                    FROM vuon_resultados
+                    FROM ${tabela}
                     WHERE acao = 'DDA'
                         AND agente != '0'
                         AND agente IS NOT NULL
@@ -99,7 +114,7 @@ class QuartisModel {
                         cpf_cnpj,
                         DATE(data) as dia,
                         SUM(valor) as valor_total
-                    FROM vuon_resultados
+                    FROM ${tabela}
                     WHERE acao = 'DDA'
                         AND agente != '0'
                         AND agente IS NOT NULL
@@ -327,6 +342,8 @@ class QuartisModel {
      */
     static async getDdaPorDia(startDate = null, endDate = null, apenasFixos = false, agentes = null) {
         const db = await getDB();
+        const usarTabelaHoje = isDiaAtual(startDate, endDate);
+        const tabela = usarTabelaHoje ? TABELA_HOJE : TABELA_ORIGINAL;
 
         let dateFilter = '';
         const params = [];
@@ -352,7 +369,7 @@ class QuartisModel {
                 SELECT t.dia as data, ${filtrarPorAgentes ? 't.agente,' : ''} COUNT(*) as total
                 FROM (
                     SELECT agente, cpf_cnpj, DATE(data) as dia
-                    FROM vuon_resultados
+                    FROM ${tabela}
                     WHERE acao = 'DDA'
                         AND agente != '0' AND agente IS NOT NULL AND agente != ''
                         AND cpf_cnpj IS NOT NULL AND cpf_cnpj <> ''
@@ -371,7 +388,7 @@ class QuartisModel {
                 SELECT t.dia as data, ${filtrarPorAgentes ? 't.agente,' : ''} COUNT(*) as total
                 FROM (
                     SELECT agente, cpf_cnpj, DATE(data) as dia
-                    FROM vuon_resultados
+                    FROM ${tabela}
                     WHERE acao = 'DDA'
                         AND agente != '0' AND agente IS NOT NULL AND agente != ''
                         AND cpf_cnpj IS NOT NULL AND cpf_cnpj <> ''
@@ -407,6 +424,9 @@ class QuartisModel {
         const db = await getDB();
         if (!startDate || !endDate) return [];
 
+        const usarTabelaHoje = isDiaAtual(startDate, endDate);
+        const tabela = usarTabelaHoje ? TABELA_HOJE : TABELA_ORIGINAL;
+
         const dateFilter = 'AND DATE(data) >= ? AND DATE(data) <= ?';
         const params = [startDate, endDate];
 
@@ -421,7 +441,7 @@ class QuartisModel {
                 SELECT t.dia as data, t.agente, COUNT(*) as total_dda
                 FROM (
                     SELECT agente, cpf_cnpj, DATE(data) as dia
-                    FROM vuon_resultados
+                    FROM ${tabela}
                     WHERE acao = 'DDA'
                         AND agente != '0' AND agente IS NOT NULL AND agente != ''
                         AND cpf_cnpj IS NOT NULL AND cpf_cnpj <> ''
@@ -438,7 +458,7 @@ class QuartisModel {
                 SELECT t.dia as data, t.agente, COUNT(*) as total_dda
                 FROM (
                     SELECT agente, cpf_cnpj, DATE(data) as dia
-                    FROM vuon_resultados
+                    FROM ${tabela}
                     WHERE acao = 'DDA'
                         AND agente != '0' AND agente IS NOT NULL AND agente != ''
                         AND cpf_cnpj IS NOT NULL AND cpf_cnpj <> ''
