@@ -476,12 +476,6 @@ const Quartis = () => {
                 novaStartDate = formatarData(primeiroDiaMes);
                 novaEndDate = formatarData(hoje);
                 break;
-            case 'dia-atual':
-                // Quartil apenas do dia corrente
-                const hojeFormatado = formatarData(hoje);
-                novaStartDate = hojeFormatado;
-                novaEndDate = hojeFormatado;
-                break;
             case 'ontem':
                 const ontem = new Date(hoje);
                 ontem.setDate(hoje.getDate() - 1);
@@ -489,6 +483,11 @@ const Quartis = () => {
                 novaStartDate = ontemFormatado;
                 novaEndDate = ontemFormatado;
                 break;
+            case 'Hoje':
+                // Quartil apenas do dia corrente
+                const hojeFormatado = formatarData(hoje);
+                novaStartDate = hojeFormatado;
+                novaEndDate = hojeFormatado;
             default:
                 break;
         }
