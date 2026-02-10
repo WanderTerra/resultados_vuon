@@ -208,57 +208,52 @@ const Layout = ({ children }) => {
     const location = useLocation();
     const isQuartis = location.pathname === '/quartis';
 
-    // Horário de Campo Grande, MS (UTC-3) — baseado no horário do SERVIDOR para ser igual em todos os PCs
+    // Horário de Campo Grande, MS — vindo do servidor (h,m,s); cliente só adiciona segundos decorridos (nunca usa fuso do PC)
     const [campoGrandeTime, setCampoGrandeTime] = useState('');
     useEffect(() => {
         if (!isQuartis) {
             setCampoGrandeTime('');
             return;
         }
-        let serverUtcMs = null;
-        let receivedAtMs = null;
+        let serverH = null, serverM = null, serverS = null, receivedAtMs = null;
 
-        const formatFromUtcMs = (utcMs) => {
-            const now = new Date(utcMs);
-            let h = now.getUTCHours() - 3;
-            if (h < 0) h += 24;
-            const m = now.getUTCMinutes();
-            const s = now.getUTCSeconds();
-            const pad = (n) => n.toString().padStart(2, '0');
-            return `${pad(h)}:${pad(m)}:${pad(s)}`;
-        };
+        const pad = (n) => Number(n).toString().padStart(2, '0');
+        const formatFromHMS = (h, m, s) => `${pad(h)}:${pad(m)}:${pad(s)}`;
 
         const syncServerTime = async () => {
             try {
                 const res = await fetch(API_ENDPOINTS.serverTime);
                 if (res.ok) {
                     const data = await res.json();
-                    serverUtcMs = data.utc;
+                    serverH = Number(data.h);
+                    serverM = Number(data.m);
+                    serverS = Number(data.s);
                     receivedAtMs = Date.now();
-                    setCampoGrandeTime(formatFromUtcMs(serverUtcMs));
+                    if (Number.isFinite(serverH) && Number.isFinite(serverM) && Number.isFinite(serverS)) {
+                        setCampoGrandeTime(formatFromHMS(serverH, serverM, serverS));
+                    }
                 }
             } catch {
-                // Fallback: usar relógio do PC se o servidor falhar
-                serverUtcMs = null;
-                receivedAtMs = null;
+                serverH = serverM = serverS = receivedAtMs = null;
             }
         };
 
         const tick = () => {
-            if (serverUtcMs != null && receivedAtMs != null) {
-                const nowUtcMs = serverUtcMs + (Date.now() - receivedAtMs);
-                setCampoGrandeTime(formatFromUtcMs(nowUtcMs));
-            } else {
-                setCampoGrandeTime(formatFromUtcMs(Date.now()));
-            }
+            if (serverH == null || receivedAtMs == null) return;
+            const elapsedSec = Math.floor((Date.now() - receivedAtMs) / 1000);
+            const totalSec = (serverH * 3600 + serverM * 60 + serverS) + elapsedSec;
+            const h = Math.floor(totalSec / 3600) % 24;
+            const m = Math.floor((totalSec % 3600) / 60);
+            const s = totalSec % 60;
+            setCampoGrandeTime(formatFromHMS(h, m, s));
         };
 
         syncServerTime();
-        const intervalSync = setInterval(syncServerTime, 60 * 1000);
+        const retrySync = setInterval(syncServerTime, 60 * 1000);
         const intervalTick = setInterval(tick, 1000);
 
         return () => {
-            clearInterval(intervalSync);
+            clearInterval(retrySync);
             clearInterval(intervalTick);
         };
     }, [isQuartis]);
