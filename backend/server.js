@@ -125,10 +125,10 @@ app.get('/', (req, res) => {
     res.send('Vuon Dashboard API is running');
 });
 
-// Horário do servidor — UTC e já em Campo Grande (UTC-3) para o front exibir igual em todos os PCs
+// Horário do servidor — UTC e já em Campo Grande (UTC-4) para o front exibir igual em todos os PCs
 app.get('/api/server-time', (req, res) => {
     const now = new Date();
-    let h = now.getUTCHours() - 3;
+    let h = now.getUTCHours() - 4;
     if (h < 0) h += 24;
     const m = now.getUTCMinutes();
     const s = now.getUTCSeconds();
