@@ -385,7 +385,9 @@ class QuartisModel {
         let queryParams = [];
 
         if (apenasFixos) {
-            const agentesFixos = await AgentesModel.getNumerosFixos();
+            // Usar getNumerosFixosTodos para incluir agentes inativos nos gráficos
+            const agentesFixosTodos = await AgentesModel.getNumerosFixosTodos();
+            const agentesFixos = agentesFixosTodos.map(a => a.numero_agente);
             if (agentesFixos.length === 0) return [];
             const placeholders = agentesFixos.map(() => '?').join(',');
             const agentFilter = filtrarPorAgentes ? `AND t.agente IN (${placeholdersAgentes})` : '';
@@ -458,7 +460,9 @@ class QuartisModel {
         let queryParams = [];
 
         if (apenasFixos) {
-            const agentesFixos = await AgentesModel.getNumerosFixos();
+            // Usar getNumerosFixosTodos para incluir agentes inativos nos gráficos
+            const agentesFixosTodos = await AgentesModel.getNumerosFixosTodos();
+            const agentesFixos = agentesFixosTodos.map(a => a.numero_agente);
             if (agentesFixos.length === 0) return [];
             const placeholders = agentesFixos.map(() => '?').join(',');
             query = `
