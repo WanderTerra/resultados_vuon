@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { AlertCircle, Trophy, Star, AlertTriangle, Info, X, TrendingUp, Compass } from 'lucide-react';
+import { AlertCircle, Trophy, Star, AlertTriangle, Info, X, TrendingUp, Compass, UserX } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, ReferenceLine, ReferenceArea } from 'recharts';
 import { API_ENDPOINTS } from '../config/api';
 import Loading from '../components/Loading';
@@ -723,29 +723,39 @@ const Quartis = () => {
                                         const movimento = agentesMovidos[agenteKey];
                                         const fezMaisAcordos = movimento?.fezMaisAcordos;
                                         const rowKey = fezMaisAcordos ? `${agenteKey}-${idx}-anim-${animacaoKey}` : `${agenteKey}-${idx}`;
+                                        const isInativo = agente.status === 'inativo';
                                         
                                         return (
                                             <div
                                                 key={rowKey}
-                                                className={`flex items-center gap-2 p-2 rounded-lg bg-white border ${corBorda} hover:shadow-sm transition-shadow`}
+                                                className={`flex items-center gap-2 p-2 rounded-lg border hover:shadow-sm transition-shadow ${
+                                                    isInativo 
+                                                        ? 'bg-slate-50 border-slate-300 opacity-75' 
+                                                        : `bg-white ${corBorda}`
+                                                }`}
                                             >
                                                 <span className={`text-xs w-8 font-bold ${corTexto} text-center`}>#{idx + 1}</span>
-                                                <span className="text-sm w-12 font-semibold text-slate-800">
+                                                <span className={`text-sm w-12 font-semibold ${isInativo ? 'text-slate-400' : 'text-slate-800'}`}>
                                                     {extrairNumeroAgente(agente.agente)}
                                                 </span>
+                                                {isInativo && (
+                                                    <span title="Agente desligado" className="flex-shrink-0">
+                                                        <UserX className="w-4 h-4 text-red-400" />
+                                                    </span>
+                                                )}
                                                 <div className="flex-1">
                                                     <div className="h-4 bg-slate-200 rounded-full overflow-hidden border border-slate-300">
                                                         <div
                                                             className="h-full rounded-full"
                                                             style={{
                                                                 width: `${Math.max(percentualDDA, 8)}%`,
-                                                                backgroundColor: corHex,
-                                                                opacity: 0.9,
+                                                                backgroundColor: isInativo ? '#94a3b8' : corHex,
+                                                                opacity: isInativo ? 0.6 : 0.9,
                                                             }}
                                                         />
                                                     </div>
                                                 </div>
-                                                <span className={`text-lg font-semibold text-slate-800 w-16 text-right ${fezMaisAcordos ? 'quartis-animate-text' : ''}`}>
+                                                <span className={`text-lg font-semibold w-16 text-right ${isInativo ? 'text-slate-400' : 'text-slate-800'} ${fezMaisAcordos ? 'quartis-animate-text' : ''}`}>
                                                     {quantidadeDDA.toLocaleString('pt-BR')}
                                                 </span>
                                             </div>

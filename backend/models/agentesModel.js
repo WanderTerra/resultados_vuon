@@ -4,22 +4,30 @@ class AgentesModel {
     /**
      * Busca todos os agentes
      * @param {boolean} apenasFixos - Se true, retorna apenas agentes fixos da carteira
+     * @param {string} statusFiltro - Filtro de status: 'ativo', 'inativo' ou 'todos'
      * @returns {Promise<Array>} Lista de agentes
      */
-    static async getAll(apenasFixos = false) {
+    static async getAll(apenasFixos = false, statusFiltro = 'ativo') {
         const db = await getDB();
         let query = 'SELECT * FROM agentes';
+        const conditions = [];
         const params = [];
 
         if (apenasFixos) {
-            query += ' WHERE fixo_carteira = ? AND status = ?';
-            params.push(true, 'ativo');
-        } else {
-            query += ' WHERE status = ?';
-            params.push('ativo');
+            conditions.push('fixo_carteira = ?');
+            params.push(true);
         }
 
-        query += ' ORDER BY numero_agente ASC';
+        if (statusFiltro && statusFiltro !== 'todos') {
+            conditions.push('status = ?');
+            params.push(statusFiltro);
+        }
+
+        if (conditions.length > 0) {
+            query += ' WHERE ' + conditions.join(' AND ');
+        }
+
+        query += ' ORDER BY status ASC, numero_agente ASC';
 
         const [rows] = await db.execute(query, params);
         return rows;
@@ -106,7 +114,7 @@ class AgentesModel {
     }
 
     /**
-     * Busca números dos agentes fixos da carteira
+     * Busca números dos agentes fixos da carteira (apenas ativos)
      * @returns {Promise<Array<string>>} Array com números dos agentes fixos
      */
     static async getNumerosFixos() {
@@ -116,6 +124,20 @@ class AgentesModel {
             [true, 'ativo']
         );
         return rows.map(row => row.numero_agente);
+    }
+
+    /**
+     * Busca todos os agentes fixos da carteira (ativos E inativos)
+     * Inclui o status para identificar agentes desligados nos quartis
+     * @returns {Promise<Array<{numero_agente: string, status: string}>>}
+     */
+    static async getNumerosFixosTodos() {
+        const db = await getDB();
+        const [rows] = await db.execute(
+            'SELECT numero_agente, status FROM agentes WHERE fixo_carteira = ?',
+            [true]
+        );
+        return rows;
     }
 
     /**

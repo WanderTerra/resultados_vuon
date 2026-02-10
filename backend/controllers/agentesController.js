@@ -6,7 +6,8 @@ const AgentesModel = require('../models/agentesModel');
 exports.getAll = async (req, res) => {
     try {
         const apenasFixos = req.query.apenasFixos === 'true';
-        const agentes = await AgentesModel.getAll(apenasFixos);
+        const statusFiltro = req.query.status || 'ativo'; // 'ativo', 'inativo' ou 'todos'
+        const agentes = await AgentesModel.getAll(apenasFixos, statusFiltro);
         res.json(agentes);
     } catch (error) {
         console.error('❌ Erro ao buscar agentes:', error);

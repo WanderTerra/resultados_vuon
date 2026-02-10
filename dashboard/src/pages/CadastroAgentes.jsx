@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Users, UserPlus, Edit2, Trash2, CheckCircle, XCircle, AlertCircle, X } from 'lucide-react';
+import { Users, UserPlus, Edit2, Trash2, CheckCircle, XCircle, AlertCircle, X, UserX } from 'lucide-react';
 import { API_ENDPOINTS } from '../config/api';
 import Loading from '../components/Loading';
 
@@ -21,6 +21,7 @@ const CadastroAgentes = () => {
     const [showEditModal, setShowEditModal] = useState(false);
     const [buscaAgente, setBuscaAgente] = useState('');
     const [buscaNumero, setBuscaNumero] = useState('');
+    const [filtroStatus, setFiltroStatus] = useState('ativo'); // 'ativo', 'inativo' ou 'todos'
 
     // Buscar agentes ao carregar
     useEffect(() => {
@@ -39,7 +40,9 @@ const CadastroAgentes = () => {
         setError('');
         try {
             const token = localStorage.getItem('token');
-            const response = await fetch(API_ENDPOINTS.agentes, {
+            // Sempre buscar TODOS os agentes do BD (filtro é feito no frontend)
+            const url = `${API_ENDPOINTS.agentes}?status=todos`;
+            const response = await fetch(url, {
                 headers: {
                     'Authorization': `Bearer ${token}`,
                 },
@@ -226,13 +229,19 @@ const CadastroAgentes = () => {
         }
     };
 
+    // Contagens do BD (todos os agentes, sem filtro)
     const agentesFixos = agentes.filter(a => a.fixo_carteira === 1 || a.fixo_carteira === true);
     const agentesAtivos = agentes.filter(a => a.status === 'ativo');
+    const agentesInativos = agentes.filter(a => a.status === 'inativo');
     
-    // Filtrar agentes pela busca por número
+    // Filtrar agentes por status (filtro visual) e busca por número
+    const agentesPorStatus = filtroStatus === 'todos'
+        ? agentes
+        : agentes.filter(a => a.status === filtroStatus);
+    
     const agentesFiltrados = buscaNumero.trim() === '' 
-        ? agentes 
-        : agentes.filter(agente => 
+        ? agentesPorStatus 
+        : agentesPorStatus.filter(agente => 
             agente.numero_agente.toLowerCase().includes(buscaNumero.toLowerCase().trim())
         );
 
@@ -257,12 +266,13 @@ const CadastroAgentes = () => {
             </div>
 
             {/* Estatísticas */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
                     <div className="flex items-center justify-between">
                         <div>
-                            <p className="text-sm text-slate-600">Total de Agentes</p>
-                            <p className="text-2xl font-bold text-slate-800">{agentes.length}</p>
+                            <p className="text-sm text-slate-600">Exibindo</p>
+                            <p className="text-2xl font-bold text-slate-800">{agentesFiltrados.length}</p>
+
                         </div>
                         <Users className="text-blue-500" size={32} />
                     </div>
@@ -283,6 +293,16 @@ const CadastroAgentes = () => {
                             <p className="text-2xl font-bold text-blue-600">{agentesAtivos.length}</p>
                         </div>
                         <Users className="text-blue-500" size={32} />
+                    </div>
+                </div>
+
+                <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <p className="text-sm text-slate-600">Agentes Inativos</p>
+                            <p className="text-2xl font-bold text-slate-500">{agentesInativos.length}</p>
+                        </div>
+                        <UserX className="text-slate-400" size={32} />
                     </div>
                 </div>
             </div>
@@ -448,9 +468,43 @@ const CadastroAgentes = () => {
             {/* Tabela de Agentes */}
             <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                 <div className="p-4 border-b border-slate-200">
-                    <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
                         <h3 className="text-lg font-semibold text-slate-800">Lista de Agentes</h3>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
+                            {/* Filtro de Status */}
+                            <div className="flex items-center rounded-lg border border-slate-300 overflow-hidden">
+                                <button
+                                    onClick={() => setFiltroStatus('ativo')}
+                                    className={`px-3 py-2 text-sm font-medium transition-colors ${
+                                        filtroStatus === 'ativo'
+                                            ? 'bg-blue-600 text-white'
+                                            : 'bg-white text-slate-600 hover:bg-slate-50'
+                                    }`}
+                                >
+                                    Ativos
+                                </button>
+                                <button
+                                    onClick={() => setFiltroStatus('inativo')}
+                                    className={`px-3 py-2 text-sm font-medium transition-colors border-l border-slate-300 ${
+                                        filtroStatus === 'inativo'
+                                            ? 'bg-slate-600 text-white'
+                                            : 'bg-white text-slate-600 hover:bg-slate-50'
+                                    }`}
+                                >
+                                    Inativos
+                                </button>
+                                <button
+                                    onClick={() => setFiltroStatus('todos')}
+                                    className={`px-3 py-2 text-sm font-medium transition-colors border-l border-slate-300 ${
+                                        filtroStatus === 'todos'
+                                            ? 'bg-emerald-600 text-white'
+                                            : 'bg-white text-slate-600 hover:bg-slate-50'
+                                    }`}
+                                >
+                                    Todos
+                                </button>
+                            </div>
+                            {/* Busca por número */}
                             <div className="relative">
                                 <input
                                     type="text"
@@ -520,11 +574,16 @@ const CadastroAgentes = () => {
                             </thead>
                             <tbody className="divide-y divide-slate-200">
                                 {agentesFiltrados.map((agente) => (
-                                    <tr key={agente.id} className="hover:bg-slate-50">
-                                        <td className="px-4 py-3 text-sm font-medium text-slate-800">
-                                            {agente.numero_agente}
+                                    <tr key={agente.id} className={`hover:bg-slate-50 ${agente.status === 'inativo' ? 'bg-slate-50/50' : ''}`}>
+                                        <td className={`px-4 py-3 text-sm font-medium ${agente.status === 'inativo' ? 'text-slate-400' : 'text-slate-800'}`}>
+                                            <span className="flex items-center gap-2">
+                                                {agente.numero_agente}
+                                                {agente.status === 'inativo' && (
+                                                    <UserX className="w-3.5 h-3.5 text-red-400" title="Agente desligado" />
+                                                )}
+                                            </span>
                                         </td>
-                                        <td className="px-4 py-3 text-sm text-slate-600">
+                                        <td className={`px-4 py-3 text-sm ${agente.status === 'inativo' ? 'text-slate-400' : 'text-slate-600'}`}>
                                             {agente.nome || '-'}
                                         </td>
                                         <td className="px-4 py-3 text-center">

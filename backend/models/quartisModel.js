@@ -37,12 +37,21 @@ class QuartisModel {
 
         let query = '';
         let queryParams = [];
+
+        // Mapa de status dos agentes (para enriquecer resposta com info de ativo/inativo)
+        let statusMap = {};
         
         if (apenasFixos) {
-            // Buscar números dos agentes fixos da carteira
-            const agentesFixos = await AgentesModel.getNumerosFixos();
+            // Buscar TODOS os agentes fixos (ativos + inativos) para incluir desligados nos quartis
+            const agentesFixosTodos = await AgentesModel.getNumerosFixosTodos();
+            const agentesFixos = agentesFixosTodos.map(a => a.numero_agente);
             
-            console.log(`📊 Quartis - Agentes fixos encontrados: ${agentesFixos.length}`);
+            // Criar mapa de status para lookup rápido
+            agentesFixosTodos.forEach(a => {
+                statusMap[a.numero_agente] = a.status;
+            });
+            
+            console.log(`📊 Quartis - Agentes fixos encontrados: ${agentesFixos.length} (ativos: ${agentesFixosTodos.filter(a => a.status === 'ativo').length}, inativos: ${agentesFixosTodos.filter(a => a.status === 'inativo').length})`);
             if (agentesFixos.length > 0) {
                 console.log(`   Primeiros 5: ${agentesFixos.slice(0, 5).join(', ')}`);
             }
@@ -297,6 +306,21 @@ class QuartisModel {
         }
         
         console.log(`✅ Quartis definidos - Q1: ${quartil1?.length || 0}, Q2: ${quartil2?.length || 0}, Q3: ${quartil3?.length || 0}, Q4: ${quartil4?.length || 0}`);
+        
+        // Enriquecer dados dos agentes com status (ativo/inativo)
+        // Se statusMap estiver preenchido (modo apenasFixos), adicionar status a cada agente
+        const enriquecerComStatus = (lista) => {
+            if (Object.keys(statusMap).length === 0) return lista;
+            return lista.map(agente => ({
+                ...agente,
+                status: statusMap[agente.agente] || 'ativo'
+            }));
+        };
+        
+        quartil1 = enriquecerComStatus(quartil1);
+        quartil2 = enriquecerComStatus(quartil2);
+        quartil3 = enriquecerComStatus(quartil3);
+        quartil4 = enriquecerComStatus(quartil4);
         
         // Calcular estatísticas para cada quartil (baseado na quantidade de DDA)
         const calcularEstatisticas = (quartil) => {
