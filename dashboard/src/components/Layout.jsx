@@ -205,7 +205,31 @@ const Sidebar = ({ isOpen, onClose }) => {
 
 const Layout = ({ children }) => {
     const location = useLocation();
-    
+    const isQuartis = location.pathname === '/quartis';
+
+    // Horário de Campo Grande, MS (UTC-3) — cálculo a partir do UTC para funcionar igual em todos os PCs
+    const [campoGrandeTime, setCampoGrandeTime] = useState('');
+    useEffect(() => {
+        if (!isQuartis) {
+            setCampoGrandeTime('');
+            return;
+        }
+        const formatCampoGrandeTime = () => {
+            const now = new Date();
+            let h = now.getUTCHours() - 3;
+            if (h < 0) h += 24;
+            const m = now.getUTCMinutes();
+            const s = now.getUTCSeconds();
+            const pad = (n) => n.toString().padStart(2, '0');
+            return `${pad(h)}:${pad(m)}:${pad(s)}`;
+        };
+        setCampoGrandeTime(formatCampoGrandeTime());
+        const interval = setInterval(() => {
+            setCampoGrandeTime(formatCampoGrandeTime());
+        }, 1000);
+        return () => clearInterval(interval);
+    }, [isQuartis]);
+
     // Estado para controlar se o sidebar está aberto
     // Por padrão, verifica o localStorage, senão assume true (aberto)
     const [sidebarOpen, setSidebarOpen] = useState(() => {
@@ -252,6 +276,11 @@ const Layout = ({ children }) => {
                             {sidebarOpen ? <X size={24} /> : <Menu size={24} />}
                         </button>
                         <h2 className="text-lg font-semibold text-slate-800">{getPageTitle()}</h2>
+                        {isQuartis && campoGrandeTime && (
+                            <span className="text-xl text-slate-600 font-medium" title="Horário de Campo Grande, MS">
+                                {campoGrandeTime} (Campo Grande, MS)
+                            </span>
+                        )}
                     </div>
                     <div className="flex items-center gap-4">
                     </div>

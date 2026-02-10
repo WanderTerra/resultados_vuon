@@ -14,7 +14,8 @@ export default defineConfig({
       'resultados.vuon.portes.com.br',
       'api-resultados.vuon.portes.com.br',
       'localhost',
-      '127.0.0.1'
+      '127.0.0.1',
+      'localhost:5174'
     ]
   },
   build: {
