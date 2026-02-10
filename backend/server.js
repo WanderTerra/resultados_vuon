@@ -125,6 +125,11 @@ app.get('/', (req, res) => {
     res.send('Vuon Dashboard API is running');
 });
 
+// Horário do servidor (UTC) — usado pelo front para exibir mesmo horário para todos (ex.: Campo Grande MS)
+app.get('/api/server-time', (req, res) => {
+    res.json({ utc: Date.now() });
+});
+
 const server = app.listen(PORT, async () => {
     console.log(`✅ Server is running on port ${PORT}`);
     console.log(`   Health check: http://localhost:${PORT}/`);

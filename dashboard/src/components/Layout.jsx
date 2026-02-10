@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { LayoutDashboard, LogOut, BarChart3, UserPlus, TrendingUp, PieChart, Users, Menu, X, Settings, ChevronDown, ChevronRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { hasPermission } from '../utils/permissions';
+import { API_ENDPOINTS } from '../config/api';
 
 const Sidebar = ({ isOpen, onClose }) => {
     const location = useLocation();
@@ -207,15 +208,18 @@ const Layout = ({ children }) => {
     const location = useLocation();
     const isQuartis = location.pathname === '/quartis';
 
-    // Horário de Campo Grande, MS (UTC-3) — cálculo a partir do UTC para funcionar igual em todos os PCs
+    // Horário de Campo Grande, MS (UTC-3) — baseado no horário do SERVIDOR para ser igual em todos os PCs
     const [campoGrandeTime, setCampoGrandeTime] = useState('');
     useEffect(() => {
         if (!isQuartis) {
             setCampoGrandeTime('');
             return;
         }
-        const formatCampoGrandeTime = () => {
-            const now = new Date();
+        let serverUtcMs = null;
+        let receivedAtMs = null;
+
+        const formatFromUtcMs = (utcMs) => {
+            const now = new Date(utcMs);
             let h = now.getUTCHours() - 3;
             if (h < 0) h += 24;
             const m = now.getUTCMinutes();
@@ -223,11 +227,40 @@ const Layout = ({ children }) => {
             const pad = (n) => n.toString().padStart(2, '0');
             return `${pad(h)}:${pad(m)}:${pad(s)}`;
         };
-        setCampoGrandeTime(formatCampoGrandeTime());
-        const interval = setInterval(() => {
-            setCampoGrandeTime(formatCampoGrandeTime());
-        }, 1000);
-        return () => clearInterval(interval);
+
+        const syncServerTime = async () => {
+            try {
+                const res = await fetch(API_ENDPOINTS.serverTime);
+                if (res.ok) {
+                    const data = await res.json();
+                    serverUtcMs = data.utc;
+                    receivedAtMs = Date.now();
+                    setCampoGrandeTime(formatFromUtcMs(serverUtcMs));
+                }
+            } catch {
+                // Fallback: usar relógio do PC se o servidor falhar
+                serverUtcMs = null;
+                receivedAtMs = null;
+            }
+        };
+
+        const tick = () => {
+            if (serverUtcMs != null && receivedAtMs != null) {
+                const nowUtcMs = serverUtcMs + (Date.now() - receivedAtMs);
+                setCampoGrandeTime(formatFromUtcMs(nowUtcMs));
+            } else {
+                setCampoGrandeTime(formatFromUtcMs(Date.now()));
+            }
+        };
+
+        syncServerTime();
+        const intervalSync = setInterval(syncServerTime, 60 * 1000);
+        const intervalTick = setInterval(tick, 1000);
+
+        return () => {
+            clearInterval(intervalSync);
+            clearInterval(intervalTick);
+        };
     }, [isQuartis]);
 
     // Estado para controlar se o sidebar está aberto

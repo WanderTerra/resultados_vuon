@@ -32,4 +32,5 @@ export const API_ENDPOINTS = {
     agentes: `${API_BASE_URL}/api/dashboard/agentes`,
     agentesFromResultados: `${API_BASE_URL}/api/dashboard/agentes/from-resultados`,
     agenteById: (id) => `${API_BASE_URL}/api/dashboard/agentes/${id}`,
+    serverTime: `${API_BASE_URL}/api/server-time`,
 };
