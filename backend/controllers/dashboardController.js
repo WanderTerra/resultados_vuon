@@ -118,6 +118,35 @@ exports.getBlocoData = async (req, res) => {
     }
 };
 
+exports.getBlocoAcoes = async (req, res) => {
+    try {
+        const blocoParam = req.params.bloco;
+        let bloco;
+        if (blocoParam === 'wo' || blocoParam === 'WO') {
+            bloco = 'wo';
+        } else {
+            bloco = parseInt(blocoParam);
+            if (isNaN(bloco) || ![1, 2, 3].includes(bloco)) {
+                return res.status(400).json({ message: 'Bloco inválido. Use 1, 2, 3 ou wo.' });
+            }
+        }
+        const startDate = req.query.startDate || null;
+        const endDate = req.query.endDate || null;
+        const groupBy = String(req.query.groupBy || 'month').trim().toLowerCase();
+        const usePerDay = groupBy === 'day' && startDate && endDate;
+        const data = usePerDay
+            ? await BlocoModel.getAcoesPorBlocoPorDia(bloco, startDate, endDate)
+            : await BlocoModel.getAcoesPorBloco(bloco, startDate, endDate);
+        res.json(data);
+    } catch (error) {
+        console.error('Bloco acoes error:', error);
+        res.status(500).json({
+            message: 'Erro ao buscar ações do bloco',
+            error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
+    }
+};
+
 exports.getDashboardData = async (req, res) => {
     try {
         const db = await getDbConnection();

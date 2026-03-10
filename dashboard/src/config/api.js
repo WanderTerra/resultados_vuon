@@ -13,6 +13,7 @@ export const API_ENDPOINTS = {
     createUser: `${API_BASE_URL}/api/auth/create-user`,
     dashboardData: `${API_BASE_URL}/api/dashboard/data`,
     blocoData: (bloco) => `${API_BASE_URL}/api/dashboard/bloco/${bloco}`,
+    blocoAcoes: (bloco) => `${API_BASE_URL}/api/dashboard/bloco/${bloco}/acoes`,
     aloSummary: `${API_BASE_URL}/api/alo/summary`,
     aloAcoes: `${API_BASE_URL}/api/alo/acoes`,
     aloByDate: `${API_BASE_URL}/api/alo/by-date`,

@@ -1,6 +1,18 @@
 const { getDB } = require('../config/db');
 const PagamentoModel = require('./pagamentoModel');
 
+// Ações exibidas na tabela/gráfico "Ações por dia" (apenas estas colunas por dia)
+// Para filtro case-insensitive no MySQL usamos UPPER(TRIM(acao)) IN (...)
+const ACOES_POR_DIA_CANONICAL = [
+    'WHT', 'SMS', 'E-MAIL', 'URA', 'CPCA', 'CPC', 'ACORDO',
+    'CONVERSÂO ACD', 'PAGAMENTO', 'CONVERSÂO PG'
+];
+const ACOES_POR_DIA_UPPER_FILTER = [
+    'WHT', 'SMS', 'E-MAIL', 'URA', 'CPCA', 'CPC', 'ACORDO',
+    'CONVERSÂO ACD', 'PAGAMENTO', 'CONVERSÂO PG',
+    'CONVERSAO ACD', 'CONVERSAO PG', 'EMAIL' // variantes sem acento / E-MAIL
+];
+
 class BlocoModel {
     // Função auxiliar para definir o bloco baseado em dias de atraso
     // Usa atraso_real se disponível, senão usa atraso (fallback)
@@ -323,6 +335,88 @@ class BlocoModel {
         `;
         const [rows] = await db.execute(query);
         return rows;
+    }
+
+    // Ações (acao) por bloco: quantidade de cada tipo de ação no período (para exibir "o que cada bloco tem")
+    // Quando sem filtro de data, limita aos últimos 12 meses para não escanear a tabela inteira (performance)
+    static async getAcoesPorBloco(bloco, startDate = null, endDate = null) {
+        const db = await getDB();
+        const blocoCondition = this.getBlocoCondition(bloco);
+        let dateFilter = '';
+        const params = [];
+        if (startDate && endDate) {
+            dateFilter = 'AND DATE(data) >= ? AND DATE(data) <= ?';
+            params.push(startDate, endDate);
+        } else {
+            // Sem filtro: limitar aos últimos 12 meses para evitar query muito lenta
+            dateFilter = 'AND data >= DATE_SUB(CURDATE(), INTERVAL 12 MONTH)';
+        }
+        const query = `
+            SELECT 
+                COALESCE(TRIM(acao), '(vazio)') as acao,
+                COUNT(1) as total
+            FROM vuon_resultados
+            WHERE ${blocoCondition}
+                AND acao IS NOT NULL AND acao != '' AND acao != '0'
+                ${dateFilter}
+            GROUP BY TRIM(acao)
+            ORDER BY total DESC
+        `;
+        const [rows] = params.length > 0 ? await db.execute(query, params) : await db.execute(query);
+        return rows.map(r => ({ acao: r.acao, total: parseInt(r.total, 10) || 0 }));
+    }
+
+    // Ações por bloco por dia: quantidade de cada tipo de ação por data (para modo diário)
+    // Apenas as ações: WHT, SMS, E-MAIL, URA, CPCA, CPC, ACORDO, CONVERSÂO ACD, PAGAMENTO, CONVERSÂO PG
+    // Filtro case-insensitive (UPPER) para pegar SMS, E-MAIL, EMAIL, etc. independente de como está no BD
+    static async getAcoesPorBlocoPorDia(bloco, startDate, endDate) {
+        if (!startDate || !endDate) return [];
+        const db = await getDB();
+        const blocoCondition = this.getBlocoCondition(bloco);
+        const placeholders = ACOES_POR_DIA_UPPER_FILTER.map(() => '?').join(',');
+        const query = `
+            SELECT 
+                DATE(data) as data_dia,
+                TRIM(acao) as acao_raw,
+                COUNT(1) as total
+            FROM vuon_resultados
+            WHERE ${blocoCondition}
+                AND UPPER(TRIM(acao)) IN (${placeholders})
+                AND DATE(data) >= ? AND DATE(data) <= ?
+            GROUP BY 1, 2
+            ORDER BY 1 ASC, 3 DESC
+        `;
+        const params = [...ACOES_POR_DIA_UPPER_FILTER, startDate, endDate];
+        const [rows] = await db.execute(query, params);
+        const normalizeAcao = (a) => {
+            const u = (a || '').toUpperCase().replace(/\s+/g, ' ').trim();
+            if (u === 'CONVERSAO ACD') return 'CONVERSÂO ACD';
+            if (u === 'CONVERSAO PG') return 'CONVERSÂO PG';
+            if (u === 'EMAIL') return 'E-MAIL';
+            const found = ACOES_POR_DIA_CANONICAL.find(c => c.toUpperCase() === u);
+            return found != null ? found : a || '';
+        };
+        // Agregar por (data, acao normalizada) para não duplicar quando BD tem "ura" e "URA"
+        const byKey = new Map();
+        for (const r of rows) {
+            const rawDate = r.data_dia ?? r.data ?? r.DATA;
+            let dataStr = '';
+            if (rawDate) {
+                if (typeof rawDate === 'string') {
+                    dataStr = rawDate.includes('T') ? rawDate.split('T')[0] : rawDate;
+                } else {
+                    dataStr = rawDate.toISOString ? rawDate.toISOString().split('T')[0] : String(rawDate).slice(0, 10);
+                }
+            }
+            const acao = normalizeAcao(r.acao_raw ?? r.acao ?? r.ACAO ?? '');
+            const key = `${dataStr}\t${acao}`;
+            const total = parseInt(r.total, 10) || 0;
+            byKey.set(key, (byKey.get(key) || 0) + total);
+        }
+        return Array.from(byKey.entries()).map(([key, total]) => {
+            const [dataStr, acao] = key.split('\t');
+            return { data: dataStr, acao, total };
+        });
     }
 
     // Total de spins por bloco
@@ -979,7 +1073,7 @@ class BlocoModel {
             };
         });
 
-        // Buscar spins e recebimento em paralelo (queries simples)
+        // Buscar apenas spins e recebimento (acoesPorBloco é carregado em endpoint separado para não travar a tela)
         const spinsRecebimentoStart = Date.now();
         const [spins, recebimento, lastDay] = await Promise.all([
             this.getSpins(bloco, startDate, endDate),

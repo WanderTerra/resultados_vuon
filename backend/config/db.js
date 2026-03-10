@@ -6,6 +6,18 @@ const mysql = require('mysql2');
 let pool = null;
 let poolPromise = null; // Promise para evitar condições de corrida
 
+const CONNECTION_LOST_CODES = ['PROTOCOL_CONNECTION_LOST', 'ETIMEDOUT', 'ECONNRESET'];
+
+function invalidatePool() {
+    if (pool) {
+        try {
+            pool.end();
+        } catch (_) {}
+        pool = null;
+    }
+    poolPromise = null;
+}
+
 const getPool = async () => {
     // Se já existe pool, retornar imediatamente
     if (pool) {
@@ -112,6 +124,7 @@ if (!useSSHForInit) {
     // Create a wrapper that has both the promise methods and getDB
     const dbWrapper = {
         getDB: getPool,
+        invalidatePool,
         execute: (...args) => dbPromise.execute(...args),
         query: (...args) => dbPromise.query(...args),
         getConnection: (...args) => dbPromise.getConnection(...args)
@@ -119,16 +132,32 @@ if (!useSSHForInit) {
     module.exports = dbWrapper;
 } else {
     // For SSH, create a wrapper that initializes on first use
+    const { invalidateTunnel } = require('./sshTunnel');
+    const runWithRetry = async (fn) => {
+        try {
+            const db = await getPool();
+            return await fn(db);
+        } catch (err) {
+            if (CONNECTION_LOST_CODES.includes(err?.code)) {
+                console.warn('⚠️ Connection lost or timeout, invalidating pool and tunnel for retry:', err.code);
+                invalidateTunnel();
+                invalidatePool();
+                try {
+                    const db = await getPool();
+                    return await fn(db);
+                } catch (retryErr) {
+                    console.error('❌ Retry after connection lost failed:', retryErr.message);
+                    throw retryErr;
+                }
+            }
+            throw err;
+        }
+    };
     const dbWrapper = {
         getDB: getPool,
-        execute: async (...args) => {
-            const db = await getPool();
-            return db.execute(...args);
-        },
-        query: async (...args) => {
-            const db = await getPool();
-            return db.query(...args);
-        },
+        invalidatePool,
+        execute: async (...args) => runWithRetry((db) => db.execute(...args)),
+        query: async (...args) => runWithRetry((db) => db.query(...args)),
         getConnection: async (...args) => {
             const db = await getPool();
             return db.getConnection(...args);

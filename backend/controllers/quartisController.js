@@ -79,4 +79,3 @@ exports.getPosicaoQuartilPorDia = async (req, res) => {
         });
     }
 };
-

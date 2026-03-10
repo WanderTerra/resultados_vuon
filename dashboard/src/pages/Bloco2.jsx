@@ -4,7 +4,8 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsive
 import DateFilter from '../components/DateFilter';
 import Loading from '../components/Loading';
 import ClientesVirgensChart from '../components/ClientesVirgensChart';
-import { getLast3Months } from '../utils/dateUtils';
+import AcoesNoBlocoCard from '../components/AcoesNoBlocoCard';
+import { getLast3Months, getEsteMes } from '../utils/dateUtils';
 
 const Card = React.memo(({ title, children, className = "" }) => (
     <div className={`bg-white rounded-xl shadow-sm border border-slate-200 p-6 overflow-hidden ${className}`}>
@@ -118,6 +119,8 @@ const ChartContainer = React.memo(({ title, data, compareData = null }) => {
 const Bloco2 = () => {
     const [dashboardData, setDashboardData] = useState(null);
     const [compareData, setCompareData] = useState(null);
+    const [acoesPorBloco, setAcoesPorBloco] = useState([]);
+    const [acoesLoading, setAcoesLoading] = useState(false);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [filters, setFilters] = useState({
@@ -244,6 +247,25 @@ const Bloco2 = () => {
         };
     }, [filterKey, fetchBlocoData]); // Usar filterKey memoizado em vez de valores individuais
 
+    useEffect(() => {
+        if (!dashboardData?.bloco2) { setAcoesPorBloco([]); return; }
+        setAcoesLoading(true);
+        const token = localStorage.getItem('token');
+        const params = new URLSearchParams();
+        let start = filters.startDate;
+        let end = filters.endDate;
+        if (filters.groupBy === 'day' && (!start || !end)) {
+            const range = getEsteMes();
+            start = range.startDate;
+            end = range.endDate;
+        }
+        if (start) params.append('startDate', start);
+        if (end) params.append('endDate', end);
+        params.append('groupBy', 'month');
+        fetch(`${API_ENDPOINTS.blocoAcoes(2)}${params.toString() ? '?' + params.toString() : ''}`, { headers: { Authorization: `Bearer ${token}` } })
+            .then((r) => r.ok ? r.json() : []).then((data) => setAcoesPorBloco(Array.isArray(data) ? data : [])).catch(() => setAcoesPorBloco([])).finally(() => setAcoesLoading(false));
+    }, [dashboardData?.bloco2, filters.startDate, filters.endDate, filters.groupBy]);
+
     if (loading) {
         return <Loading message="Carregando dados do Bloco 2..." />;
     }
@@ -330,6 +352,11 @@ const Bloco2 = () => {
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    <AcoesNoBlocoCard
+                        data={acoesPorBloco}
+                        loading={loading}
+                        acoesLoading={acoesLoading}
+                    />
                     <ChartContainer 
                         title="Acionados x Carteira" 
                         data={dashboardData?.bloco2?.acionadosXCarteira || []} 

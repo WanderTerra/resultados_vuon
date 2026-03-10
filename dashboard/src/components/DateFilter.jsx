@@ -1,8 +1,18 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { getLast3Months, getCurrentMonth } from '../utils/dateUtils';
+import { getLast3Months, getCurrentMonth, getEstaSemana, getSemanaPassada, getEsteMes, getMesPassado } from '../utils/dateUtils';
+
+const PERIODS = [
+    { key: 'ultimos-3-meses', label: 'Últimos 3 Meses', getRange: getLast3Months },
+    { key: 'todos', label: 'Todos', getRange: () => ({ startDate: null, endDate: null }) },
+    { key: 'esta-semana', label: 'Esta Semana', getRange: getEstaSemana },
+    { key: 'semana-passada', label: 'Semana Passada', getRange: getSemanaPassada },
+    { key: 'este-mes', label: 'Este Mês', getRange: getEsteMes },
+    { key: 'mes-passado', label: 'Mês Passado', getRange: getMesPassado },
+    { key: 'personalizado', label: 'Personalizado', getRange: null }
+];
 
 // DateFilter component for filtering dashboard data by date range
-const DateFilter = ({ onFilterChange, initialStartDate = null, initialEndDate = null, initialViewMode = 'month' }) => {
+const DateFilter = ({ onFilterChange, initialStartDate = null, initialEndDate = null, initialViewMode = 'month', showPeriodQuickFilters = true }) => {
     // Calcular últimos 3 meses como padrão se não houver datas iniciais
     const defaultDates = useMemo(() => {
         if (initialStartDate && initialEndDate) {
@@ -14,18 +24,17 @@ const DateFilter = ({ onFilterChange, initialStartDate = null, initialEndDate = 
     const [viewMode, setViewMode] = useState(initialViewMode); // 'month' ou 'day'
     const [startDate, setStartDate] = useState(() => initialStartDate || defaultDates.startDate);
     const [endDate, setEndDate] = useState(() => initialEndDate || defaultDates.endDate);
+    const [activePeriod, setActivePeriod] = useState(() => (!initialStartDate && !initialEndDate) ? 'ultimos-3-meses' : 'personalizado');
     const [selectedMonth, setSelectedMonth] = useState(''); // Inicializar vazio - usuário deve selecionar
     const [error, setError] = useState('');
     const lastFilterRef = useRef(null);
     const isInternalUpdateRef = useRef(false);
     const hasInitialized = useRef(false); // Flag para garantir que só inicialize uma vez
     
-    // Sincronizar viewMode com props
+    // Sincronizar viewMode com props apenas quando o pai enviar novo initialViewMode (não quando o usuário mudar o modo)
     useEffect(() => {
-        if (initialViewMode !== viewMode) {
-            setViewMode(initialViewMode);
-        }
-    }, [initialViewMode, viewMode]);
+        setViewMode(initialViewMode);
+    }, [initialViewMode]);
     
     // Criar chave estável para sincronização de datas
     const syncDependencyKey = useMemo(() => {
@@ -158,15 +167,40 @@ const DateFilter = ({ onFilterChange, initialStartDate = null, initialEndDate = 
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [initialStartDate, initialEndDate, viewMode]); // Executar sempre que as datas iniciais ou viewMode mudarem
 
-    // Criar uma chave estável para as dependências do filtro
-    const filterDependencyKey = useMemo(() => {
-        return JSON.stringify({
-            viewMode,
-            startDate: startDate || null,
-            endDate: endDate || null,
-            selectedMonth: selectedMonth || null
-        });
-    }, [viewMode, startDate, endDate, selectedMonth]);
+    // Sincronizar activePeriod quando as datas iniciais correspondem a um período pré-definido
+    useEffect(() => {
+        if (!initialStartDate && !initialEndDate) {
+            setActivePeriod('ultimos-3-meses');
+            return;
+        }
+        if (!initialStartDate || !initialEndDate) return;
+        const last3 = getLast3Months();
+        if (initialStartDate === last3.startDate && initialEndDate === last3.endDate) {
+            setActivePeriod('ultimos-3-meses');
+            return;
+        }
+        const estaSemana = getEstaSemana();
+        if (initialStartDate === estaSemana.startDate && initialEndDate === estaSemana.endDate) {
+            setActivePeriod('esta-semana');
+            return;
+        }
+        const semanaPassada = getSemanaPassada();
+        if (initialStartDate === semanaPassada.startDate && initialEndDate === semanaPassada.endDate) {
+            setActivePeriod('semana-passada');
+            return;
+        }
+        const esteMes = getEsteMes();
+        if (initialStartDate === esteMes.startDate && initialEndDate === esteMes.endDate) {
+            setActivePeriod('este-mes');
+            return;
+        }
+        const mesPassado = getMesPassado();
+        if (initialStartDate === mesPassado.startDate && initialEndDate === mesPassado.endDate) {
+            setActivePeriod('mes-passado');
+            return;
+        }
+        setActivePeriod('personalizado');
+    }, [initialStartDate, initialEndDate]);
 
     // Inicializar com últimos 3 meses na primeira renderização se não houver datas iniciais
     useEffect(() => {
@@ -186,69 +220,40 @@ const DateFilter = ({ onFilterChange, initialStartDate = null, initialEndDate = 
             onFilterChange(filterData);
         }
     }, [initialStartDate, initialEndDate, viewMode, defaultDates, onFilterChange]);
-    
-    // Aplicar filtro quando ambas as datas estiverem preenchidas (modo mensal) ou quando mês for selecionado (modo diário)
-    useEffect(() => {
-        if (viewMode === 'day') {
-            // No modo diário, usar o mês selecionado
-            if (selectedMonth) {
-                const [year, month] = selectedMonth.split('-').map(Number);
-                const firstDay = new Date(year, month - 1, 1);
-                const lastDay = new Date(year, month, 0);
-                
-                const filterData = {
-                    startDate: firstDay.toISOString().split('T')[0],
-                    endDate: lastDay.toISOString().split('T')[0],
-                    compareMode: false,
-                    compareStartDate: null,
-                    compareEndDate: null,
-                    groupBy: 'day'
-                };
-                
-                // Só aplicar se o filtro realmente mudou
-                const filterKey = JSON.stringify(filterData);
-                if (lastFilterRef.current !== filterKey) {
-                    lastFilterRef.current = filterKey;
-                    onFilterChange(filterData);
-                }
-            }
-        } else {
-            // No modo mensal, só aplicar o filtro se ambas as datas estiverem preenchidas
-            if (startDate && endDate) {
-                const filterData = {
-                    startDate: startDate,
-                    endDate: endDate,
-                    compareMode: false,
-                    compareStartDate: null,
-                    compareEndDate: null,
-                    groupBy: 'month'
-                };
-                
-                // Só aplicar se o filtro realmente mudou
-                const filterKey = JSON.stringify(filterData);
-                if (lastFilterRef.current !== filterKey) {
-                    lastFilterRef.current = filterKey;
-                    onFilterChange(filterData);
-                }
-            }
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [filterDependencyKey]);
 
-    const handleViewModeChange = (mode) => {
-        isInternalUpdateRef.current = true;
-        setViewMode(mode);
+    // Aplicar filtro manualmente (só ao clicar em "Aplicar")
+    const applyFilter = () => {
         setError('');
-        
-        // Se mudar para modo mensal, voltar para últimos 3 meses
-        if (mode === 'month') {
-            setSelectedMonth('');
-            const last3Months = getLast3Months();
-            setStartDate(last3Months.startDate);
-            setEndDate(last3Months.endDate);
+        if (viewMode === 'day') {
+            if (!selectedMonth) {
+                setError('Selecione um mês no modo diário.');
+                return;
+            }
+            const [year, monthNum] = selectedMonth.split('-').map(Number);
+            const firstDay = new Date(year, monthNum - 1, 1);
+            const lastDay = new Date(year, monthNum, 0);
             const filterData = {
-                startDate: last3Months.startDate,
-                endDate: last3Months.endDate,
+                startDate: firstDay.toISOString().split('T')[0],
+                endDate: lastDay.toISOString().split('T')[0],
+                compareMode: false,
+                compareStartDate: null,
+                compareEndDate: null,
+                groupBy: 'day'
+            };
+            lastFilterRef.current = JSON.stringify(filterData);
+            onFilterChange(filterData);
+        } else {
+            if (!startDate || !endDate) {
+                setError('Preencha as datas inicial e final no modo mensal.');
+                return;
+            }
+            if (startDate > endDate) {
+                setError('Data inicial não pode ser maior que data final');
+                return;
+            }
+            const filterData = {
+                startDate,
+                endDate,
                 compareMode: false,
                 compareStartDate: null,
                 compareEndDate: null,
@@ -256,84 +261,69 @@ const DateFilter = ({ onFilterChange, initialStartDate = null, initialEndDate = 
             };
             lastFilterRef.current = JSON.stringify(filterData);
             onFilterChange(filterData);
+        }
+    };
+
+    const handleViewModeChange = (mode) => {
+        isInternalUpdateRef.current = true;
+        setViewMode(mode);
+        setError('');
+        if (mode === 'month') {
+            setSelectedMonth('');
+            const last3Months = getLast3Months();
+            setStartDate(last3Months.startDate);
+            setEndDate(last3Months.endDate);
         } else if (mode === 'day') {
-            // Ao mudar para modo diário, sempre buscar do mês atual automaticamente
             const mesAtual = getCurrentMonth();
             setSelectedMonth(mesAtual);
             setStartDate('');
             setEndDate('');
-            
-            const [year, monthNum] = mesAtual.split('-').map(Number);
-            const firstDay = new Date(year, monthNum - 1, 1);
-            const lastDay = new Date(year, monthNum, 0);
-            
-            const filterData = {
-                startDate: firstDay.toISOString().split('T')[0],
-                endDate: lastDay.toISOString().split('T')[0],
-                compareMode: false,
-                compareStartDate: null,
-                compareEndDate: null,
-                groupBy: 'day'
-            };
-            lastFilterRef.current = JSON.stringify(filterData);
-            onFilterChange(filterData);
         }
     };
     
     const handleMonthChange = (e) => {
-        const month = e.target.value;
-        console.log('📅 DateFilter - handleMonthChange chamado');
-        console.log('📅 DateFilter - Valor do input:', e.target.value);
-        console.log('📅 DateFilter - selectedMonth atual:', selectedMonth);
-        
-        // Não marcar como atualização interna aqui - queremos que o useEffect sincronize depois
-        setSelectedMonth(month);
-        console.log('📅 DateFilter - selectedMonth atualizado para:', month);
-        
-        // Aplicar filtro imediatamente quando o mês mudar no modo diário
-        if (viewMode === 'day' && month) {
-            const [year, monthNum] = month.split('-').map(Number);
-            const firstDay = new Date(year, monthNum - 1, 1);
-            const lastDay = new Date(year, monthNum, 0);
-            
-            const filterData = {
-                startDate: firstDay.toISOString().split('T')[0],
-                endDate: lastDay.toISOString().split('T')[0],
-                compareMode: false,
-                compareStartDate: null,
-                compareEndDate: null,
-                groupBy: 'day'
-            };
-            
-            console.log('📊 DateFilter - Aplicando filtro diário:', filterData);
-            lastFilterRef.current = JSON.stringify(filterData);
-            onFilterChange(filterData);
-            // Não marcar como atualização interna - deixar o useEffect sincronizar quando as datas chegarem
-        }
+        setSelectedMonth(e.target.value);
+        setError('');
     };
 
     const handleStartDateChange = (e) => {
         const date = e.target.value;
         isInternalUpdateRef.current = true;
         setStartDate(date);
+        setActivePeriod('personalizado');
         setError('');
-
-        // Validar se data inicial é maior que final
-        if (date && endDate && date > endDate) {
-            setError('Data inicial não pode ser maior que data final');
-        }
+        if (date && endDate && date > endDate) setError('Data inicial não pode ser maior que data final');
     };
 
     const handleEndDateChange = (e) => {
         const date = e.target.value;
         isInternalUpdateRef.current = true;
         setEndDate(date);
+        setActivePeriod('personalizado');
         setError('');
+        if (startDate && date && startDate > date) setError('Data inicial não pode ser maior que data final');
+    };
 
-        // Validar se data inicial é maior que final
-        if (startDate && date && startDate > date) {
-            setError('Data inicial não pode ser maior que data final');
+    const handlePeriodClick = (periodKey) => {
+        setActivePeriod(periodKey);
+        if (periodKey === 'personalizado') return;
+        isInternalUpdateRef.current = true;
+        const period = PERIODS.find((p) => p.key === periodKey);
+        if (!period?.getRange) return;
+        const { startDate: s, endDate: e } = period.getRange();
+
+        if (periodKey === 'mes-passado' || periodKey === 'este-mes') {
+            setViewMode('day');
+            const monthStr = s ? s.slice(0, 7) : getCurrentMonth();
+            setSelectedMonth(monthStr);
+            setStartDate(s || '');
+            setEndDate(e || '');
+            return;
         }
+
+        setViewMode('month');
+        setStartDate(s || '');
+        setEndDate(e || '');
     };
 
     const clearFilter = () => {
@@ -358,6 +348,7 @@ const DateFilter = ({ onFilterChange, initialStartDate = null, initialEndDate = 
             const last3Months = getLast3Months();
             setStartDate(last3Months.startDate);
             setEndDate(last3Months.endDate);
+            setActivePeriod('ultimos-3-meses');
             setError('');
             const filterData = {
                 startDate: last3Months.startDate,
@@ -376,19 +367,48 @@ const DateFilter = ({ onFilterChange, initialStartDate = null, initialEndDate = 
     const hasActiveFilters = viewMode === 'day' ? selectedMonth : (startDate && endDate);
 
     return (
-        <div className="bg-gradient-to-r from-slate-50 to-blue-50 rounded-xl shadow-md border border-slate-200 p-5 mb-6">
-            <div className="flex flex-wrap items-center gap-4">
-                {/* Seletor de Modo */}
-                <div className="flex items-center gap-3">
-                    <label className="text-sm font-semibold text-slate-700 whitespace-nowrap">Modo:</label>
-                    <div className="flex gap-2 bg-white rounded-lg p-1 border border-slate-200 shadow-sm">
+        <div className="bg-gradient-to-r from-slate-50 to-blue-50 rounded-xl shadow-md border border-slate-200 p-6 mb-6">
+            {/* Título e atalhos de período — só no modo mensal */}
+            {showPeriodQuickFilters && viewMode === 'month' && (
+                <div className="mb-5">
+                    <label className="text-xs font-semibold uppercase tracking-wider text-slate-500 flex items-center gap-2 mb-3">
+                        <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                        Atalhos de período
+                    </label>
+                    <div className="flex flex-wrap gap-2">
+                        {PERIODS.map((p) => (
+                            <button
+                                key={p.key}
+                                type="button"
+                                onClick={() => handlePeriodClick(p.key)}
+                                className={`px-3 py-2 text-sm rounded-lg border font-medium transition-colors ${
+                                    activePeriod === p.key
+                                        ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                                        : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:border-slate-300'
+                                }`}
+                            >
+                                {p.label}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {/* Modo + Período + Ações em uma linha organizada */}
+            <div className="flex flex-wrap items-end gap-6">
+                {/* Modo */}
+                <div className="flex flex-col gap-2">
+                    <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Modo</span>
+                    <div className="flex rounded-lg overflow-hidden border border-slate-200 bg-white shadow-sm">
                         <button
                             type="button"
                             onClick={() => handleViewModeChange('month')}
-                            className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                            className={`px-4 py-2.5 text-sm font-medium transition-colors ${
                                 viewMode === 'month'
-                                    ? 'bg-blue-600 text-white shadow-sm'
-                                    : 'text-slate-700 hover:bg-slate-50'
+                                    ? 'bg-blue-600 text-white'
+                                    : 'bg-white text-slate-600 hover:bg-slate-50'
                             }`}
                         >
                             Mensal
@@ -396,10 +416,10 @@ const DateFilter = ({ onFilterChange, initialStartDate = null, initialEndDate = 
                         <button
                             type="button"
                             onClick={() => handleViewModeChange('day')}
-                            className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                            className={`px-4 py-2.5 text-sm font-medium transition-colors border-l border-slate-200 ${
                                 viewMode === 'day'
-                                    ? 'bg-blue-600 text-white shadow-sm'
-                                    : 'text-slate-700 hover:bg-slate-50'
+                                    ? 'bg-blue-600 text-white'
+                                    : 'bg-white text-slate-600 hover:bg-slate-50'
                             }`}
                         >
                             Diário
@@ -409,34 +429,31 @@ const DateFilter = ({ onFilterChange, initialStartDate = null, initialEndDate = 
 
                 {/* Período - Modo Mensal */}
                 {viewMode === 'month' && (
-                    <div className="flex items-center gap-2 bg-white rounded-lg px-4 py-3 border border-slate-200 shadow-sm">
-                        <svg className="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                        </svg>
-                        <input
-                            type="date"
-                            value={startDate}
-                            onChange={handleStartDateChange}
-                            className="px-3 py-1.5 border border-slate-300 rounded-md text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        />
-                        <span className="text-slate-500">até</span>
-                        <input
-                            type="date"
-                            value={endDate}
-                            onChange={handleEndDateChange}
-                            min={startDate || ''}
-                            className="px-3 py-1.5 border border-slate-300 rounded-md text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        />
+                    <div className="flex flex-col gap-2">
+                        <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Período</span>
+                        <div className="flex items-center gap-2 bg-white rounded-lg border border-slate-200 shadow-sm px-3 py-2 w-fit h-10">
+                            <input
+                                type="date"
+                                value={startDate}
+                                onChange={handleStartDateChange}
+                                className="w-[140px] px-2.5 py-2 border border-slate-200 rounded-md text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            />
+                            <span className="text-slate-400 font-medium text-sm">até</span>
+                            <input
+                                type="date"
+                                value={endDate}
+                                onChange={handleEndDateChange}
+                                min={startDate || ''}
+                                className="w-[140px] px-2.5 py-2 border border-slate-200 rounded-md text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            />
+                        </div>
                     </div>
                 )}
-                
-                {/* Seletor de Mês - Modo Diário */}
+
+                {/* Período - Modo Diário */}
                 {viewMode === 'day' && (
-                    <div className="flex items-center gap-2 bg-white rounded-lg px-4 py-3 border border-slate-200 shadow-sm">
-                        <svg className="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                        </svg>
-                        <label className="text-sm font-medium text-slate-700 whitespace-nowrap">Mês:</label>
+                    <div className="flex flex-col gap-2">
+                        <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Mês</span>
                         <input
                             type="month"
                             id="month-selector"
@@ -444,35 +461,47 @@ const DateFilter = ({ onFilterChange, initialStartDate = null, initialEndDate = 
                             key={`month-input-${selectedMonth}`}
                             value={selectedMonth || ''}
                             onChange={handleMonthChange}
-                            className="px-3 py-1.5 border border-slate-300 rounded-md text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            className="px-3 py-2.5 border border-slate-200 rounded-lg text-sm text-slate-700 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 min-w-[160px]"
                         />
-                        {/* Debug: mostrar o valor atual do selectedMonth */}
-                        {process.env.NODE_ENV === 'development' && (
-                            <span className="text-xs text-slate-400 ml-2">({selectedMonth || 'vazio'})</span>
-                        )}
                     </div>
                 )}
 
-                {/* Mensagem de Erro */}
-                {error && (
-                    <div className="px-3 py-2 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
-                        {error}
-                    </div>
-                )}
-
-                {/* Botão Limpar */}
-                {hasActiveFilters && (
+                {/* Botões de ação */}
+                <div className="flex items-center gap-2 ml-auto">
                     <button
-                        onClick={clearFilter}
-                        className="ml-auto flex items-center gap-2 px-4 py-2 text-sm font-semibold text-slate-600 bg-white hover:bg-slate-50 border border-slate-300 rounded-lg transition-all shadow-sm hover:shadow"
+                        type="button"
+                        onClick={applyFilter}
+                        className="flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-sm hover:shadow transition-all"
                     >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                         </svg>
-                        Limpar Filtros
+                        Aplicar
                     </button>
-                )}
+                    {hasActiveFilters && (
+                        <button
+                            type="button"
+                            onClick={clearFilter}
+                            className="flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-slate-600 bg-white hover:bg-slate-50 border border-slate-200 rounded-lg transition-all"
+                        >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                            Limpar
+                        </button>
+                    )}
+                </div>
             </div>
+
+            {/* Mensagem de erro */}
+            {error && (
+                <div className="mt-4 px-4 py-2.5 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700 flex items-center gap-2">
+                    <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    {error}
+                </div>
+            )}
         </div>
     );
 };

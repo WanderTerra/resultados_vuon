@@ -35,3 +35,43 @@ export const getCurrentMonth = () => {
     return `${year}-${month}`;
 };
 
+const toYYYYMMDD = (d) => d.toISOString().split('T')[0];
+
+/** Esta semana: domingo a hoje */
+export const getEstaSemana = () => {
+    const today = new Date();
+    const day = today.getDay();
+    const start = new Date(today);
+    start.setDate(today.getDate() - day);
+    start.setHours(0, 0, 0, 0);
+    return { startDate: toYYYYMMDD(start), endDate: toYYYYMMDD(today) };
+};
+
+/** Semana passada: domingo a sábado */
+export const getSemanaPassada = () => {
+    const today = new Date();
+    const day = today.getDay();
+    const lastSunday = new Date(today);
+    lastSunday.setDate(today.getDate() - day - 7);
+    lastSunday.setHours(0, 0, 0, 0);
+    const lastSaturday = new Date(lastSunday);
+    lastSaturday.setDate(lastSunday.getDate() + 6);
+    return { startDate: toYYYYMMDD(lastSunday), endDate: toYYYYMMDD(lastSaturday) };
+};
+
+/** Este mês: primeiro ao último dia do mês */
+export const getEsteMes = () => {
+    const today = new Date();
+    const start = new Date(today.getFullYear(), today.getMonth(), 1);
+    const end = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+    return { startDate: toYYYYMMDD(start), endDate: toYYYYMMDD(end) };
+};
+
+/** Mês passado: primeiro ao último dia */
+export const getMesPassado = () => {
+    const today = new Date();
+    const start = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+    const end = new Date(today.getFullYear(), today.getMonth(), 0);
+    return { startDate: toYYYYMMDD(start), endDate: toYYYYMMDD(end) };
+};
+

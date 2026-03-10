@@ -33,7 +33,7 @@ const Sidebar = ({ isOpen, onClose }) => {
     };
 
     // Dropdown de configuração
-    const [configOpen, setConfigOpen] = useState(true);
+    const [configOpen, setConfigOpen] = useState(false);
     const toggleConfig = () => {
         setConfigOpen((prev) => !prev);
     };
@@ -84,7 +84,7 @@ const Sidebar = ({ isOpen, onClose }) => {
                     className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${isActive('/') ? 'bg-blue-600 text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
                 >
                     <LayoutDashboard size={20} />
-                    <span className="font-medium">Dashboard</span>
+                    <span className="text-base font-medium">Dashboard</span>
                 </Link>
                 <Link
                     to="/bloco1"
@@ -92,7 +92,7 @@ const Sidebar = ({ isOpen, onClose }) => {
                     className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${isActive('/bloco1') ? 'bg-blue-600 text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
                 >
                     <BarChart3 size={20} />
-                    <span className="font-medium">Bloco 1</span>
+                    <span className="text-base font-medium">Bloco 1</span>
                 </Link>
                 <Link
                     to="/bloco2"
@@ -100,7 +100,7 @@ const Sidebar = ({ isOpen, onClose }) => {
                     className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${isActive('/bloco2') ? 'bg-blue-600 text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
                 >
                     <BarChart3 size={20} />
-                    <span className="font-medium">Bloco 2</span>
+                    <span className="text-base font-medium">Bloco 2</span>
                 </Link>
                 <Link
                     to="/bloco3"
@@ -108,7 +108,7 @@ const Sidebar = ({ isOpen, onClose }) => {
                     className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${isActive('/bloco3') ? 'bg-blue-600 text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
                 >
                     <BarChart3 size={20} />
-                    <span className="font-medium">Bloco 3</span>
+                    <span className="text-base font-medium">Bloco 3</span>
                 </Link>
                 <Link
                     to="/wo"
@@ -116,7 +116,7 @@ const Sidebar = ({ isOpen, onClose }) => {
                     className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${isActive('/wo') ? 'bg-red-600 text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
                 >
                     <BarChart3 size={20} />
-                    <span className="font-medium">WO</span>
+                    <span className="text-base font-medium">WO</span>
                 </Link>
                 <Link
                     to="/comparativo"
@@ -124,7 +124,7 @@ const Sidebar = ({ isOpen, onClose }) => {
                     className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${isActive('/comparativo') ? 'bg-blue-600 text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
                 >
                     <TrendingUp size={20} />
-                    <span className="font-medium">Comparativo</span>
+                    <span className="text-base font-medium">Comparativo</span>
                 </Link>
                 <Link
                     to="/quartis"
@@ -132,7 +132,7 @@ const Sidebar = ({ isOpen, onClose }) => {
                     className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${isActive('/quartis') ? 'bg-blue-600 text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
                 >
                     <PieChart size={20} />
-                    <span className="font-medium">Quartis de DDA</span>
+                    <span className="text-base font-medium">Quartis de DDA</span>
                 </Link>
                 {isAdmin() && (
                     <div className="mt-2">
@@ -140,20 +140,16 @@ const Sidebar = ({ isOpen, onClose }) => {
                         <button
                             type="button"
                             onClick={toggleConfig}
-                            className={`w-full flex items-center justify-between px-4 py-3 rounded-lg transition-colors ${
-                                configOpen
-                                    ? 'bg-blue-600 text-white'
-                                    : 'text-slate-400 hover:bg-slate-800 hover:text-white'
-                            }`}
+                            className="w-full flex items-center justify-between px-4 py-3 rounded-lg transition-colors text-slate-400 hover:bg-slate-800 hover:text-white"
                         >
                             <span className="flex items-center gap-3">
-                                <Settings size={20} className={configOpen ? 'text-white' : 'text-slate-400'} />
-                                <span className="text-sm font-medium">Configuração</span>
+                                <Settings size={20} className="shrink-0" />
+                                <span className="text-base font-medium">Configuração</span>
                             </span>
                             {configOpen ? (
-                                <ChevronDown size={16} className="text-slate-400" />
+                                <ChevronDown size={16} className="shrink-0" />
                             ) : (
-                                <ChevronRight size={16} className="text-slate-400" />
+                                <ChevronRight size={16} className="shrink-0" />
                             )}
                         </button>
 
@@ -170,7 +166,7 @@ const Sidebar = ({ isOpen, onClose }) => {
                                     }`}
                                 >
                                     <UserPlus size={18} />
-                                    <span className="text-sm font-medium">Cadastrar Usuário</span>
+                                    <span className="text-base font-medium">Cadastrar Usuário</span>
                                 </Link>
                                 <Link
                                     to="/cadastro-agentes"
@@ -182,7 +178,7 @@ const Sidebar = ({ isOpen, onClose }) => {
                                     }`}
                                 >
                                     <Users size={18} />
-                                    <span className="text-sm font-medium">Cadastrar Agentes</span>
+                                    <span className="text-base font-medium">Cadastrar Agentes</span>
                                 </Link>
                             </div>
                         )}
@@ -196,7 +192,7 @@ const Sidebar = ({ isOpen, onClose }) => {
                     className="w-full flex items-center gap-3 px-4 py-3 text-slate-400 hover:bg-red-900/20 hover:text-red-400 rounded-lg transition-colors"
                 >
                     <LogOut size={20} />
-                    <span>Sair</span>
+                    <span className="text-base">Sair</span>
                 </button>
             </div>
         </div>

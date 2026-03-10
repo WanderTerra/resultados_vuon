@@ -13,6 +13,8 @@ router.get('/data', dashboardController.getDashboardData);
 
 // Rota otimizada para buscar dados de um bloco específico
 router.get('/bloco/:bloco', dashboardController.getBlocoData);
+// Ações por bloco (carregamento separado para não travar a tela)
+router.get('/bloco/:bloco/acoes', dashboardController.getBlocoAcoes);
 
 // Rotas de recebimento
 router.get('/recebimento/bloco/:bloco', pagamentoController.getRecebimentoPorBloco);
